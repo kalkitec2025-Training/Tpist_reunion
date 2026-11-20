@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Election Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#F4F5F8; --ink:#14161C; --muted:#5D6270; --line:#E3E5EB; --blue:#2B4ACB; --ok:#1F7A4D; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:Inter, system-ui, sans-serif; font-size:14px; }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:14px 24px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; position:sticky; top:0; z-index:5; }
+  header .t { font-weight:700; font-size:16px; } header .s { color:var(--muted); font-size:13px; }
+  .pill { font-size:12px; font-weight:600; padding:6px 10px; border-radius:99px; }
+  .pill.on { background:#E5F5EC; color:var(--ok); } .pill.off { background:#FDECEC; color:#B42318; }
+  main { max-width:1240px; margin:0 auto; padding:20px; display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:20px; align-items:start; }
+  @media (max-width:900px) { main { grid-template-columns:minmax(0,1fr); padding:12px; } .span2, .span3 { grid-column:auto !important; } }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .span2 { grid-column:span 2; } .span3 { grid-column:span 3; }
+  h2 { margin:0 0 4px; font-size:15px; } .hint { color:var(--muted); font-size:13px; line-height:1.5; margin:0 0 12px; }
+  .f2 { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  input[type=text], input[type=number], input[type=datetime-local], select { width:100%; height:40px; border:1px solid #D5D8E0; border-radius:8px; padding:0 10px; font:500 14px Inter, sans-serif; background:#fff; color:var(--ink); }
+  input[type=file] { font-size:13px; width:100%; }
+  .check { display:flex; align-items:center; gap:8px; color:var(--ink); font-size:14px; font-weight:600; margin:0; }
+  .check input { width:18px; height:18px; accent-color:var(--blue); }
+  button { font:600 13px Inter, sans-serif; height:38px; padding:0 14px; border-radius:8px; border:1px solid #D5D8E0; background:#fff; color:var(--ink); cursor:pointer; }
+  button.primary { background:var(--blue); border-color:var(--blue); color:#fff; }
+  button.dark { background:var(--ink); border-color:var(--ink); color:#fff; }
+  button.danger { color:#B42318; border-color:#F3C7C3; }
+  .btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .info { background:var(--bg); border-radius:10px; padding:12px; font-size:13px; line-height:1.6; margin-top:12px; }
+  .cand { display:grid; grid-template-columns:56px minmax(0,1.3fr) 110px minmax(0,2fr); gap:14px; align-items:center; padding:14px 0; border-top:1px solid #EEF0F4; }
+  .cand:first-child { border-top:0; }
+  @media (max-width:700px) { .cand { grid-template-columns:56px minmax(0,1fr) 90px; } .cand .adj { grid-column:1 / -1; } }
+  .cand img, .cand .ph { width:52px; height:52px; border-radius:10px; object-fit:cover; object-position:top; background:#EEF0F4; }
+  .cand .nm { font-weight:600; } .cand .sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .cand .v { font-size:24px; font-weight:700; } .cand .v small { display:block; font-size:11px; color:var(--muted); font-weight:500; }
+  .adj { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .adj button { min-width:46px; padding:0 8px; }
+  .tag { font-size:11px; font-weight:600; padding:4px 8px; border-radius:6px; }
+  .tag.vid { background:#E5F5EC; color:var(--ok); } .tag.novid { background:#EAEEFC; color:var(--blue); } .tag.fav { background:#FFF1E6; color:#C2410C; }
+  details { grid-column:1 / -1; } summary { cursor:pointer; color:var(--blue); font-size:13px; font-weight:600; }
+  details form { margin-top:10px; display:grid; gap:10px; grid-template-columns:repeat(3, minmax(0,1fr)); align-items:end; }
+  @media (max-width:700px) { details form { grid-template-columns:minmax(0,1fr); } }
+  .hist { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:10px; }
+  .hist div { background:var(--bg); border-radius:10px; padding:12px; }
+  .hist .tm { font-size:12px; color:var(--muted); } .hist .ld { font-weight:700; margin-top:4px; } .hist .sc { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.5; }
+  progress { width:100%; height:8px; }
+  #login { max-width:360px; margin:80px auto; }
+  .hidden { display:none !important; }
+  .toast { position:fixed; top:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 16px; border-radius:99px; font-size:13px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:20; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<div class="card" id="login">
+  <h2>Admin login</h2>
+  <p class="hint">Enter the admin password set on the server.</p>
+  <label for="pw">Password</label>
+  <input type="password" id="pw" autocomplete="current-password">
+  <div class="btns"><button class="primary" id="loginBtn">Log in</button></div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <div><div class="t">Election Admin</div><div class="s" id="hdrSub"></div></div>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+      <span class="pill" id="openPill"></span>
+      <a href="/" target="_blank"><button>View public page ↗</button></a>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center">
+        <h2>Auto-voting</h2>
+        <label class="check"><input type="checkbox" id="aOn"> On</label>
+      </div>
+      <p class="hint">The script moves the numbers every update. The total climbs to the target, then votes keep shifting between people.</p>
+      <div class="f2">
+        <div><label for="aCap">Target total votes</label><input type="number" id="aCap" min="1"></div>
+        <div><label for="aInt">Update every (minutes)</label><input type="number" id="aInt" min="1"></div>
+        <div><label for="aFav">Always ends on top</label><select id="aFav"></select></div>
+        <div><label for="aDip">Dip to 2nd every … updates</label><input type="number" id="aDip" min="0"></div>
+        <div><label for="aMin">New votes per update (min)</label><input type="number" id="aMin" min="0"></div>
+        <div><label for="aMax">New votes per update (max)</label><input type="number" id="aMax" min="0"></div>
+        <div><label for="aStart">Votes at the start</label><input type="number" id="aStart" min="0"></div>
+        <div><label for="aAfter">After reaching the target</label><select id="aAfter"><option value="shuffle">Keep shifting</option><option value="hold">Freeze</option></select></div>
+      </div>
+      <div class="info" id="aInfo"></div>
+      <div class="btns">
+        <button class="primary" id="aSave">Save</button>
+        <button id="aStep">Run next update now</button>
+        <button class="danger" id="aRestart">Restart from now</button>
+      </div>
+      <p class="hint" style="margin-top:10px">Changing the favourite, rates or start votes recalculates the whole story, so numbers on the page can jump. Set these before you share the link. Set "Dip every" to 0 for no dips.</p>
+    </section>
+
+    <section class="card span2">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap">
+        <div><h2>Candidates</h2><p class="hint" style="margin:0">Buttons add or remove votes on top of the script (they stay until you clear them).</p></div>
+      </div>
+      <div id="cands" style="margin-top:8px"></div>
+      <details style="margin-top:14px; border-top:1px solid #EEF0F4; padding-top:14px">
+        <summary>+ Add a candidate</summary>
+        <form id="addForm">
+          <div><label>Name</label><input type="text" name="name" required></div>
+          <div><label>Photo</label><input type="file" name="photo" accept="image/*"></div>
+          <progress class="hidden" max="100" value="0" style="grid-column:1/-1"></progress>
+          <div><button class="dark" type="submit">Add candidate</button></div>
+        </form>
+      </details>
+    </section>
+
+    <section class="card span3">
+      <h2>Update history</h2>
+      <p class="hint">What the public page showed at each update (scripted counts, before manual adjustments).</p>
+      <div class="hist" id="hist"></div>
+    </section>
+
+    <section class="card span2">
+      <h2>Reunion details</h2>
+      <p class="hint">Shown on the public page.</p>
+      <div class="f2">
+        <div style="grid-column:1/-1"><label for="sTitle">Headline</label><input type="text" id="sTitle"></div>
+        <div><label for="sCollege">College name</label><input type="text" id="sCollege"></div>
+        <div><label for="sDate">Reunion date (text)</label><input type="text" id="sDate"></div>
+        <div><label for="sClose">Voting closes at (countdown)</label><input type="datetime-local" id="sClose"></div>
+      </div>
+      <div class="btns" style="align-items:center">
+        <label class="check"><input type="checkbox" id="sOpen"> Voting open</label>
+        <button class="primary" id="sSave">Save details</button>
+      </div>
+    </section>
+
+    <section class="card span3">
+      <h2>Venue poll</h2>
+      <p class="hint">Scripted like the main count, climbing to the venue target (set below), with no favourite. Buttons add or remove votes on top.</p>
+      <div style="max-width:240px; margin-bottom:8px"><label for="aVcap">Venue poll target total</label><input type="number" id="aVcap" min="0"></div>
+      <div id="venuesAdm"></div>
+    </section>
+
+    <section class="card">
+      <h2>Real votes</h2>
+      <p class="hint">Genuine clicks from batchmates. Only you see these; the public numbers follow the script.</p>
+      <div id="real"></div>
+      <div class="btns"><button class="danger" id="realReset">Clear real votes</button></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let PW = sessionStorage.getItem('pw') || '';
+let S = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const when = t => t ? new Date(t).toLocaleString('en-IN', { weekday:'short', hour:'numeric', minute:'2-digit' }) : '—';
+function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
+
+async function api(url, opts = {}) {
+  opts.headers = { ...(opts.headers || {}), 'x-admin-password': PW };
+  if (opts.json !== undefined) { opts.body = JSON.stringify(opts.json); opts.headers['Content-Type'] = 'application/json'; delete opts.json; }
+  const r = await fetch(url, opts);
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401) { sessionStorage.removeItem('pw'); $('app').classList.add('hidden'); $('login').classList.remove('hidden'); throw new Error('Wrong password'); }
+  if (!r.ok) throw new Error(d.error || 'Request failed');
+  return d;
+}
+function sendForm(url, method, form) {
+  const fd = new FormData(form);
+  for (const k of ['photo']) { const f = fd.get(k); if (!f || !f.size) fd.delete(k); }
+  const prog = form.querySelector('progress');
+  return new Promise((ok, bad) => {
+    const x = new XMLHttpRequest(); x.open(method, url); x.setRequestHeader('x-admin-password', PW);
+    prog.classList.remove('hidden'); prog.value = 0;
+    x.upload.onprogress = e => { if (e.lengthComputable) prog.value = e.loaded / e.total * 100; };
+    x.onload = () => { prog.classList.add('hidden'); let d = {}; try { d = JSON.parse(x.responseText); } catch {} x.status < 300 ? ok(d) : bad(new Error(d.error || 'Upload failed')); };
+    x.onerror = () => { prog.classList.add('hidden'); bad(new Error('Network error')); };
+    x.send(fd);
+  });
+}
+
+async function login() {
+  PW = $('pw').value;
+  try { await api('/api/admin/login', { method:'POST' }); sessionStorage.setItem('pw', PW); start(); } catch (e) { toast(e.message); }
+}
+$('loginBtn').onclick = login;
+$('pw').addEventListener('keydown', e => e.key === 'Enter' && login());
+function start() { $('login').classList.add('hidden'); $('app').classList.remove('hidden'); load(true); }
+
+async function load(fillForms) {
+  S = await api('/api/admin/state');
+  const a = S.auto, st = S.settings;
+  $('hdrSub').textContent = `${S.total} votes on the public page · ${S.realVoterCount} real voter${S.realVoterCount === 1 ? '' : 's'}`;
+  $('openPill').textContent = st.votingOpen ? 'Voting open' : 'Voting closed';
+  $('openPill').className = 'pill ' + (st.votingOpen ? 'on' : 'off');
+
+  if (fillForms) {
+    $('aOn').checked = a.on; $('aCap').value = a.cap; $('aInt').value = a.intervalMin; $('aDip').value = a.dipEvery;
+    $('aVcap').value = a.venueCap; $('aMin').value = a.rateMin; $('aMax').value = a.rateMax; $('aStart').value = a.startTotal; $('aAfter').value = a.afterCap;
+    $('aFav').innerHTML = S.candidates.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+    $('aFav').value = a.favoriteId;
+    $('sTitle').value = st.title; $('sCollege').value = st.collegeName;
+    $('sDate').value = st.eventDate; $('sOpen').checked = st.votingOpen;
+    if (st.closesAt) { const d = new Date(st.closesAt); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); $('sClose').value = d.toISOString().slice(0, 16); } else $('sClose').value = '';
+  }
+
+  $('aInfo').innerHTML = a.on
+    ? `<strong>Last update:</strong> ${when(S.updatedAt)}<br><strong>Next update:</strong> ${when(S.nextUpdateAt)}<br><strong>Reaches ${a.cap}:</strong> ${S.capAt ? (S.capAt <= Date.now() ? 'already reached' : when(S.capAt)) : 'not within 400 updates'}`
+    : '<strong>Paused.</strong> Numbers are frozen until you switch auto-voting back on.';
+
+  $('cands').innerHTML = S.candidates.map(c => `
+    <div class="cand">
+      ${c.photo ? `<img src="${esc(c.photo)}" alt="">` : '<div class="ph"></div>'}
+      <div>
+        <div class="nm">${esc(c.name)}</div>
+        <div class="sub" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px">
+          ${c.id === a.favoriteId ? '<span class="tag fav">Favourite</span>' : ''}
+        </div>
+      </div>
+      <div class="v">${c.votes}<small>${c.offset ? `script ${c.scripted} ${c.offset > 0 ? '+' : '−'} ${Math.abs(c.offset)} manual` : 'from script'}</small></div>
+      <div class="adj">
+        <button data-adj="${c.id}" data-d="-10">−10</button><button data-adj="${c.id}" data-d="-1">−1</button>
+        <button data-adj="${c.id}" data-d="1">+1</button><button data-adj="${c.id}" data-d="10">+10</button>
+        ${c.offset ? `<button data-clear="${c.id}">Clear</button>` : ''}
+      </div>
+      <details>
+        <summary>Edit name or photo</summary>
+        <form data-edit="${c.id}">
+          <div><label>Name</label><input type="text" name="name" value="${esc(c.name)}"></div>
+          <div><label>New photo</label><input type="file" name="photo" accept="image/*"></div>
+          <progress class="hidden" max="100" value="0" style="grid-column:1/-1"></progress>
+          <div style="display:flex; gap:8px"><button class="primary" type="submit">Save</button><button type="button" class="danger" data-del="${c.id}">Delete</button></div>
+        </form>
+      </details>
+    </div>`).join('');
+
+  $('hist').innerHTML = S.history.map(h => `
+    <div><div class="tm">${when(h.at)}</div><div class="ld">${esc(h.leader)} leads</div>
+    <div class="sc">${h.counts.map(x => `${esc(x.name.split(' ')[0])} ${x.votes}`).join(' · ')}</div></div>`).join('');
+
+  const line = (n, v) => `<div style="display:flex; justify-content:space-between; padding:6px 0; border-top:1px solid #EEF0F4"><span>${esc(n)}</span><strong>${v || 0}</strong></div>`;
+  $('real').innerHTML = '<div class="hint" style="margin:0 0 4px">Coordinator</div>' + S.candidates.map(c => line(c.name, S.realVotes[c.id])).join('')
+    + '<div class="hint" style="margin:12px 0 4px">Venue</div>' + S.venues.map(v => line(v.name, S.realVenueVotes[v.id])).join('');
+  $('venuesAdm').innerHTML = S.venues.map(v => `
+    <div class="cand" style="grid-template-columns:minmax(0,1.5fr) 110px minmax(0,2fr)">
+      <div><div class="nm">${esc(v.name)}</div><div class="sub">${esc(v.area)}</div></div>
+      <div class="v">${v.votes}<small>${v.offset ? `${v.offset > 0 ? '+' : '−'}${Math.abs(v.offset)} manual` : 'from script'}</small></div>
+      <div class="adj">
+        <button data-vadj="${v.id}" data-d="-10">−10</button><button data-vadj="${v.id}" data-d="-1">−1</button>
+        <button data-vadj="${v.id}" data-d="1">+1</button><button data-vadj="${v.id}" data-d="10">+10</button>
+        ${v.offset ? `<button data-vclear="${v.id}">Clear</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+const run = fn => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message); } };
+
+$('aSave').onclick = run(async () => {
+  await api('/api/admin/auto', { method:'PUT', json:{ on:$('aOn').checked, cap:+$('aCap').value, intervalMin:+$('aInt').value, favoriteId:$('aFav').value, dipEvery:+$('aDip').value, rateMin:+$('aMin').value, rateMax:+$('aMax').value, startTotal:+$('aStart').value, afterCap:$('aAfter').value, venueCap:+$('aVcap').value } });
+  toast('Auto-voting saved'); load(true);
+});
+$('aStep').onclick = run(async () => { await api('/api/admin/auto/step', { method:'POST' }); toast('Moved to the next update'); load(); });
+$('aRestart').onclick = run(async () => {
+  if (!confirm('Start a brand-new story from now? Counts go back to the starting votes and manual adjustments are cleared.')) return;
+  await api('/api/admin/auto/restart', { method:'POST' }); toast('Restarted'); load(true);
+});
+$('sSave').onclick = run(async () => {
+  const v = $('sClose').value;
+  await api('/api/admin/settings', { method:'PUT', json:{ title:$('sTitle').value, collegeName:$('sCollege').value, eventDate:$('sDate').value, closesAt: v ? new Date(v).toISOString() : '', votingOpen:$('sOpen').checked } });
+  toast('Details saved'); load(true);
+});
+$('realReset').onclick = run(async () => { if (!confirm('Clear all real votes? Everyone will be able to vote again.')) return; await api('/api/admin/reset-real-votes', { method:'POST' }); toast('Cleared'); load(); });
+
+document.addEventListener('click', run(async e => {
+  const adj = e.target.closest('[data-adj]');
+  if (adj) { await api(`/api/admin/candidates/${adj.dataset.adj}/adjust`, { method:'POST', json:{ delta:+adj.dataset.d } }); return load(); }
+  const va = e.target.closest('[data-vadj]');
+  if (va) { await api(`/api/admin/venues/${va.dataset.vadj}/adjust`, { method:'POST', json:{ delta:+va.dataset.d } }); return load(); }
+  const vc = e.target.closest('[data-vclear]');
+  if (vc) { await api(`/api/admin/venues/${vc.dataset.vclear}/adjust`, { method:'POST', json:{ clear:true } }); return load(); }
+  const clr = e.target.closest('[data-clear]');
+  if (clr) { await api(`/api/admin/candidates/${clr.dataset.clear}/adjust`, { method:'POST', json:{ clear:true } }); return load(); }
+  const del = e.target.closest('[data-del]');
+  if (del) { if (!confirm('Delete this candidate?')) return; await api(`/api/admin/candidates/${del.dataset.del}`, { method:'DELETE' }); toast('Deleted'); return load(true); }
+}));
+document.addEventListener('submit', run(async e => {
+  const f = e.target;
+  if (f.id === 'addForm') { e.preventDefault(); await sendForm('/api/admin/candidates', 'POST', f); f.reset(); toast('Candidate added'); return load(true); }
+  if (f.dataset.edit) { e.preventDefault(); await sendForm(`/api/admin/candidates/${f.dataset.edit}`, 'PUT', f); toast('Saved'); return load(true); }
+}));
+
+if (PW) api('/api/admin/login', { method:'POST' }).then(start).catch(() => {});
+setInterval(() => { if (!$('app').classList.contains('hidden') && !document.querySelector('details[open]')) load(); }, 60000);
+</script>
+</body>
+</html>
