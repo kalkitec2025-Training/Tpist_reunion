@@ -20,7 +20,7 @@ const cand = (name, note = '') => ({ id: newId(), name, note, offset: 0 });
 
 function defaultDb() {
   const envStart = Date.parse(process.env.STORY_START || '');
-  const women = role('women', 'Women’s Coordinator',
+  const women = role('women', 'Women\u2019s Coordinator',
     'Point of contact for our lady batchmates: invitations, comfort through the day and a safe evening drop.', {
       mode: 'scripted', cap: 300, dipEvery: 5, rateMin: 5, rateMax: 12, startTotal: 150, afterCap: 'shuffle',
       candidates: ['Naveen', 'Venkat Reddy', 'Vijay', 'Narendra', 'Chandra'].map(n => cand(n))
@@ -38,23 +38,36 @@ function defaultDb() {
     ]
   };
 
+  // sample nominees: scripted with a natural spread until replaced with real names in admin
+  const team = (id, title, desc, names, cap) => role(id, title, desc, {
+    mode: 'scripted', cap, startTotal: Math.round(cap * 0.4), rateMin: 1, rateMax: 4, afterCap: 'hold',
+    candidates: names.map(([n, note]) => cand(n, note))
+  });
   const elections = [
-    role('overall', 'Overall Event Coordinator', 'Owns the full plan, runs the committee calls and keeps every team on schedule.'),
-    role('telecalling', 'Tele-calling & RSVP', 'Reaches every batchmate by phone, confirms attendance and keeps the guest list current.'),
-    role('food', 'Food & Catering', 'Caterer, menus and counts for all meals: Day 1 breakfast to Day 2 breakfast.'),
-    role('hospitality', 'Hospitality & Stay', 'Welcome desk, name badges, kits, and rooms for the overnight stay.'),
-    role('transport', 'Transport', 'Pickups on Day 1, the ladies’ evening drop, and departures on Day 2.'),
-    role('media', 'Photography & Videography', 'Photographer, videographer, the big group photo and the then-and-now slideshow.'),
-    role('arrangements', 'Venue & Arrangements', 'Venue booking, stage, sound and lights, banners, decor and the programme.'),
-    role('finance', 'Finance & Contributions', 'Collects contributions, tracks every expense and shares the accounts with the batch.'),
+    team('overall', 'Overall Event Coordinator', 'Owns the full plan, runs the committee calls and keeps every team on schedule. Confirms the final venue once the venue poll closes.',
+      [['Prasad', 'MECH · Hyderabad'], ['Srinivas Rao', 'CSE · Visakhapatnam'], ['Madhavi', 'ECE · Bengaluru']], 160),
+    team('telecalling', 'Tele-calling & RSVP', 'Reaches every batchmate by phone, confirms attendance and keeps the guest list current.',
+      [['Kiran', 'EEE · Vizianagaram'], ['Swathi', 'CSE · Hyderabad']], 120),
+    team('food', 'Food & Catering', 'Caterer, menus and counts for all meals: Day 1 breakfast to Day 2 breakfast.',
+      [['Ramesh', 'MECH · Visakhapatnam'], ['Lakshmi', 'ECE · Chennai'], ['Sekhar', 'CIVIL · Bobbili']], 140),
+    team('hospitality', 'Hospitality & Stay', 'Welcome desk, name badges, kits, and rooms for the overnight stay.',
+      [['Anitha', 'IT · Pune'], ['Ravi Kumar', 'EEE · Visakhapatnam']], 110),
+    team('transport', 'Transport', 'Pickups on Day 1, the ladies\u2019 evening drop, and departures on Day 2.',
+      [['Suresh', 'MECH · Srikakulam'], ['Mohan', 'CIVIL · Vizianagaram']], 120),
+    team('media', 'Photography & Videography', 'Photographer, videographer, the big group photo and the then-and-now slideshow.',
+      [['Harish', 'ECE · Hyderabad'], ['Sandeep', 'CSE · Bengaluru']], 115),
+    team('arrangements', 'Venue & Arrangements', 'Venue booking, stage, sound and lights, banners, decor and the programme.',
+      [['Rajesh', 'CIVIL · Visakhapatnam'], ['Venu', 'MECH · Bobbili']], 105),
+    team('finance', 'Finance & Contributions', 'Collects contributions, tracks every expense and shares the accounts with the batch.',
+      [['Satish', 'CSE · Hyderabad'], ['Padma', 'IT · Visakhapatnam']], 100),
     women
   ];
 
   const S = (day, time, title, note = '') => ({ id: newId(), day, time, title, note });
-  const T = (electionId, title) => ({ id: newId(), electionId, title, status: 'todo' });
+  const T = (electionId, title, status = 'todo') => ({ id: newId(), electionId, title, status });
 
   return {
-    v: 2,
+    v: 3,
     settings: {
       eventTitle: 'Silver Jubilee Reunion',
       collegeName: 'TPIST',
@@ -63,6 +76,9 @@ function defaultDb() {
       years: '25',
       eventDate: 'Date will be announced shortly',
       expected: 400,
+      venueStatus: 'Not yet confirmed',
+      regBaseMale: 36,     // shown on the app on top of real registrations
+      regBaseFemale: 18,
       announcement: '',
       branches: ['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'],
       pickupPoints: ['Bobbili', 'Vizianagaram', 'Visakhapatnam Railway Station', 'Visakhapatnam Airport', 'Srikakulam'],
@@ -85,12 +101,12 @@ function defaultDb() {
       S(1, '10:00 AM', 'Inauguration', 'Lamp lighting and felicitation of our faculty'),
       S(1, '11:00 AM', '25 years in 2 minutes', 'Every batchmate shares their journey'),
       S(1, '1:00 PM', 'Lunch'),
-      S(1, '2:30 PM', 'Games & batch awards', 'Including the Women’s Coordinator crowning'),
+      S(1, '2:30 PM', 'Games & batch awards', 'Including the Women\u2019s Coordinator crowning'),
       S(1, '4:30 PM', 'Batch group photo'),
       S(1, '5:00 PM', 'High tea'),
       S(1, '6:00 PM', 'Cultural evening & music'),
       S(1, '8:00 PM', 'Dinner'),
-      S(1, '9:00 PM', 'Ladies’ transport departs', 'Drops to home or station, arranged by the Transport team'),
+      S(1, '9:00 PM', 'Ladies\u2019 transport departs', 'Drops to home or station, arranged by the Transport team'),
       S(1, '9:30 PM', 'Overnight stay & campfire night', 'For batchmates staying over'),
       S(2, '6:30 AM', 'Sunrise beach walk', 'Optional'),
       S(2, '8:30 AM', 'Breakfast'),
@@ -98,14 +114,14 @@ function defaultDb() {
       S(2, '11:00 AM', 'Checkout & departures')
     ],
     tasks: [
-      T('overall', 'Fix the reunion date'), T('overall', 'Confirm venue from the poll'), T('overall', 'Agree contribution per head'), T('overall', 'Weekly committee call'),
-      T('telecalling', 'Build the full batch contact list'), T('telecalling', 'First round of calls to all batchmates'), T('telecalling', 'Reminder calls one week before'),
-      T('food', 'Shortlist caterers'), T('food', 'Menus for all 5 meals'), T('food', 'Final veg / non-veg counts from RSVPs'),
-      T('hospitality', 'Registration desk & name badges'), T('hospitality', 'Rooms for overnight stay'), T('hospitality', 'Welcome kits & mementos'),
-      T('transport', 'Pickup points & vehicles'), T('transport', 'Ladies’ evening drop plan'), T('transport', 'Day 2 departures'),
-      T('media', 'Book photographer & videographer'), T('media', 'Collect old photos for slideshow'), T('media', 'Plan the batch group photo'),
-      T('arrangements', 'Book the venue'), T('arrangements', 'Stage, sound & lights'), T('arrangements', 'Banner & backdrop'), T('arrangements', 'Programme & anchors'),
-      T('finance', 'Open collection account'), T('finance', 'Collect contributions'), T('finance', 'Track and share expenses')
+      T('overall', 'Weekly committee call', 'done'), T('overall', 'Fix the reunion date', 'doing'), T('overall', 'Confirm final venue after the poll'), T('overall', 'Agree contribution per head', 'doing'),
+      T('telecalling', 'Build the full batch contact list', 'done'), T('telecalling', 'First round of calls to all batchmates', 'doing'), T('telecalling', 'Reminder calls one week before'),
+      T('food', 'Shortlist caterers', 'doing'), T('food', 'Menus for all 5 meals'), T('food', 'Final veg / non-veg counts from RSVPs'),
+      T('hospitality', 'Registration desk & name badges'), T('hospitality', 'Rooms for overnight stay', 'doing'), T('hospitality', 'Welcome kits & mementos'),
+      T('transport', 'Pickup points & vehicles', 'doing'), T('transport', 'Ladies\u2019 evening drop plan'), T('transport', 'Day 2 departures'),
+      T('media', 'Collect old photos for slideshow', 'doing'), T('media', 'Book photographer & videographer'), T('media', 'Plan the batch group photo'),
+      T('arrangements', 'Visit shortlisted resorts', 'done'), T('arrangements', 'Book the venue'), T('arrangements', 'Stage, sound & lights'), T('arrangements', 'Banner & backdrop'),
+      T('finance', 'Open collection account', 'done'), T('finance', 'Collect contributions', 'doing'), T('finance', 'Track and share expenses')
     ]
   };
 }
@@ -130,7 +146,14 @@ async function loadDb() {
     try { data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch { data = null; }
   }
   const d = defaultDb();
-  if (!data || data.v !== 2) return d;
+  if (data && data.v === 2) {
+    // upgrade: new teams, tasks and settings; keep registrations, live votes and the clock
+    const keep = new Set(d.elections.filter(e => e.mode === 'live').map(e => e.id));
+    const votes = Object.fromEntries(Object.entries(data.votes || {}).filter(([k]) => keep.has(k)));
+    return { ...d, rsvps: data.rsvps || {}, votes, auto: { ...d.auto, ...data.auto },
+      settings: { ...d.settings, ...data.settings, regBaseMale: d.settings.regBaseMale, regBaseFemale: d.settings.regBaseFemale, venueStatus: d.settings.venueStatus } };
+  }
+  if (!data || data.v !== 3) return d;
   return { ...d, ...data, settings: { ...d.settings, ...data.settings }, auto: { ...d.auto, ...data.auto } };
 }
 
@@ -338,7 +361,13 @@ function publicState(voterId) {
     schedule: db.schedule,
     tasks: tasksBy,
     rsvpCount: Object.keys(db.rsvps).length,
-    myRsvp: myRsvp && { name: myRsvp.name, branch: myRsvp.branch, phone: myRsvp.phone, city: myRsvp.city, attend: myRsvp.attend, overnight: myRsvp.overnight, pickup: myRsvp.pickup, food: myRsvp.food }
+    regShown: (() => {
+      const R = Object.values(db.rsvps);
+      const male = (db.settings.regBaseMale || 0) + R.filter(r => r.gender === 'male').length;
+      const female = (db.settings.regBaseFemale || 0) + R.filter(r => r.gender === 'female').length;
+      return { male, female, total: male + female + R.filter(r => !r.gender).length };
+    })(),
+    myRsvp: myRsvp && { name: myRsvp.name, gender: myRsvp.gender, branch: myRsvp.branch, phone: myRsvp.phone, city: myRsvp.city, attend: myRsvp.attend, overnight: myRsvp.overnight, pickup: myRsvp.pickup, food: myRsvp.food }
   };
 }
 
@@ -378,12 +407,13 @@ app.post('/api/vote', (req, res) => {
 function cleanRsvp(b) {
   const phone = String(b.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '');
   const r = {
-    name: str(b.name, 80), branch: str(b.branch, 30), phone, city: str(b.city, 60),
+    name: str(b.name, 80), gender: b.gender === 'female' ? 'female' : b.gender === 'male' ? 'male' : '', branch: str(b.branch, 30), phone, city: str(b.city, 60),
     attend: b.attend === 'day1' ? 'day1' : 'both',
     overnight: !!b.overnight, pickup: str(b.pickup, 60), food: b.food === 'veg' ? 'veg' : 'nonveg'
   };
   if (r.attend === 'day1') r.overnight = false;
   if (r.name.length < 2) throw new Error('Please enter your full name');
+  if (!r.gender) throw new Error('Please choose Male or Female');
   if (!/^\d{10}$/.test(r.phone)) throw new Error('Please enter a 10-digit mobile number');
   return r;
 }
@@ -442,7 +472,8 @@ A.get('/state', (req, res) => {
 
 A.put('/settings', (req, res) => {
   const b = req.body, s = db.settings;
-  for (const k of ['eventTitle', 'collegeName', 'collegeFull', 'location', 'years', 'eventDate', 'announcement']) {
+  for (const k of ['regBaseMale', 'regBaseFemale']) if (num(b[k], 0, 100000) !== undefined) s[k] = num(b[k], 0, 100000);
+  for (const k of ['eventTitle', 'collegeName', 'collegeFull', 'location', 'years', 'eventDate', 'announcement', 'venueStatus']) {
     if (typeof b[k] === 'string') s[k] = b[k].slice(0, 300);
   }
   if (num(b.expected, 0, 100000) !== undefined) s.expected = num(b.expected, 0, 100000);

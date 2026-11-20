@@ -124,6 +124,7 @@ function overview() {
     <section class="card" style="grid-column:1/-1"><h2>Registrations</h2><p class="hint">Live counts for food, stay and transport planning.</p>
       <div class="kpis">
         <div class="kpi"><b>${R.length}</b><span>Registered</span></div>
+        <div class="kpi"><b>${n(r => r.gender === 'male')} / ${n(r => r.gender === 'female')}</b><span>Men / Women (real)</span></div>
         <div class="kpi"><b>${n(r => r.attend === 'both')}</b><span>Both days</span></div>
         <div class="kpi"><b>${n(r => r.attend === 'day1')}</b><span>Day 1 only</span></div>
         <div class="kpi"><b>${n(r => r.overnight)}</b><span>Staying overnight</span></div>
@@ -208,6 +209,7 @@ function rsvps() {
       <form id="newR" class="mt"><div class="f3">
         <div><label>Full name</label><input type="text" name="name" required></div>
         <div><label>Mobile</label><input type="tel" name="phone" required></div>
+        <div><label>Gender</label><select name="gender"><option value="male">Male</option><option value="female">Female</option></select></div>
         <div><label>Branch</label><select name="branch"><option value=""></option>${st.branches.map(b => `<option>${esc(b)}</option>`).join('')}</select></div>
         <div><label>City</label><input type="text" name="city"></div>
         <div><label>Attending</label><select name="attend"><option value="both">Both days</option><option value="day1">Day 1 only</option></select></div>
@@ -219,7 +221,7 @@ function rsvps() {
     </details>
     <div class="mt">${list.map(r => `<div class="rs">
       <div><b>${esc(r.name)}</b> <span class="sub">${esc(r.branch)}</span><br><a href="tel:${esc(r.phone)}" style="color:var(--blue)">${esc(r.phone)}</a> · ${esc(r.city || '—')}<div class="sub">${when(r.createdAt)} · ${r.source === 'call' ? 'added by caller' : 'self-registered'}</div></div>
-      <div><span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>
+      <div>${r.gender ? `<span class="pill">${r.gender === 'female' ? 'Female' : 'Male'}</span>` : ''}<span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>
         <input type="text" class="mt" data-rnote="${r.id}" value="${esc(r.note)}" placeholder="Caller note" style="margin-top:8px"></div>
       <div class="row" style="align-items:stretch"><select data-rstat="${r.id}" style="flex:1">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${r.callStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn s r" data-delr="${r.id}" style="height:40px">Delete</button></div>
     </div>`).join('') || '<p class="hint">No registrations match.</p>'}</div>
@@ -257,8 +259,12 @@ function settings() {
       <div><label>College full name</label><input type="text" name="collegeFull" value="${esc(s.collegeFull)}"></div>
       <div><label>College location</label><input type="text" name="location" value="${esc(s.location)}"></div>
       <div><label>Reunion date (text)</label><input type="text" name="eventDate" value="${esc(s.eventDate)}"></div>
-      <div><label>Expected attendees</label><input type="number" name="expected" value="${s.expected}"></div>
+      <div><label>Expected attendees (admin only)</label><input type="number" name="expected" value="${s.expected}"></div>
+      <div><label>Venue status (e.g. "Not yet confirmed" or "Confirmed: Radisson Blu")</label><input type="text" name="venueStatus" value="${esc(s.venueStatus || '')}"></div>
+      <div><label>Shown registrations: extra men</label><input type="number" name="regBaseMale" value="${s.regBaseMale}"></div>
+      <div><label>Shown registrations: extra women</label><input type="number" name="regBaseFemale" value="${s.regBaseFemale}"></div>
     </div>
+    <p class="hint mt">Home shows Registered / Men / Women as these extra counts plus real registrations. Set both to 0 to show only real numbers.</p>
     <div class="mt"><label>Announcement banner (leave empty to hide)</label><textarea name="announcement">${esc(s.announcement)}</textarea></div>
     <div class="f2 mt"><div><label>Branches (comma separated)</label><input type="text" name="branches" value="${esc(s.branches.join(', '))}"></div>
       <div><label>Pickup points (comma separated)</label><input type="text" name="pickupPoints" value="${esc(s.pickupPoints.join(', '))}"></div></div>
@@ -280,7 +286,7 @@ const actions = {
   sadd: async () => { sched.push({ day:1, time:'', title:'', note:'' }); render(); return false; },
   ssave: async () => { await api('/schedule', { method:'PUT', json:{ items:sched } }); sched = null; toast('Schedule saved'); },
   csv: async () => {
-    const cols = ['name','branch','phone','city','attend','overnight','pickup','food','callStatus','note','source','createdAt'];
+    const cols = ['name','gender','branch','phone','city','attend','overnight','pickup','food','callStatus','note','source','createdAt'];
     const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const rows = [cols.join(',')].concat(S.rsvps.map(r => cols.map(c => cell(c === 'createdAt' ? new Date(r[c]).toISOString() : r[c])).join(',')));
     const a = document.createElement('a');
@@ -326,7 +332,7 @@ document.addEventListener('submit', run(async e => {
   else if (f.id === 'newR') { d.overnight = d.overnight === 'true'; await api('/rsvps', { method:'POST', json:d }); toast('Registration added'); }
   else if (f.id === 'newT') { await api('/tasks', { method:'POST', json:d }); toast('Task added'); }
   else if (f.id === 'sForm') {
-    const json = { ...d, expected:+d.expected, votingOpen:!!d.votingOpen, rsvpOpen:!!d.rsvpOpen,
+    const json = { ...d, expected:+d.expected, regBaseMale:+d.regBaseMale, regBaseFemale:+d.regBaseFemale, votingOpen:!!d.votingOpen, rsvpOpen:!!d.rsvpOpen,
       branches:d.branches.split(',').map(x => x.trim()).filter(Boolean), pickupPoints:d.pickupPoints.split(',').map(x => x.trim()).filter(Boolean) };
     await api('/settings', { method:'PUT', json }); toast('Settings saved');
   }

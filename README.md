@@ -14,19 +14,20 @@ A mobile web app for the 25-year reunion of Thandra Paparaya Institute of Scienc
 |---|---|---|
 | Reunion Venue | scripted, no favourite | 4 Visakhapatnam resorts |
 | Overall Event Coordinator | live | |
-| Tele-calling & RSVP | live | |
-| Food & Catering | live | |
-| Hospitality & Stay | live | |
-| Transport | live | includes the ladies' evening drop |
-| Photography & Videography | live | |
-| Venue & Arrangements | live | |
-| Finance & Contributions | live | |
+| Tele-calling & RSVP | scripted sample | |
+| Food & Catering | scripted sample | |
+| Hospitality & Stay | scripted sample | |
+| Transport | scripted sample | includes the ladies' evening drop |
+| Photography & Videography | scripted sample | |
+| Venue & Arrangements | scripted sample | |
+| Finance & Contributions | scripted sample | |
 | Women's Coordinator | scripted | Naveen always ends on top, with an occasional dip to 2nd; total climbs to 300 |
 
 - **Live** means only real votes count, plus any manual ± from admin.
 - **Scripted** means the numbers follow the hourly script, and the voter sees their own vote added.
 - You can switch any election between the two in **Admin → Elections**.
-- Elections with no candidates show "Nominations open". Add names in admin when you have them.
+- The team elections start with **sample nominees** (placeholder names) so the app looks active. Replace them with real names in **Admin → Elections**, then switch each election to **Live** when real voting starts.
+- The Home page shows registrations as real sign-ups plus extra counts for men and women, set in **Admin → Settings**. Set both to 0 to show real numbers only.
 
 ## Admin panel (`/admin`)
 - **Overview:** registration counts (both days, Day 1 only, overnight, veg and non-veg, pickups by point, confirmed by call), the leader of every election, and the script clock.
