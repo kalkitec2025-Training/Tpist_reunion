@@ -603,8 +603,8 @@ function chatView(user, u) {
   }
   const plan = PLANS.find(p => p.id === u.plan) || null;
   return {
-    registered: true, name: displayName(me), consent: !!u.consentAt, status: u.status, plan, requested: PLANS.find(p => p.id === u.requested) || null,
-    left: u.status === 'active' ? (plan && plan.messages === null ? null : Math.max(0, u.limit - u.used)) : 0,
+    registered: true, name: displayName(me), consent: !!u.consentAt, status: u.status === 'revoked' ? 'revoked' : 'active', plan: null, requested: null,
+    left: null, free: true,
     plans: PLANS,
     conversations: [...peers.entries()].filter(([p]) => db.users[p] || p === COMMITTEE).map(([p, c]) => ({ ...profileOf(p), ...c })).sort((a, b) => b.t - a.t),
     members: Object.values(db.chat.users).filter(x => x.consentAt && x.status !== 'revoked').length
@@ -662,9 +662,7 @@ app.post('/api/chat/send', (req, res) => {
   const me = needChat(req, res); if (!me) return;
   const u = me.u;
   if (!u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
-  if (u.status !== 'active') return res.status(402).json({ error: 'Choose a plan to send messages' });
-  const plan = PLANS.find(p => p.id === u.plan);
-  if (plan && plan.messages !== null && u.used >= u.limit) return res.status(402).json({ error: 'You have used all your messages. Choose a new plan to continue.' });
+  if (u.status === 'revoked') return res.status(403).json({ error: 'Your chat access has been removed by the organising committee' });
   const to = req.body.to, peerChat = db.chat.users[to];
   if (!db.users[to] || to === me.user.id || !peerChat || !peerChat.consentAt) return res.status(404).json({ error: 'Batchmate not found' });
   const text = str(req.body.text, 500);
@@ -927,6 +925,7 @@ A.post('/chat/:id', (req, res) => {
     u.limit = plan.messages === null ? 0 : (sameKind ? u.limit : u.used) + plan.messages;
   } else if (a === 'decline') { u.status = u.plan ? 'active' : 'declined'; u.requested = null; }
   else if (a === 'revoke') { u.status = 'revoked'; u.requested = null; }
+  else if (a === 'restore') { u.status = 'active'; }
   else return res.status(400).json({ error: 'Unknown action' });
   saveDb(); res.json({ ok: true });
 });
