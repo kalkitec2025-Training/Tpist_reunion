@@ -158,7 +158,10 @@ function overview() {
 // ------------------------------------------------------------ elections
 function elections() {
   const e = S.elections.find(x => x.id === selE);
-  return `<div class="split">
+  const pend = S.elections.flatMap(x => x.candidates.filter(c => c.videoInfo && c.videoInfo.status === 'pending').map(c => ({ e: x, c })));
+  return `${pend.length ? `<section class="card" style="margin-bottom:16px;border-color:#F5C79C"><h2>Campaign videos waiting for approval (${pend.length})</h2>
+    ${pend.map(({ e: x, c }) => `<div class="row" style="padding:8px 0;border-top:1px solid #EEF0F4"><b>${esc(c.name)}</b><span class="sub">${esc(x.title)}</span><a href="${esc(c.videoInfo.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Watch ↗</a><button class="btn s p" data-vapprove2="${x.id}|${c.id}">Approve</button><button class="btn s r" data-vremove2="${x.id}|${c.id}">Reject</button></div>`).join('')}</section>` : ''}
+  <div class="split">
     <section class="card elist" style="padding:8px">
       ${S.elections.map(x => `<button data-sel="${x.id}" class="${x.id === selE ? 'on' : ''}"><b>${esc(x.title)}</b><small><span class="pill ${x.status === 'live' ? 'g' : x.status === 'closed' ? '' : 'o'}">${x.status}</span> ${x.candidates.length} candidates · ${x.total} votes · ${x.mode}</small></button>`).join('')}
       <form id="newE" style="padding:12px;border-top:1px solid #EEF0F4;margin-top:6px"><label>New election</label><input type="text" name="title" placeholder="e.g. Cultural Programme" required><div class="row mt"><button class="btn d s">Add election</button></div></form>
@@ -196,8 +199,13 @@ function electionEditor(e) {
     ${e.candidates.length ? e.candidates.map(c => `<div class="crow">
       <input type="text" value="${esc(c.name)}" data-cname="${c.id}" aria-label="Name">
       <input type="text" value="${esc(c.note)}" data-cnote="${c.id}" placeholder="Note (optional)" aria-label="Note">
-      <div class="votes">${c.votes}<small>${c.real} real${c.offset ? ` · ${c.offset > 0 ? '+' : ''}${c.offset} manual` : ''}${c.by === 'public' ? ' · added in app' : ''}</small></div>
+      ${''}<div class="votes">${c.votes}<small>${c.real} real${c.offset ? ` · ${c.offset > 0 ? '+' : ''}${c.offset} manual` : ''}${c.by === 'public' ? ' · added in app' : ''}</small></div>
       <div class="row acts"><button class="btn s" data-adj="${c.id}|-10">−10</button><button class="btn s" data-adj="${c.id}|-1">−1</button><button class="btn s" data-adj="${c.id}|1">+1</button><button class="btn s" data-adj="${c.id}|10">+10</button>${c.offset ? `<button class="btn s" data-clr="${c.id}">Clear</button>` : ''}<button class="btn s r" data-delc="${c.id}">Remove</button></div>
+      <div style="grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">
+        ${c.videoInfo ? `<span class="pill ${c.videoInfo.status === 'approved' ? 'g' : 'o'}">Video ${c.videoInfo.status === 'approved' ? 'live' : 'waiting for approval'}</span><a href="${esc(c.videoInfo.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Open video ↗</a>
+          ${c.videoInfo.status !== 'approved' ? `<button class="btn s p" data-vapprove="${c.id}">Approve</button>` : ''}<button class="btn s r" data-vremove="${c.id}">Remove video</button>`
+        : `<input type="text" placeholder="Campaign video link (YouTube or Google Drive)" data-vset="${c.id}" style="max-width:380px"><span class="sub">press Enter to add</span>`}
+      </div>
     </div>`).join('') : '<p class="hint">No candidates yet. The app shows "Nominations open".</p>'}
     <form id="newC" class="f3 mt" style="align-items:end"><div><label>Candidate name</label><input type="text" name="name" required></div><div><label>Note (optional)</label><input type="text" name="note" placeholder="e.g. ECE, Hyderabad"></div><div><button class="btn d">Add candidate</button></div></form>
   </section>
@@ -366,6 +374,10 @@ document.addEventListener('click', run(async e => {
   if (ca) { const sel = ca.closest('tr') && ca.closest('tr').querySelector('select'); await api(`/chat/${ca.dataset.capprove}`, { method:'POST', json:{ action:'approve', plan: sel ? sel.value : undefined } }); toast('Plan activated'); return load(); }
   const cd = t.closest('[data-cdecline]'); if (cd) { await api(`/chat/${cd.dataset.cdecline}`, { method:'POST', json:{ action:'decline' } }); toast('Request declined'); return load(); }
   const cr = t.closest('[data-crevoke]'); if (cr) { if (!confirm('Remove this person\'s chat access?')) return; await api(`/chat/${cr.dataset.crevoke}`, { method:'POST', json:{ action:'revoke' } }); toast('Access removed'); return load(); }
+  const va = t.closest('[data-vapprove]'); if (va) { await api(`/elections/${selE}/candidates/${va.dataset.vapprove}/video`, { method:'POST', json:{ action:'approve' } }); toast('Video approved'); return load(); }
+  const vr = t.closest('[data-vremove]'); if (vr) { await api(`/elections/${selE}/candidates/${vr.dataset.vremove}/video`, { method:'POST', json:{ action:'remove' } }); toast('Video removed'); return load(); }
+  const va2 = t.closest('[data-vapprove2]'); if (va2) { const [x, c] = va2.dataset.vapprove2.split('|'); await api(`/elections/${x}/candidates/${c}/video`, { method:'POST', json:{ action:'approve' } }); toast('Video approved'); return load(); }
+  const vr2 = t.closest('[data-vremove2]'); if (vr2) { const [x, c] = vr2.dataset.vremove2.split('|'); await api(`/elections/${x}/candidates/${c}/video`, { method:'POST', json:{ action:'remove' } }); toast('Video rejected'); return load(); }
   const cre = t.closest('[data-crestore]'); if (cre) { await api(`/chat/${cre.dataset.crestore}`, { method:'POST', json:{ action:'restore' } }); toast('Access restored'); return load(); }
   const cw = t.closest('[data-cwarn]');
   if (cw) {
@@ -388,6 +400,12 @@ document.addEventListener('change', run(async e => {
   if (t.dataset.s) { const [i, k] = t.dataset.s.split('|'); sched[+i][k] = k === 'day' ? +t.value : t.value; return; }
   if (t.id === 'qs') { qStatus = t.value; render(); }
   if (t.id === 'qp') { qPass = t.value; render(); }
+}));
+document.addEventListener('keydown', run(async e => {
+  if (e.key === 'Enter' && e.target.dataset && e.target.dataset.vset) {
+    e.preventDefault();
+    await api(`/elections/${selE}/candidates/${e.target.dataset.vset}/video`, { method:'POST', json:{ action:'set', url:e.target.value } }); toast('Video added'); return load();
+  }
 }));
 document.addEventListener('input', e => { if (e.target.id === 'q') { q = e.target.value; const pos = e.target.selectionStart; render(); const n = $('q'); n.focus(); n.setSelectionRange(pos, pos); } });
 

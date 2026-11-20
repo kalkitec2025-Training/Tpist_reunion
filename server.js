@@ -397,8 +397,14 @@ function electionView(e, voterId, slot, admin = false) {
   })).sort((a, b) => b.votes - a.votes || a.i - b.i);
   const conf = e.confirmedId && e.candidates.find(c => c.id === e.confirmedId);
   const isLiveNow = !conf && (e.status || 'live') === 'live';
+  const byId = Object.fromEntries(e.candidates.map(c => [c.id, c]));
+  for (const c of candidates) {
+    const v = byId[c.id] && byId[c.id].video;
+    if (admin) c.videoInfo = v || null;
+    else if (v && v.status === 'approved' && isLiveNow) c.video = { kind: v.kind, embed: v.embed, url: v.url };
+  }
   if (!admin && !isLiveNow && e.kind !== 'venue') {
-    for (const c of candidates) { c.name = mask(c.name); c.note = ''; }
+    for (const c of candidates) { c.name = mask(c.name); c.note = ''; delete c.video; }
   }
   const out = {
     id: e.id, kind: e.kind, title: e.title, desc: e.desc, mode: e.mode, live: e.mode === 'live',
@@ -526,8 +532,33 @@ const findElection = id => db.elections.find(e => e.id === id);
 app.get('/api/state', (req, res) => res.json(publicState(voterIdOf(req, res))));
 
 app.get('/api/members', (req, res) => {
-  const list = Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(r => ({ name: maskFull(r.name, r.id), t: r.createdAt }));
+  const key = voterIdOf(req, res);
+  const list = Object.values(db.rsvps).sort((a, b) => (b.voterId === key) - (a.voterId === key) || b.createdAt - a.createdAt)
+    .map(r => ({ name: maskFull(r.name, r.id), you: r.voterId === key }));
   res.json({ total: list.length, members: list });
+});
+
+// ---- campaign videos (links to YouTube or Google Drive; approved by admin; never change vote counts)
+function embedOf(url) {
+  const u = String(url || '').trim();
+  let m = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,20})/);
+  if (m) return { kind: 'youtube', embed: `https://www.youtube-nocookie.com/embed/${m[1]}`, url: `https://youtu.be/${m[1]}` };
+  m = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([A-Za-z0-9_-]{10,})/);
+  if (m) return { kind: 'drive', embed: `https://drive.google.com/file/d/${m[1]}/preview`, url: `https://drive.google.com/file/d/${m[1]}/view` };
+  return null;
+}
+app.post('/api/campaign', (req, res) => {
+  const vid = voterIdOf(req, res);
+  const e = findElection(req.body.electionId);
+  if (!e || e.kind === 'venue') return res.status(404).json({ error: 'Election not found' });
+  if (e.confirmedId || (e.status || 'live') !== 'live') return res.status(403).json({ error: 'Campaign videos are only for live polls' });
+  const c = e.candidates.find(x => x.id === req.body.candidateId);
+  if (!c) return res.status(404).json({ error: 'Choose your name from the list' });
+  const v = embedOf(req.body.url);
+  if (!v) return res.status(400).json({ error: 'Paste a YouTube or Google Drive video link' });
+  c.video = { ...v, status: 'pending', by: vid, at: Date.now() };
+  saveDb();
+  res.json({ ok: true });
 });
 
 app.post('/api/vote', (req, res) => {
@@ -576,10 +607,11 @@ function displayName(uid) {
   return (r && r.name) || (db.users[uid] && db.users[uid].name) || 'Batchmate';
 }
 const COMMITTEE = 'committee';
+const maskKey = uid => (rsvpOfUser(uid) || {}).id || uid;
 function profileOf(uid, full = false) {
   if (uid === COMMITTEE) return { id: COMMITTEE, name: 'Organising Committee', branch: '', city: '', committee: true };
   const r = rsvpOfUser(uid);
-  if (!full) return { id: uid, name: mask(displayName(uid)), branch: '', city: '' };
+  if (!full) return { id: uid, name: maskFull(displayName(uid), maskKey(uid)), branch: '', city: '' };
   return { id: uid, name: displayName(uid), branch: r ? r.branch : '', city: r ? r.city : '' };
 }
 const DEFAULT_BLOCKED = ['idiot', 'stupid', 'bloody', 'bastard', 'fuck', 'shit', 'sexy', 'sex', 'dating', 'date with me', 'nude', 'pervert'];
@@ -658,8 +690,19 @@ app.post('/api/chat/request', (req, res) => {
 app.get('/api/chat/people', (req, res) => {
   const me = needChat(req, res); if (!me) return;
   if (!me.u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
-  res.json(Object.entries(db.chat.users).filter(([id, x]) => id !== me.user.id && x.consentAt && x.status !== 'revoked' && db.users[id])
-    .map(([id]) => profileOf(id)).sort((a, b) => a.name.localeCompare(b.name)));
+  const my = me.user.id, seen = new Set(), list = [];
+  const chatOk = uid => { const x = db.chat.users[uid]; return !!(uid && db.users[uid] && x && x.consentAt && x.status !== 'revoked'); };
+  for (const r of Object.values(db.rsvps)) {
+    const uid = r.voterId && r.voterId.startsWith('u:') ? r.voterId.slice(2) : null;
+    if (uid) seen.add(uid);
+    list.push({ id: uid === my ? null : (chatOk(uid) ? uid : null), name: maskFull(r.name, r.id), canChat: uid !== my && chatOk(uid), you: uid === my, t: r.createdAt });
+  }
+  for (const uid of Object.keys(db.chat.users)) {
+    if (seen.has(uid) || !db.users[uid]) continue;
+    list.push({ id: uid === my ? null : (chatOk(uid) ? uid : null), name: maskFull(displayName(uid), uid), canChat: uid !== my && chatOk(uid), you: uid === my, t: db.users[uid].createdAt });
+  }
+  list.sort((a, b) => (b.you - a.you) || (b.canChat - a.canChat) || (b.t - a.t));
+  res.json(list.map(({ t, ...x }) => x));
 });
 app.get('/api/chat/thread/:id', (req, res) => {
   const me = needChat(req, res); if (!me) return;
@@ -893,6 +936,17 @@ A.put('/elections/:id/candidates/:cid', (req, res) => {
   if (typeof req.body.note === 'string') c.note = str(req.body.note, 80);
   if (req.body.clear) c.offset = 0;
   else if (Number.isFinite(req.body.delta)) c.offset = (c.offset || 0) + Math.round(req.body.delta);
+  saveDb(); res.json({ ok: true });
+});
+A.post('/elections/:id/candidates/:cid/video', (req, res) => {
+  const e = findElection(req.params.id);
+  const c = e && e.candidates.find(x => x.id === req.params.cid);
+  if (!c) return res.status(404).json({ error: 'Not found' });
+  const a = req.body.action;
+  if (a === 'approve' && c.video) c.video.status = 'approved';
+  else if (a === 'remove') delete c.video;
+  else if (a === 'set') { const v = embedOf(req.body.url); if (!v) return res.status(400).json({ error: 'Paste a YouTube or Google Drive video link' }); c.video = { ...v, status: 'approved', by: 'admin', at: Date.now() }; }
+  else return res.status(400).json({ error: 'Unknown action' });
   saveDb(); res.json({ ok: true });
 });
 A.delete('/elections/:id/candidates/:cid', (req, res) => {

@@ -94,3 +94,8 @@ Until `GOOGLE_CLIENT_ID` is set, the app stays open without sign-in and chat sho
 - In chat, people appear as an **initial plus 10 stars** (e.g. `R**********`), with no branch or city, plus a count of members.
 - **Chat filter:** messages are blocked if they contain phone numbers, emails, requests for numbers or contact details (including "WhatsApp", "phone no", "number pampu"), blocked words, or spam. The sender automatically gets a warning from the **Organising Committee** (at most one every 10 minutes).
 - **Admin → Chat:** see blocked messages, send any member a committee message or warning, and edit the blocked-words list.
+
+## Registered list, chat list and campaign videos
+- **Registered list** (tap "Registered" on Home): masked names with a lock icon. Your own entry is at the top, highlighted, with an open lock and "You".
+- **Chat → New message:** the same masked list of everyone registered. Batchmates who have joined chat show a chat icon and open a conversation. Everyone else shows a lock, and tapping does nothing.
+- **Campaign videos:** on a live poll, a candidate taps "Post a campaign video", picks their name and pastes a YouTube (Unlisted) or Google Drive link. It appears as a **Watch** button next to their name once the admin approves it under **Admin → Elections** (pending videos are listed at the top). Admin can also paste a video link for any candidate. Videos never change vote counts.

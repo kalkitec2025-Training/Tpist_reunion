@@ -246,6 +246,7 @@
 </div></nav>
 
 <dialog id="ask"><div class="dlg"><h3 id="askT"></h3><p id="askP"></p><div class="row"><button type="button" class="btn ghost" id="askNo">Cancel</button><button type="button" class="btn acc" id="askYes">Confirm vote</button></div></div></dialog>
+<dialog id="vidDlg" style="width:min(94vw,560px);background:#000"><div style="position:relative;padding-top:177%;max-height:80vh" id="vidBox"></div><div style="display:flex;justify-content:space-between;align-items:center;background:#12131A;color:#fff;padding:10px 14px;font-size:14px"><span id="vidName"></span><button type="button" class="btn sm" style="background:#2A2C36" id="vidClose">Close</button></div></dialog>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -269,8 +270,14 @@ const P = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   chevR: '<path d="M9 6l6 6-6 6"/>', chevD: '<path d="M6 9l6 6 6-6"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
-  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  unlock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/>',
+  chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/>',
+  play: '<polygon points="7 4 20 12 7 20" fill="currentColor" stroke="none"/>',
+  video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/>'
 };
+const masked = n => `<span style="font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em">${esc(n)}</span>`;
+const youTag = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--ok);background:var(--ok-soft);padding:5px 10px;border-radius:99px">${'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/></svg>'}You</span>`;
 const lockNote = (t = 'Names are visible to the admin only.') => `<div class="note-bar" style="background:var(--track);border-color:var(--line);color:var(--muted)">${svg(P.lock, 18)}<span>${t}</span></div>`;
 const ICONS = {
   venue: P.pin,
@@ -437,13 +444,14 @@ function electionPage(id) {
     const p = pct(c.votes, e.total);
     const win = e.confirmed && e.confirmed.id === c.id;
     const ch = c.lastHour > 0 ? `<span class="up">▲ ${c.lastHour} this hour</span>` : c.lastHour < 0 ? `<span class="dn">▼ ${-c.lastHour} this hour</span>` : '';
-    const btn = win ? '<span class="chip ok">✓ Confirmed</span>' : e.myVote === c.id ? '<span class="vbtn mine">Your vote ✓</span>'
-      : canVote ? `<button type="button" class="vbtn" data-vote="${esc(e.id)}|${esc(c.id)}">Vote</button>` : '';
+    const vbtn = c.video ? `<button type="button" class="vbtn" style="background:var(--accent-soft);color:var(--accent);display:inline-flex;align-items:center;gap:5px;margin-right:6px" data-watch="${esc(e.id)}|${esc(c.id)}" aria-label="Watch ${esc(c.name)}'s video">${svg(P.play, 12)}Watch</button>` : '';
+    const btn = vbtn + (win ? '<span class="chip ok">✓ Confirmed</span>' : e.myVote === c.id ? '<span class="vbtn mine">Your vote ✓</span>'
+      : canVote ? `<button type="button" class="vbtn" data-vote="${esc(e.id)}|${esc(c.id)}">Vote</button>` : '');
     return `<div class="cand ${win ? 'win' : i === 0 && e.total ? 'lead' : ''}">${avatar(c.name)}<div class="m">
       <div class="l1"><span>${esc(c.name)}</span><span>${p}%</span></div>
       ${c.note ? `<div class="nt">${esc(c.note)}</div>` : ''}
       <div class="bar"><div style="width:${p}%"></div></div>
-      <div class="l3"><span>${c.votes} vote${c.votes === 1 ? '' : 's'}${ch ? ' · ' + ch : ''}</span>${btn}</div>
+      <div class="l3"><span>${c.votes} vote${c.votes === 1 ? '' : 's'}${ch ? ' · ' + ch : ''}</span><span style="display:flex;align-items:center">${btn}</span></div>
     </div></div>`;
   }).join('');
   const nomForm = e.openNominations && S.settings.votingOpen ? (nomOpen === e.id
@@ -464,7 +472,17 @@ function electionPage(id) {
       : `<div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><div class="n d">${e.confirmed ? 1 : e.candidates.length}</div><div class="l">${e.confirmed ? 'Coordinator confirmed' : 'Nominees'}</div></div><div class="stat"><div class="n d">${e.total}</div><div class="l">Votes</div></div></div>
          ${lockNote('Names are shown only while voting is live. The admin can see the full list and results.')}<div style="height:12px"></div>`}
     ${nomForm}
+    ${isLive(e) && e.kind !== 'venue' && e.candidates.length ? campaignBox(e) : ''}
     ${footer()}`;
+}
+let campOpen = null;
+function campaignBox(e) {
+  if (campOpen !== e.id) return `<div style="margin:0 20px 12px"><button type="button" class="btn line" style="width:100%" data-camp="${esc(e.id)}">${svg(P.video, 18)}Are you a candidate? Post a campaign video</button></div>`;
+  return `<form class="card nom" id="campForm" data-e="${esc(e.id)}"><div style="font-weight:700">Post a campaign video</div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.5">Upload a short video to YouTube (set it to <b>Unlisted</b>) or Google Drive (<b>anyone with the link</b>), then paste the link. The committee checks it before it appears next to your name.</div>
+    <select name="cand" aria-label="Your name" style="height:46px;border:1px solid #D5D8E2;border-radius:12px;padding:0 12px;font-size:16px;background:#fff"><option value="">I am…</option>${e.candidates.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select>
+    <input name="url" type="url" inputmode="url" placeholder="https://youtu.be/… or drive.google.com/…" aria-label="Video link" required>
+    <div class="row2"><button type="button" class="btn ghost sm" data-campclose>Cancel</button><button class="btn acc sm">Send for approval</button></div></form>`;
 }
 
 // ------------------------------------------------------------------ schedule
@@ -475,7 +493,8 @@ const passName = id => (passList().find(p => p.id === id) || { name: 'To be assi
 let MEM = null;
 function membersPage() {
   if (!MEM) { api2('/api/members').then(d => { MEM = d; if (route()[0] === 'members') render(); }).catch(e => toast(e.message)); return '<div class="loading">Loading…</div>'; }
-  const rows = MEM.members.map(m => `<div class="conv">${avatar(m.name)}<div class="m"><div class="n"><span style="font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em">${esc(m.name)}</span><small>${ago(m.t)}</small></div></div></div>`).join('');
+  const rows = MEM.members.map(m => `<div class="conv" style="${m.you ? 'background:var(--ok-soft);border-radius:12px;padding:12px;margin:0 -6px;border-top:0' : ''}">${avatar(m.name)}<div class="m"><div class="n">${masked(m.name)}</div></div>
+    ${m.you ? youTag : `<span style="color:#A3A8BA" aria-label="Locked">${svg(P.lock, 18)}</span>`}</div>`).join('');
   return `<a class="back" href="#home">‹ Home</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">Registered batchmates</h1>
     <p class="sub">${MEM.total} registered so far. Names are hidden for privacy.</p></div>
     ${lockNote('Full names are visible to the organising committee only.')}
@@ -717,9 +736,12 @@ function paintInbox(v) {
 }
 function paintPeople(v) {
   const list = (people || []).filter(p => !peopleQ || p.name.toLowerCase().startsWith(peopleQ.trim().toLowerCase().charAt(0)));
-  v.innerHTML = `<a class="back" href="#chat">‹ Chat</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">New message</h1><p class="sub">${(people || []).length} batchmates have joined chat. Names are partly hidden for privacy.</p></div>
+  const open = (people || []).filter(p => p.canChat).length;
+  v.innerHTML = `<a class="back" href="#chat">‹ Chat</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">New message</h1><p class="sub">${(people || []).length} registered · ${open} available to chat. Names are hidden for privacy.</p></div>
     <div class="search"><input type="search" id="pq" placeholder="Search by first letter" value="${esc(peopleQ)}" aria-label="Search batchmates"></div>
-    <div class="card">${list.map(p => `<a class="conv" href="#chat/${esc(p.id)}">${avatar(p.name)}<div class="m"><div class="n"><span>${esc(p.name)}</span></div><div class="l">${esc([p.branch, p.city].filter(Boolean).join(' · ') || 'Batchmate')}</div></div></a>`).join('')
+    <div class="card">${list.map(p => p.canChat
+      ? `<a class="conv" href="#chat/${esc(p.id)}">${avatar(p.name)}<div class="m"><div class="n">${masked(p.name)}</div><div class="l">Tap to chat</div></div><span style="color:var(--accent)">${svg(P.chat, 20)}</span></a>`
+      : `<div class="conv" aria-disabled="true" style="${p.you ? 'background:var(--ok-soft);border-radius:12px;padding:12px;margin:0 -6px;border-top:0' : 'opacity:.75'}">${avatar(p.name)}<div class="m"><div class="n">${masked(p.name)}</div></div>${p.you ? youTag : `<span style="color:#A3A8BA" aria-label="Locked">${svg(P.lock, 18)}</span>`}</div>`).join('')
       || `<div class="empty">${people ? 'No batchmates found.' : 'Loading…'}</div>`}</div>${footer()}`;
 }
 function paintThread(v, id) {
@@ -761,6 +783,17 @@ document.addEventListener('click', e => {
   if (pl) { api2('/api/chat/request', { plan: pl.dataset.plan }).then(d => { C = d; showPlans = false; paintChat(); toast('Request sent to admin'); scrollTo(0, 0); }).catch(err => toast(err.message)); return; }
   if (e.target.closest('[data-cancelreq]')) { api2('/api/chat/request', { cancel: true }).then(d => { C = d; paintChat(); }).catch(err => toast(err.message)); return; }
   if (e.target.closest('[data-showplans]')) { showPlans = !showPlans; paintChat(); return; }
+  const wv = e.target.closest('[data-watch]');
+  if (wv) {
+    const [eid, cid] = wv.dataset.watch.split('|');
+    const c = S.elections.find(x => x.id === eid).candidates.find(x => x.id === cid);
+    const portrait = c.video.kind === 'youtube' && /shorts/.test(c.video.url) || c.video.kind === 'drive';
+    $('vidBox').style.paddingTop = portrait ? '150%' : '56.25%';
+    $('vidBox').innerHTML = `<iframe src="${esc(c.video.embed)}" title="Campaign video" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>`;
+    $('vidName').textContent = c.name; $('vidDlg').showModal(); return;
+  }
+  const cp = e.target.closest('[data-camp]'); if (cp) { campOpen = cp.dataset.camp; render(); return; }
+  if (e.target.closest('[data-campclose]')) { campOpen = null; render(); return; }
   const n = e.target.closest('[data-nom]'); if (n) { nomOpen = n.dataset.nom; render(); const i = document.querySelector('#nomForm input'); if (i) i.focus(); return; }
   if (e.target.closest('[data-nomclose]')) { nomOpen = null; render(); return; }
   const v = e.target.closest('[data-vote]');
@@ -775,6 +808,13 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('submit', async e => {
   const f = e.target;
+  if (f.id === 'campForm') {
+    e.preventDefault();
+    if (!f.elements.cand.value) { toast('Choose your name'); return; }
+    try { await api2('/api/campaign', { electionId: f.dataset.e, candidateId: f.elements.cand.value, url: f.elements.url.value }); campOpen = null; render(); toast('Sent. It appears once the committee approves it.'); }
+    catch (err) { toast(err.message); }
+    return;
+  }
   if (f.id === 'testSignin') { e.preventDefault(); finishSignin(`test:${f.elements.email.value}:${f.elements.name.value}:${f.elements.email.value}`); return; }
   if (f.id === 'consentForm') {
     e.preventDefault();
@@ -812,6 +852,8 @@ document.addEventListener('submit', async e => {
   } catch (err) { toast(err.message); btn.disabled = false; }
 });
 $('askNo').onclick = () => $('ask').close();
+$('vidClose').onclick = () => $('vidDlg').close();
+$('vidDlg').addEventListener('close', () => { $('vidBox').innerHTML = ''; });
 $('askYes').onclick = async () => {
   $('ask').close();
   try {
@@ -826,7 +868,7 @@ addEventListener('hashchange', () => {
   if (route()[0] !== 'rsvp') form = null;
   else if (!keepForm) form = null;
   keepForm = false;
-  nomOpen = null; draft = ''; showPlans = false; if (route()[0] === 'members') MEM = null;
+  nomOpen = null; campOpen = null; draft = ''; showPlans = false; if (route()[0] === 'members') MEM = null;
   if (route()[0] === 'chat') { thread = route()[1] && route()[1] !== 'new' ? null : thread; loadChat(route()[1]); }
   render(); scrollTo(0, 0);
 });
@@ -840,7 +882,7 @@ document.addEventListener('input', e => {
 document.addEventListener('keydown', e => { if (e.target.id === 'msg' && e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) { e.preventDefault(); $('sendForm').requestSubmit(); } });
 setInterval(() => { const [r, a] = route(); if (r === 'chat' && a !== 'new' && document.activeElement?.id !== 'msg') loadChat(a); }, 8000);
 fetch('/api/config').then(r => r.json()).then(c => { CFG = c; }).catch(() => {}).finally(load);
-setInterval(() => { if (S && !['rsvp', 'chat'].includes(route()[0]) && !nomOpen && !$('ask').open) load(); }, 60000);
+setInterval(() => { if (S && !['rsvp', 'chat'].includes(route()[0]) && !nomOpen && !campOpen && !$('ask').open && !$('vidDlg').open) load(); }, 60000);
 </script>
 </body>
 </html>
