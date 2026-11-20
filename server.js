@@ -13,12 +13,15 @@ const newId = () => crypto.randomBytes(6).toString('hex');
 // privacy: outside live polls, people are shown as an initial plus stars
 const mask = name => (String(name || '?').trim().charAt(0).toUpperCase() || '?') + '*'.repeat(10);
 // registration list format: first initial + 6 stars + second initial + 5 stars, e.g. Ravi Kumar -> R******K*****
-function maskFull(name) {
+function maskFull(name, key = '') {
   const w = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!w.length) return '?******?*****';
+  if (!w.length) return '?************';
   const a = w[0].charAt(0).toUpperCase();
   const b = (w.length > 1 ? w[w.length - 1].charAt(0) : w[0].charAt(w[0].length - 1)).toUpperCase();
-  return a + '******' + b + '*****';
+  // the second letter lands in a different place per person (3rd, 5th, 7th or 8th), always 13 characters
+  const pos = [2, 4, 6, 7][strHash(key || name) % 4];
+  const out = Array(13).fill('*'); out[0] = a; out[pos] = b;
+  return out.join('');
 }
 
 // =================================================================== defaults
@@ -523,7 +526,7 @@ const findElection = id => db.elections.find(e => e.id === id);
 app.get('/api/state', (req, res) => res.json(publicState(voterIdOf(req, res))));
 
 app.get('/api/members', (req, res) => {
-  const list = Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(r => ({ name: maskFull(r.name), t: r.createdAt }));
+  const list = Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(r => ({ name: maskFull(r.name, r.id), t: r.createdAt }));
   res.json({ total: list.length, members: list });
 });
 
