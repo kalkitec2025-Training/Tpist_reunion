@@ -83,6 +83,7 @@ function defaultDb() {
     votes: {},       // electionId -> { voterId: { c: candidateId, t: time } }
     rsvps: {},       // id -> rsvp
     nominations: {}, // electionId -> { voterId: count }
+    chat: { users: {}, messages: [] }, // users keyed by rsvp id
     schedule: [
       S(1, '8:00 AM', 'Arrivals & registration', 'Collect your name badge and welcome kit'),
       S(1, '8:30 AM', 'Welcome breakfast'),
@@ -151,7 +152,7 @@ async function loadDb() {
       settings: { ...d.settings, ...data.settings, regBaseMale: d.settings.regBaseMale, regBaseFemale: d.settings.regBaseFemale, venueStatus: d.settings.venueStatus } };
   }
   if (!data || data.v !== 4) return d;
-  return { ...d, ...data, settings: { ...d.settings, ...data.settings }, auto: { ...d.auto, ...data.auto } };
+  return { ...d, ...data, chat: data.chat || d.chat, settings: { ...d.settings, ...data.settings }, auto: { ...d.auto, ...data.auto } };
 }
 
 let saveTimer = null;
@@ -353,7 +354,9 @@ function publicState(voterId) {
     b.total++; if (t.status === 'done') b.done++;
     b.items.push({ title: t.title, status: t.status });
   }
+  const meId = myRsvp ? myRsvp.id : null;
   return {
+    chatUnread: meId ? db.chat.messages.filter(m => m.to === meId && !m.read).length : 0,
     settings: db.settings,
     updatedAt: db.auto.startAt + slot * interval,
     elections: db.elections.map(e => electionView(e, voterId, slot)),
@@ -421,6 +424,101 @@ app.post('/api/nominate', (req, res) => {
   res.json(publicState(vid));
 });
 
+// ======================================================================= chat
+const PLANS = [
+  { id: 'p10', name: 'Starter', messages: 10, price: 299 },
+  { id: 'p50', name: 'Plus', messages: 50, price: 599 },
+  { id: 'unl', name: 'Unlimited', messages: null, price: 999 }
+];
+const lastSend = new Map();
+function chatMe(req, res) {
+  const vid = voterIdOf(req, res);
+  const r = Object.values(db.rsvps).find(x => x.voterId === vid);
+  if (!r) return { vid, rsvp: null, u: null };
+  const u = (db.chat.users[r.id] ||= { consentAt: null, status: 'none', plan: null, limit: 0, used: 0, requestedAt: null });
+  return { vid, rsvp: r, u };
+}
+function chatView(rsvp, u) {
+  const me = rsvp.id;
+  const peers = new Map();
+  for (const m of db.chat.messages) {
+    if (m.from !== me && m.to !== me) continue;
+    const p = m.from === me ? m.to : m.from;
+    const c = peers.get(p) || { unread: 0 };
+    c.last = m.text; c.t = m.t; c.mine = m.from === me;
+    if (m.to === me && !m.read) c.unread++;
+    peers.set(p, c);
+  }
+  const plan = PLANS.find(p => p.id === u.plan) || null;
+  return {
+    registered: true, name: rsvp.name, consent: !!u.consentAt, status: u.status, plan, requested: PLANS.find(p => p.id === u.requested) || null,
+    left: u.status === 'active' ? (plan && plan.messages === null ? null : Math.max(0, u.limit - u.used)) : 0,
+    plans: PLANS,
+    conversations: [...peers.entries()].filter(([p]) => db.rsvps[p]).map(([p, c]) => ({ id: p, name: db.rsvps[p].name, branch: db.rsvps[p].branch, ...c })).sort((a, b) => b.t - a.t)
+  };
+}
+app.get('/api/chat', (req, res) => {
+  const { rsvp, u } = chatMe(req, res);
+  if (!rsvp) return res.json({ registered: false });
+  res.json(chatView(rsvp, u));
+});
+app.post('/api/chat/consent', (req, res) => {
+  const { rsvp, u } = chatMe(req, res);
+  if (!rsvp) return res.status(403).json({ error: 'Please register first' });
+  if (req.body.agree !== true) return res.status(400).json({ error: 'Please accept the chat rules' });
+  u.consentAt = Date.now();
+  saveDb(); res.json(chatView(rsvp, u));
+});
+app.post('/api/chat/request', (req, res) => {
+  const { rsvp, u } = chatMe(req, res);
+  if (!rsvp || !u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
+  if (req.body.cancel) { if (u.status === 'pending') { u.status = 'none'; u.requested = null; } saveDb(); return res.json(chatView(rsvp, u)); }
+  const plan = PLANS.find(p => p.id === req.body.plan);
+  if (!plan) return res.status(400).json({ error: 'Choose a plan' });
+  if (u.status === 'active' && (!PLANS.find(p => p.id === u.plan) || PLANS.find(p => p.id === u.plan).messages === null)) return res.status(409).json({ error: 'You already have unlimited messages' });
+  u.requested = plan.id; u.requestedAt = Date.now();
+  if (u.status !== 'active') u.status = 'pending';
+  saveDb(); res.json(chatView(rsvp, u));
+});
+app.get('/api/chat/people', (req, res) => {
+  const { rsvp, u } = chatMe(req, res);
+  if (!rsvp || !u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
+  res.json(Object.values(db.rsvps).filter(r => r.voterId && r.id !== rsvp.id).map(r => ({ id: r.id, name: r.name, branch: r.branch, city: r.city })).sort((a, b) => a.name.localeCompare(b.name)));
+});
+app.get('/api/chat/thread/:id', (req, res) => {
+  const { rsvp, u } = chatMe(req, res);
+  if (!rsvp || !u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
+  const peer = db.rsvps[req.params.id];
+  if (!peer) return res.status(404).json({ error: 'Batchmate not found' });
+  const me = rsvp.id;
+  let changed = false;
+  const msgs = db.chat.messages.filter(m => (m.from === me && m.to === peer.id) || (m.from === peer.id && m.to === me)).map(m => {
+    if (m.to === me && !m.read) { m.read = true; changed = true; }
+    return { id: m.id, mine: m.from === me, text: m.text, t: m.t };
+  });
+  if (changed) saveDb();
+  res.json({ peer: { id: peer.id, name: peer.name, branch: peer.branch, city: peer.city }, messages: msgs, chat: chatView(rsvp, u) });
+});
+app.post('/api/chat/send', (req, res) => {
+  const { rsvp, u } = chatMe(req, res);
+  if (!rsvp || !u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
+  if (u.status !== 'active') return res.status(402).json({ error: 'Choose a plan to send messages' });
+  const plan = PLANS.find(p => p.id === u.plan);
+  if (plan && plan.messages !== null && u.used >= u.limit) return res.status(402).json({ error: 'You have used all your messages. Choose a new plan to continue.' });
+  const peer = db.rsvps[req.body.to];
+  if (!peer || !peer.voterId || peer.id === rsvp.id) return res.status(404).json({ error: 'Batchmate not found' });
+  const text = str(req.body.text, 500);
+  if (!text) return res.status(400).json({ error: 'Type a message' });
+  const now = Date.now();
+  if (now - (lastSend.get(rsvp.id) || 0) < 1500) return res.status(429).json({ error: 'Slow down a little' });
+  lastSend.set(rsvp.id, now);
+  db.chat.messages.push({ id: newId(), from: rsvp.id, to: peer.id, text, t: now, read: false });
+  if (db.chat.messages.length > 20000) db.chat.messages.splice(0, db.chat.messages.length - 20000);
+  u.used++;
+  saveDb();
+  res.json({ ok: true });
+});
+
 function cleanRsvp(b) {
   const phone = String(b.phone || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '');
   const r = {
@@ -483,7 +581,13 @@ A.get('/state', (req, res) => {
     updatedAt: db.auto.startAt + slot * interval,
     nextUpdateAt: db.auto.on ? db.auto.startAt + (slot + 1) * interval : null,
     elections, schedule: db.schedule, tasks: db.tasks,
-    rsvps: Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(({ voterId, ...r }) => r)
+    rsvps: Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(({ voterId, ...r }) => r),
+    chat: {
+      plans: PLANS,
+      users: Object.entries(db.chat.users).filter(([id]) => db.rsvps[id]).map(([id, u]) => ({ id, name: db.rsvps[id].name, branch: db.rsvps[id].branch, ...u }))
+        .sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0)),
+      messages: db.chat.messages.slice(-300).reverse().map(m => ({ ...m, fromName: db.rsvps[m.from]?.name || '—', toName: db.rsvps[m.to]?.name || '—' }))
+    }
   });
 });
 
@@ -617,6 +721,27 @@ A.put('/rsvps/:id', (req, res) => {
 });
 A.delete('/rsvps/:id', (req, res) => {
   delete db.rsvps[req.params.id];
+  saveDb(); res.json({ ok: true });
+});
+
+// chat moderation
+A.post('/chat/:id', (req, res) => {
+  const u = db.chat.users[req.params.id];
+  if (!u) return res.status(404).json({ error: 'Not found' });
+  const a = req.body.action;
+  if (a === 'approve') {
+    const plan = PLANS.find(p => p.id === (req.body.plan || u.requested));
+    if (!plan) return res.status(400).json({ error: 'Choose a plan' });
+    const sameKind = u.status === 'active' && u.plan === plan.id;
+    u.plan = plan.id; u.status = 'active'; u.requested = null;
+    u.limit = plan.messages === null ? 0 : (sameKind ? u.limit : u.used) + plan.messages;
+  } else if (a === 'decline') { u.status = u.plan ? 'active' : 'declined'; u.requested = null; }
+  else if (a === 'revoke') { u.status = 'revoked'; u.requested = null; }
+  else return res.status(400).json({ error: 'Unknown action' });
+  saveDb(); res.json({ ok: true });
+});
+A.delete('/chat/messages/:id', (req, res) => {
+  db.chat.messages = db.chat.messages.filter(m => m.id !== req.params.id);
   saveDb(); res.json({ ok: true });
 });
 

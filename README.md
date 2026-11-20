@@ -56,3 +56,9 @@ npm install
 ADMIN_PASSWORD=secret npm start          # file storage in ./data
 DATABASE_URL=postgres://... npm start    # or Postgres
 ```
+
+## Chat
+- The **Chat** tab is for registered batchmates only. Each person must accept the chat rules first: be professional, no abusive or unprofessional messages, no spam, no sharing others' numbers or photos, and messages are visible to the committee for moderation.
+- Plans: **Starter ₹299** (10 messages), **Plus ₹599** (50 messages), **Unlimited ₹999**. Choosing a plan sends a request to the admin. **No payment is collected in the app.**
+- **Admin → Chat:** approve or decline requests, activate or top up plans, remove someone's access, and read or delete messages for moderation.
+- Anyone who accepted the rules can read messages sent to them. Sending needs an active plan.

@@ -144,11 +144,44 @@
   .foot { text-align:center; font-size:11px; color:#7A7F90; padding:28px 20px 8px; line-height:1.7; }
 
   nav.tabs { position:fixed; left:0; right:0; bottom:0; z-index:20; background:rgba(255,255,255,.97); backdrop-filter:blur(10px); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom); }
-  nav.tabs .in { max-width:560px; margin:0 auto; display:grid; grid-template-columns:repeat(5, 1fr); }
-  nav.tabs a { display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 0 9px; font-size:11px; font-weight:600; color:#7A7F90; text-decoration:none; position:relative; }
+  nav.tabs .in { max-width:560px; margin:0 auto; display:grid; grid-template-columns:repeat(6, 1fr); }
+  nav.tabs a { display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 0 9px; font-size:10.5px; font-weight:600; color:#7A7F90; text-decoration:none; position:relative; }
   nav.tabs a.on { color:var(--accent); }
+  nav.tabs a .badge[hidden] { display:none; }
   nav.tabs a .badge { position:absolute; top:6px; left:calc(50% + 6px); background:var(--accent); color:#fff; font-size:10px; min-width:16px; height:16px; border-radius:8px; display:grid; place-items:center; padding:0 4px; }
 
+  .rules ol { margin:10px 0 0; padding-left:20px; display:flex; flex-direction:column; gap:8px; font-size:14px; line-height:1.5; }
+  .agree { display:flex; gap:10px; align-items:flex-start; font-size:14px; margin:16px 0; line-height:1.45; }
+  .agree input { width:20px; height:20px; accent-color:var(--accent); flex-shrink:0; margin-top:1px; }
+  .plans { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin:0 20px 12px; }
+  .plan { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 10px; text-align:center; display:flex; flex-direction:column; gap:4px; }
+  .plan.best { border:2px solid var(--accent); }
+  .plan .pn { font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.04em; text-transform:uppercase; }
+  .plan .pp { font-size:24px; font-weight:700; }
+  .plan .pm { font-size:13px; color:var(--muted); margin-bottom:8px; }
+  .plan button { height:40px; border:0; border-radius:10px; background:var(--ink); color:#fff; font-weight:600; font-size:13px; cursor:pointer; margin-top:auto; }
+  .plan.best button { background:var(--accent); }
+  .conv { display:flex; gap:12px; align-items:center; padding:12px 0; border-top:1px solid var(--line); text-decoration:none; }
+  .conv:first-child { border-top:0; }
+  .conv .m { flex:1; min-width:0; } .conv .n { font-weight:600; font-size:15px; display:flex; justify-content:space-between; gap:8px; }
+  .conv .n small { font-weight:500; font-size:12px; color:var(--muted); white-space:nowrap; }
+  .conv .l { font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+  .conv.unread .l { color:var(--ink); font-weight:600; }
+  .ub { background:var(--accent); color:#fff; font-size:11px; font-weight:700; min-width:20px; height:20px; border-radius:10px; display:grid; place-items:center; padding:0 6px; }
+  .search { margin:14px 20px 12px; } .search input { width:100%; height:46px; border:1px solid #D5D8E2; border-radius:12px; padding:0 14px; font-size:16px; background:#fff; }
+  .thead { position:sticky; top:59px; z-index:5; background:rgba(246,247,251,.96); backdrop-filter:blur(8px); display:flex; gap:12px; align-items:center; padding:12px 20px; border-bottom:1px solid var(--line); }
+  .thead a.bk { text-decoration:none; font-size:22px; color:var(--muted); padding-right:4px; }
+  .msgs { padding:16px 16px 150px; display:flex; flex-direction:column; gap:6px; }
+  .bub { max-width:80%; padding:10px 12px; border-radius:16px; font-size:15px; line-height:1.4; white-space:pre-wrap; word-wrap:break-word; }
+  .bub.me { align-self:flex-end; background:var(--ink); color:#fff; border-bottom-right-radius:4px; }
+  .bub.them { align-self:flex-start; background:#fff; border:1px solid var(--line); border-bottom-left-radius:4px; }
+  .bub small { display:block; font-size:10px; opacity:.6; margin-top:4px; text-align:right; }
+  .day-sep { align-self:center; font-size:11px; color:var(--muted); background:var(--track); padding:3px 10px; border-radius:99px; margin:8px 0; }
+  .composer { position:fixed; left:0; right:0; bottom:calc(61px + env(safe-area-inset-bottom)); z-index:15; background:#fff; border-top:1px solid var(--line); }
+  .composer .in { max-width:560px; margin:0 auto; padding:10px 12px; display:flex; gap:8px; align-items:flex-end; }
+  .composer textarea { flex:1; min-height:44px; max-height:120px; border:1px solid #D5D8E2; border-radius:22px; padding:11px 16px; font:inherit; font-size:15px; resize:none; }
+  .composer button { width:44px; height:44px; border-radius:50%; border:0; background:var(--accent); color:#fff; display:grid; place-items:center; cursor:pointer; flex-shrink:0; }
+  .composer .meta { max-width:560px; margin:0 auto; padding:0 16px 8px; font-size:11px; color:var(--muted); }
   dialog { border:0; border-radius:18px; padding:0; width:min(92vw, 400px); }
   dialog::backdrop { background:rgba(10,10,14,.55); }
   .dlg { padding:22px; } .dlg h3 { margin:0; font-size:19px; } .dlg p { margin:8px 0 18px; color:var(--muted); font-size:14px; line-height:1.5; }
@@ -172,6 +205,7 @@
   <a href="#vote" data-tab="vote"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Vote<span class="badge" id="voteBadge" hidden></span></a>
   <a href="#schedule" data-tab="schedule"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Schedule</a>
   <a href="#teams" data-tab="teams"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M22 21v-1a6 6 0 0 0-4-5.7"/></svg>Teams</a>
+  <a href="#chat" data-tab="chat"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/></svg>Chat<span class="badge" id="chatBadge" hidden></span></a>
   <a href="#rsvp" data-tab="rsvp"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>RSVP</a>
 </div></nav>
 
@@ -220,6 +254,7 @@ function icon(e) {
 }
 
 let S = null, day = 1, pending = null, form = null, nomOpen = null;
+let C = null, people = null, thread = null, showPlans = false, peopleQ = '', draft = '';
 function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
 async function load() { try { const r = await fetch('/api/state', { cache:'no-store' }); S = await r.json(); render(); } catch {} }
 const route = () => { const [r, a] = (location.hash.slice(1) || 'home').split('/'); return [r === 'plan' ? 'schedule' : r, a]; };
@@ -246,6 +281,8 @@ function render() {
   document.querySelectorAll('nav.tabs a').forEach(a => a.classList.toggle('on', a.dataset.tab === r));
   const left = st.votingOpen ? votable().filter(e => !e.myVote).length : 0;
   $('voteBadge').hidden = !left; $('voteBadge').textContent = left;
+  $('chatBadge').hidden = !S.chatUnread; $('chatBadge').textContent = S.chatUnread;
+  if (r === 'chat') { renderChat(arg); return; }
   $('view').innerHTML = r === 'vote' && arg ? electionPage(arg) : r === 'vote' ? votePage() : r === 'schedule' ? schedulePage()
     : r === 'teams' ? teamsPage() : r === 'rsvp' ? rsvpPage() : homePage();
 }
@@ -436,6 +473,119 @@ function rsvpPage() {
     </form>${footer()}`;
 }
 
+// ------------------------------------------------------------------ chat
+const SEND = '<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>';
+const rupee = n => '\u20b9' + n;
+function ago(t) {
+  const d = new Date(t), now = new Date();
+  return d.toDateString() === now.toDateString() ? time(t) : d.toLocaleDateString('en-IN', { day:'numeric', month:'short' });
+}
+async function api2(url, body) {
+  const r = await fetch(url, body ? { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) } : { cache:'no-store' });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'Something went wrong');
+  return d;
+}
+async function loadChat(arg) {
+  try {
+    if (arg && arg !== 'new') { thread = await api2('/api/chat/thread/' + encodeURIComponent(arg)); C = thread.chat; }
+    else { C = await api2('/api/chat'); if (arg === 'new' && C.consent) people = await api2('/api/chat/people'); }
+  } catch (e) { toast(e.message); }
+  if (S && C && C.conversations && !(arg && arg !== 'new')) { S.chatUnread = C.conversations.reduce((n, c) => n + c.unread, 0); }
+  else if (S && thread) { S.chatUnread = Math.max(0, (S.chatUnread || 0) - 0); }
+  if (S) { $('chatBadge').hidden = !S.chatUnread; $('chatBadge').textContent = S.chatUnread; }
+  if (route()[0] === 'chat') paintChat(route()[1]);
+}
+function renderChat(arg) {
+  if (!C) { $('view').innerHTML = '<div class="loading">Loading chat…</div>'; loadChat(arg); return; }
+  paintChat(arg);
+}
+function paintChat(arg) {
+  const v = $('view');
+  if (!C.registered) {
+    v.innerHTML = `<div class="pad"><h1 class="h1 d">Chat</h1><p class="sub">Message batchmates privately.</p></div>
+      <div class="card cta" style="margin-top:16px"><div class="t">Register to use chat</div><div class="x">Chat is open to registered batchmates. Register first, then come back here.</div><a class="btn acc" href="#rsvp">Register now</a></div>${footer()}`;
+    return;
+  }
+  if (!C.consent) {
+    v.innerHTML = `<div class="pad"><h1 class="h1 d">Chat rules</h1><p class="sub">Please read and accept before using chat.</p></div>
+      <form class="card rules" id="consentForm" style="margin-top:16px">
+        <div style="font-weight:700">By using chat, I agree to:</div>
+        <ol>
+          <li>Keep every message respectful and professional.</li>
+          <li>Send no abusive, vulgar, offensive or unprofessional messages.</li>
+          <li>Send no spam, forwards, business promotions or money requests.</li>
+          <li>Not share anyone's phone number or photos without their permission.</li>
+          <li>Accept that the organising committee can see messages for moderation, and can delete messages or remove access if these rules are broken.</li>
+        </ol>
+        <label class="agree"><input type="checkbox" name="agree" required> I have read the chat rules and I agree to follow them.</label>
+        <button class="btn acc" style="width:100%">Accept and continue</button>
+      </form>${footer()}`;
+    return;
+  }
+  if (arg === 'new') return paintPeople(v);
+  if (arg) return paintThread(v, arg);
+  paintInbox(v);
+}
+function planCards() {
+  return `<div class="plans">${C.plans.map(p => `<div class="plan ${p.messages === null ? 'best' : ''}">
+    <div class="pn">${esc(p.name)}</div><div class="pp d">${rupee(p.price)}</div><div class="pm">${p.messages === null ? 'Unlimited messages' : p.messages + ' messages'}</div>
+    <button type="button" data-plan="${p.id}">Request</button></div>`).join('')}</div>
+    <p class="fine" style="margin:0 20px 12px">Your request goes to the admin, who activates your plan.</p>`;
+}
+function paintInbox(v) {
+  let status;
+  if (C.status === 'active') {
+    status = `<div class="card cta"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div><div class="t">${esc(C.plan.name)} plan</div><div class="x">${C.left === null ? 'Unlimited messages' : `${C.left} message${C.left === 1 ? '' : 's'} left`}${C.requested ? ` · ${esc(C.requested.name)} requested` : ''}</div></div>
+      <a class="btn acc sm" href="#chat/new">New message</a></div>
+      ${C.left !== null ? `<button type="button" class="btn ghost sm" data-showplans style="align-self:flex-start">${showPlans ? 'Hide plans' : 'Get more messages'}</button>` : ''}</div>
+      ${showPlans && C.left !== null ? planCards() : ''}`;
+  } else if (C.status === 'pending') {
+    status = `<div class="card cta" style="background:#FFF8E1;border-color:#F5E1A4"><div class="t">Request sent to admin</div>
+      <div class="x">Your ${esc(C.requested ? C.requested.name : '')} plan request (${C.requested ? rupee(C.requested.price) : ''}) is with the admin. You can send messages as soon as it's activated.</div>
+      <button type="button" class="btn ghost sm" data-cancelreq style="align-self:flex-start">Cancel request</button></div>`;
+  } else if (C.status === 'revoked') {
+    status = `<div class="card"><div class="empty">Your chat access has been removed by the organising committee.</div></div>`;
+  } else {
+    status = `<div class="sec" style="margin-top:16px"><h2 class="d">Choose a plan to send messages</h2></div>
+      ${C.status === 'declined' ? '<div class="note-bar" style="margin:0 20px 12px">Your last request was not approved. You can request again.</div>' : ''}${planCards()}`;
+  }
+  const convs = C.conversations.map(c => `<a class="conv ${c.unread ? 'unread' : ''}" href="#chat/${esc(c.id)}">${avatar(c.name)}
+    <div class="m"><div class="n"><span>${esc(c.name)}</span><small>${ago(c.t)}</small></div><div class="l">${c.mine ? 'You: ' : ''}${esc(c.last)}</div></div>
+    ${c.unread ? `<span class="ub">${c.unread}</span>` : ''}</a>`).join('');
+  v.innerHTML = `<div class="pad"><h1 class="h1 d">Chat</h1><p class="sub">Private messages with your batchmates.</p></div>
+    <div style="height:14px"></div>${status}
+    <div class="sec"><h2 class="d">Messages</h2>${C.status === 'active' ? '<a href="#chat/new">New</a>' : ''}</div>
+    <div class="card">${convs || '<div class="empty">No messages yet.</div>'}</div>${footer()}`;
+}
+function paintPeople(v) {
+  const list = (people || []).filter(p => !peopleQ || `${p.name} ${p.branch} ${p.city}`.toLowerCase().includes(peopleQ.toLowerCase()));
+  v.innerHTML = `<a class="back" href="#chat">‹ Chat</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">New message</h1><p class="sub">Registered batchmates.</p></div>
+    <div class="search"><input type="search" id="pq" placeholder="Search name, branch or city" value="${esc(peopleQ)}" aria-label="Search batchmates"></div>
+    <div class="card">${list.map(p => `<a class="conv" href="#chat/${esc(p.id)}">${avatar(p.name)}<div class="m"><div class="n"><span>${esc(p.name)}</span></div><div class="l">${esc([p.branch, p.city].filter(Boolean).join(' · ') || 'Batchmate')}</div></div></a>`).join('')
+      || `<div class="empty">${people ? 'No batchmates found.' : 'Loading…'}</div>`}</div>${footer()}`;
+}
+function paintThread(v, id) {
+  if (!thread || thread.peer.id !== id) { v.innerHTML = '<div class="loading">Loading…</div>'; return; }
+  const p = thread.peer;
+  let lastDay = '';
+  const msgs = thread.messages.map(m => {
+    const dd = new Date(m.t).toDateString();
+    const sep = dd !== lastDay ? `<div class="day-sep">${new Date(m.t).toDateString() === new Date().toDateString() ? 'Today' : new Date(m.t).toLocaleDateString('en-IN', { day:'numeric', month:'short' })}</div>` : '';
+    lastDay = dd;
+    return `${sep}<div class="bub ${m.mine ? 'me' : 'them'}">${esc(m.text)}<small>${time(m.t)}</small></div>`;
+  }).join('');
+  const canSend = C.status === 'active' && C.left !== 0;
+  const composer = canSend
+    ? `<form class="composer" id="sendForm"><div class="in"><textarea id="msg" rows="1" maxlength="500" placeholder="Message ${esc(first(p.name))}" aria-label="Message">${esc(draft)}</textarea><button aria-label="Send">${svg(SEND, 20)}</button></div>
+        <div class="meta">${C.left === null ? 'Unlimited plan' : `${C.left} message${C.left === 1 ? '' : 's'} left`} · Keep it friendly and professional</div></form>`
+    : `<div class="composer"><div class="in" style="justify-content:center"><a class="btn acc" href="#chat" style="width:100%">${C.status === 'pending' ? 'Plan request pending' : C.status === 'active' ? 'Get more messages to reply' : 'Choose a plan to reply'}</a></div></div>`;
+  v.innerHTML = `<div class="thead"><a class="bk" href="#chat" aria-label="Back to chat">‹</a>${avatar(p.name)}<div><div style="font-weight:700">${esc(p.name)}</div><div style="font-size:12px;color:var(--muted)">${esc([p.branch, p.city].filter(Boolean).join(' · '))}</div></div></div>
+    <div class="msgs">${msgs || '<div class="empty">Say hello to ' + esc(first(p.name)) + '!</div>'}</div>${composer}`;
+  scrollTo(0, document.body.scrollHeight);
+}
+
 // ------------------------------------------------------------------ events
 function syncForm() {
   const f = $('rsvpForm'); if (!f || !form) return;
@@ -447,6 +597,10 @@ document.addEventListener('click', e => {
   if (s) { syncForm(); const [k, v] = s.dataset.set.split('|'); form[k] = v === 'true' ? true : v === 'false' ? false : v; if (k === 'attend' && v === 'day1') form.overnight = false; render(); return; }
   if (e.target.closest('[data-edit]')) { form = { ...S.myRsvp, editing:true }; render(); return; }
   if (e.target.closest('[data-cancel]')) { form = null; render(); return; }
+  const pl = e.target.closest('[data-plan]');
+  if (pl) { api2('/api/chat/request', { plan: pl.dataset.plan }).then(d => { C = d; showPlans = false; paintChat(); toast('Request sent to admin'); scrollTo(0, 0); }).catch(err => toast(err.message)); return; }
+  if (e.target.closest('[data-cancelreq]')) { api2('/api/chat/request', { cancel: true }).then(d => { C = d; paintChat(); }).catch(err => toast(err.message)); return; }
+  if (e.target.closest('[data-showplans]')) { showPlans = !showPlans; paintChat(); return; }
   const n = e.target.closest('[data-nom]'); if (n) { nomOpen = n.dataset.nom; render(); const i = document.querySelector('#nomForm input'); if (i) i.focus(); return; }
   if (e.target.closest('[data-nomclose]')) { nomOpen = null; render(); return; }
   const v = e.target.closest('[data-vote]');
@@ -461,6 +615,20 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('submit', async e => {
   const f = e.target;
+  if (f.id === 'consentForm') {
+    e.preventDefault();
+    if (!f.elements.agree.checked) { toast('Please tick the box to accept the rules'); return; }
+    try { C = await api2('/api/chat/consent', { agree: true }); paintChat(); scrollTo(0, 0); } catch (err) { toast(err.message); }
+    return;
+  }
+  if (f.id === 'sendForm') {
+    e.preventDefault();
+    const ta = $('msg'), text = ta.value.trim(); if (!text) return;
+    const btn = f.querySelector('button'); btn.disabled = true;
+    try { await api2('/api/chat/send', { to: route()[1], text }); draft = ''; await loadChat(route()[1]); }
+    catch (err) { toast(err.message); btn.disabled = false; }
+    return;
+  }
   if (f.id === 'nomForm') {
     e.preventDefault();
     const btn = f.querySelector('button:not([type=button])'); btn.disabled = true;
@@ -492,9 +660,20 @@ $('askYes').onclick = async () => {
     S = d; render(); toast('Your vote is counted');
   } catch (err) { toast(err.message); load(); }
 };
-addEventListener('hashchange', () => { if (route()[0] !== 'rsvp') form = null; nomOpen = null; render(); scrollTo(0, 0); });
+addEventListener('hashchange', () => {
+  if (route()[0] !== 'rsvp') form = null;
+  nomOpen = null; draft = ''; showPlans = false;
+  if (route()[0] === 'chat') { thread = route()[1] && route()[1] !== 'new' ? null : thread; loadChat(route()[1]); }
+  render(); scrollTo(0, 0);
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'msg') { draft = e.target.value; e.target.style.height = 'auto'; e.target.style.height = Math.min(120, e.target.scrollHeight) + 'px'; }
+  if (e.target.id === 'pq') { peopleQ = e.target.value; const pos = e.target.selectionStart; paintChat('new'); const n = $('pq'); n.focus(); n.setSelectionRange(pos, pos); }
+});
+document.addEventListener('keydown', e => { if (e.target.id === 'msg' && e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) { e.preventDefault(); $('sendForm').requestSubmit(); } });
+setInterval(() => { const [r, a] = route(); if (r === 'chat' && a !== 'new' && document.activeElement?.id !== 'msg') loadChat(a); }, 8000);
 load();
-setInterval(() => { if (route()[0] !== 'rsvp' && !nomOpen && !$('ask').open) load(); }, 60000);
+setInterval(() => { if (!['rsvp', 'chat'].includes(route()[0]) && !nomOpen && !$('ask').open) load(); }, 60000);
 </script>
 </body>
 </html>

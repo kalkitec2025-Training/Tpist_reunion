@@ -71,7 +71,7 @@
       <div class="row"><a href="/" target="_blank"><button class="btn">Open app ↗</button></a></div></div>
     <nav id="tabs">
       <button data-t="overview" class="on">Overview</button><button data-t="elections">Elections</button>
-      <button data-t="rsvps">Registrations</button><button data-t="plan">Plan & tasks</button><button data-t="settings">Settings</button>
+      <button data-t="rsvps">Registrations</button><button data-t="plan">Plan & tasks</button><button data-t="chat">Chat</button><button data-t="settings">Settings</button>
     </nav>
   </div></header>
   <main id="main"></main>
@@ -112,7 +112,7 @@ function render() {
   const st = S.settings;
   $('hTitle').textContent = `${st.eventTitle} · Admin`;
   $('hSub').textContent = `${S.rsvps.length} registered of ${st.expected} expected · storage: ${S.storage === 'postgres' ? 'database (permanent)' : 'file (resets on restart)'}`;
-  $('main').innerHTML = ({ overview, elections, rsvps, plan, settings })[tab]();
+  $('main').innerHTML = ({ overview, elections, rsvps, plan, settings, chat })[tab]();
 }
 
 // ------------------------------------------------------------ overview
@@ -250,6 +250,32 @@ function plan() {
   </section></div>`;
 }
 
+// ------------------------------------------------------------ chat
+function chat() {
+  const C = S.chat, P = Object.fromEntries(C.plans.map(p => [p.id, p]));
+  const pend = C.users.filter(u => u.requested && u.status !== 'revoked');
+  const subs = C.users.filter(u => u.status === 'active' || u.status === 'revoked');
+  const ST = { none:'No plan', pending:'Requested', active:'Active', declined:'Declined', revoked:'Removed' };
+  const planSel = (u, def) => `<select data-cplan="${u.id}" style="width:150px">${C.plans.map(p => `<option value="${p.id}" ${p.id === def ? 'selected' : ''}>${esc(p.name)} · ₹${p.price}</option>`).join('')}</select>`;
+  return `<div class="grid" style="grid-template-columns:minmax(0,1fr)">
+  <section class="card"><h2>Plan requests (${pend.length})</h2><p class="hint">Batchmates who asked for a chat plan. Approving activates it straight away; no payment is collected in the app.</p>
+    ${pend.length ? `<div class="tw"><table><tr><th>Name</th><th>Requested</th><th>When</th><th>Activate as</th><th></th></tr>
+    ${pend.map(u => `<tr><td><b>${esc(u.name)}</b><div class="sub">${esc(u.branch || '')}</div></td><td>${esc(P[u.requested]?.name || '')} · ₹${P[u.requested]?.price || ''}</td><td>${when(u.requestedAt)}</td>
+      <td>${planSel(u, u.requested)}</td><td><div class="row"><button class="btn p s" data-capprove="${u.id}">Approve</button><button class="btn r s" data-cdecline="${u.id}">Decline</button></div></td></tr>`).join('')}</table></div>` : '<p class="hint">No pending requests.</p>'}
+  </section>
+  <section class="card"><h2>Chat members (${C.users.length})</h2><p class="hint">Everyone who accepted the chat rules.</p>
+    <div class="tw"><table><tr><th>Name</th><th>Status</th><th>Plan</th><th>Used</th><th>Change plan</th><th></th></tr>
+    ${C.users.map(u => `<tr><td><b>${esc(u.name)}</b></td><td><span class="pill ${u.status === 'active' ? 'g' : u.status === 'revoked' ? 'r' : u.status === 'pending' ? 'o' : ''}">${ST[u.status] || u.status}</span></td>
+      <td>${u.plan ? esc(P[u.plan]?.name) : '—'}</td><td>${u.plan ? (P[u.plan]?.messages === null ? `${u.used} · unlimited` : `${u.used} / ${u.limit}`) : '—'}</td>
+      <td><div class="row">${planSel(u, u.plan || 'p10')}<button class="btn s" data-capprove="${u.id}">${u.status === 'active' ? 'Top up / change' : 'Activate'}</button></div></td>
+      <td>${u.status !== 'revoked' ? `<button class="btn r s" data-crevoke="${u.id}">Remove access</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="hint">Nobody has joined chat yet.</td></tr>'}
+    </table></div>
+  </section>
+  <section class="card"><h2>Messages (latest ${C.messages.length})</h2><p class="hint">For moderation only. Delete anything that breaks the chat rules.</p>
+    ${C.messages.map(m => `<div class="rs" style="grid-template-columns:minmax(0,1fr) minmax(0,2.4fr) auto"><div><b>${esc(m.fromName)}</b> → ${esc(m.toName)}<div class="sub">${when(m.t)}</div></div><div style="white-space:pre-wrap">${esc(m.text)}</div><div><button class="btn r s" data-cdel="${m.id}">Delete</button></div></div>`).join('') || '<p class="hint">No messages yet.</p>'}
+  </section></div>`;
+}
+
 // ------------------------------------------------------------ settings
 function settings() {
   const s = S.settings;
@@ -307,6 +333,11 @@ document.addEventListener('click', run(async e => {
   const dc = t.closest('[data-delc]'); if (dc) { if (!confirm('Remove this candidate and their votes?')) return; await api(`/elections/${selE}/candidates/${dc.dataset.delc}`, { method:'DELETE' }); return load(); }
   const dr = t.closest('[data-delr]'); if (dr) { if (!confirm('Delete this registration?')) return; await api(`/rsvps/${dr.dataset.delr}`, { method:'DELETE' }); return load(); }
   const sd = t.closest('[data-sdel]'); if (sd) { sched.splice(+sd.dataset.sdel, 1); render(); return; }
+  const ca = t.closest('[data-capprove]');
+  if (ca) { const sel = ca.closest('tr') && ca.closest('tr').querySelector('select'); await api(`/chat/${ca.dataset.capprove}`, { method:'POST', json:{ action:'approve', plan: sel ? sel.value : undefined } }); toast('Plan activated'); return load(); }
+  const cd = t.closest('[data-cdecline]'); if (cd) { await api(`/chat/${cd.dataset.cdecline}`, { method:'POST', json:{ action:'decline' } }); toast('Request declined'); return load(); }
+  const cr = t.closest('[data-crevoke]'); if (cr) { if (!confirm('Remove this person\'s chat access?')) return; await api(`/chat/${cr.dataset.crevoke}`, { method:'POST', json:{ action:'revoke' } }); toast('Access removed'); return load(); }
+  const cm = t.closest('[data-cdel]'); if (cm) { if (!confirm('Delete this message?')) return; await api(`/chat/messages/${cm.dataset.cdel}`, { method:'DELETE' }); toast('Message deleted'); return load(); }
   const td = t.closest('[data-tdel]'); if (td) { await api(`/tasks/${td.dataset.tdel}`, { method:'DELETE' }); return load(); }
 }));
 
