@@ -173,6 +173,19 @@
   .tagc { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; margin-top:5px; background:var(--ok-soft); color:var(--ok); }
   .tagc.platinum { background:#1C1D24; color:#F2F2F4; } .tagc.gold { background:#FFF1CC; color:#7A5400; } .tagc.silver { background:#E8EAF0; color:#3D4150; }
   .pills.three { grid-template-columns:repeat(3, 1fr); }
+  body.signin nav.tabs, body.signin .top .live { display:none; }
+  body.signin .shell { padding-bottom:24px; }
+  .si-hero { margin:20px; background:var(--ink); color:#fff; border-radius:22px; padding:26px 22px; position:relative; overflow:hidden; }
+  .si-hero:after { content:''; position:absolute; right:-50px; top:-50px; width:180px; height:180px; border-radius:50%; border:30px solid rgba(194,65,12,.35); }
+  .si-hero h1 { margin:10px 0 0; font-size:30px; line-height:1.1; position:relative; z-index:1; }
+  .si-hero p { color:#C9CCD6; font-size:14px; line-height:1.5; margin:10px 0 0; position:relative; z-index:1; }
+  .si-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px; }
+  .si-list li { display:flex; gap:12px; align-items:center; font-size:14px; }
+  .gwrap { display:flex; justify-content:center; min-height:44px; transition:opacity .2s; }
+  .gwrap.off { opacity:.4; pointer-events:none; filter:grayscale(1); }
+  .me-bar { display:flex; gap:12px; align-items:center; }
+  .me-bar img, .me-bar .av { width:40px; height:40px; border-radius:50%; object-fit:cover; }
+  .prose h2 { font-size:16px; margin:18px 0 6px; } .prose p, .prose li { font-size:14px; line-height:1.6; color:#3D4150; } .prose ul { padding-left:20px; margin:6px 0; }
   .rules ol { margin:10px 0 0; padding-left:20px; display:flex; flex-direction:column; gap:8px; font-size:14px; line-height:1.5; }
   .agree { display:flex; gap:10px; align-items:flex-start; font-size:14px; margin:16px 0; line-height:1.45; }
   .agree input { width:20px; height:20px; accent-color:var(--accent); flex-shrink:0; margin-top:1px; }
@@ -280,7 +293,13 @@ let S = null, day = 1, pending = null, form = null, nomOpen = null;
 let keepForm = false;
 let C = null, people = null, thread = null, showPlans = false, peopleQ = '', draft = '';
 function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
-async function load() { try { const r = await fetch('/api/state', { cache:'no-store' }); S = await r.json(); render(); } catch {} }
+async function load() {
+  try {
+    const r = await fetch('/api/state', { cache:'no-store' });
+    if (r.status === 401) { S = null; showSignin(); return; }
+    S = await r.json(); document.body.classList.remove('signin'); render();
+  } catch {}
+}
 const route = () => { const [r, a] = (location.hash.slice(1) || 'home').split('/'); return [r === 'plan' ? 'schedule' : r, a]; };
 const isLive = e => e.status === 'live' && !e.confirmed;
 const votable = () => S.elections.filter(e => isLive(e) && e.candidates.length);
@@ -295,7 +314,7 @@ function ticker() {
   return items.length ? `<div class="ticker"><b>LAST HOUR</b><span>${items.join(' · ')}</span></div>` : '';
 }
 const anyoneNote = () => `<div class="note-bar">${svg(P.info, 18)}<span>Anyone in the batch can vote. Only batchmates who <a href="#rsvp" style="font-weight:700">register</a> are counted as attending.</span></div>`;
-const footer = () => `<div class="foot">Reunion Organising Committee<br>Anyone can vote · Registered batchmates are counted as attending</div>`;
+const footer = () => `<div class="foot">Reunion Organising Committee<br>Anyone can vote · Registered batchmates are counted as attending<br><a href="#privacy">Privacy policy</a></div>`;
 
 function render() {
   if (!S) return;
@@ -308,6 +327,7 @@ function render() {
   $('voteBadge').hidden = !left; $('voteBadge').textContent = left;
   $('chatBadge').hidden = !S.chatUnread; $('chatBadge').textContent = S.chatUnread;
   if (r === 'chat') { renderChat(arg); return; }
+  if (r === 'privacy') { $('view').innerHTML = privacyPage(true); return; }
   $('view').innerHTML = r === 'vote' && arg ? electionPage(arg) : r === 'vote' ? votePage() : r === 'schedule' ? schedulePage()
     : r === 'teams' ? teamsPage() : r === 'rsvp' ? rsvpPage() : r === 'passes' ? passesPage() : homePage();
 }
@@ -497,10 +517,13 @@ function teamsPage() {
 // ------------------------------------------------------------------ rsvp
 function rsvpPage() {
   const st = S.settings, me = S.myRsvp;
-  if (!form) form = me ? { ...me } : { pass:'silver', name:'', gender:'', branch:'', phone:'', city:'', attend:'both', overnight:false, pickup:'', food:'nonveg', editing:false };
+  const meBar = S.me ? `<div class="card me-bar" style="margin-top:16px">${S.me.picture ? `<img src="${esc(S.me.picture)}" alt="" referrerpolicy="no-referrer">` : avatar(S.me.name || 'You')}
+    <div style="flex:1;min-width:0"><div style="font-weight:600">${esc(S.me.name)}</div><div style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis">${esc(S.me.email)}</div></div>
+    <button type="button" class="btn ghost sm" data-signout>Sign out</button></div>` : '';
+  if (!form) form = me ? { ...me } : { pass:'silver', name: S.me ? S.me.name : '', gender:'', branch:'', phone:'', city:'', attend:'both', overnight:false, pickup:'', food:'nonveg', editing:false };
   if (me && !form.editing) {
     return `<div class="pad"><h1 class="h1 d">Your registration</h1><p class="sub">The Tele-calling team may call to confirm. Update anything here.</p></div>
-    <div class="card ok-card" style="margin-top:16px">
+    ${meBar}<div class="card ok-card" style="margin-top:${S.me ? 0 : 16}px">
       <div style="font-weight:700;font-size:16px">You're registered ✓</div>
       <div class="kv">
         <div>Pass</div><div>${me.pass ? `<b>${esc(passName(me.pass))}</b> · <a href="#passes" style="color:var(--accent)">see benefits</a>` : 'To be assigned by the committee'}</div>
@@ -516,7 +539,7 @@ function rsvpPage() {
   const pill = (k, v, label) => `<button type="button" class="${form[k] === v ? 'on' : ''}" data-set="${k}|${v}">${label}</button>`;
   return `<div class="pad"><h1 class="h1 d">${me ? 'Update details' : 'Register for the reunion'}</h1>
     <p class="sub">Takes a minute. Only registered batchmates are counted as attending, and the teams plan meals, rooms and pickups from this.</p></div>
-    <form class="card form" id="rsvpForm" style="margin-top:16px" novalidate>
+    ${meBar}<form class="card form" id="rsvpForm" style="margin-top:${S.me ? 0 : 16}px" novalidate>
       <div class="fl"><label for="f-name">Full name</label><input id="f-name" name="name" autocomplete="name" value="${esc(form.name)}" required></div>
       <div class="fl"><div class="lb">Gender</div><div class="pills">${pill('gender', 'male', 'Male')}${pill('gender', 'female', 'Female')}</div></div>
       <div class="fl"><label for="f-branch">Branch</label><select id="f-branch" name="branch"><option value="">Select branch</option>${st.branches.map(b => `<option ${form.branch === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
@@ -529,6 +552,63 @@ function rsvpPage() {
       <button class="btn acc" type="submit">${me ? 'Save changes' : 'Confirm my place'}</button>
       ${me ? '<button type="button" class="btn ghost" data-cancel>Cancel</button>' : ''}
     </form>${footer()}`;
+}
+
+// ------------------------------------------------------------------ sign-in & privacy
+let CFG = null, gisLoaded = false;
+function privacyPage(signedIn) {
+  return `<a class="back" href="${signedIn ? '#rsvp' : '#signin'}">‹ Back</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">Privacy policy</h1><p class="sub">How the reunion app uses your information.</p></div>
+  <div class="card prose" style="margin-top:16px">
+    <h2>What we collect</h2>
+    <ul><li>From Google sign-in: your name, email address and profile photo.</li>
+    <li>What you enter: registration details (name, gender, branch, mobile, city, attendance, stay, transport, food), your votes, nominees you add, and chat messages.</li></ul>
+    <h2>Why</h2><p>Only to organise the reunion: headcounts, food, rooms, transport, elections and chat between batchmates.</p>
+    <h2>Who can see it</h2>
+    <ul><li>The organising committee can see registrations, votes and chat messages (for moderation).</li>
+    <li>Other batchmates can see names of nominees and of chat members. Your mobile number and email are never shown to other batchmates.</li></ul>
+    <h2>Where it is stored</h2><p>On the app's hosting service and database. We never sell or share your data with anyone outside the committee.</p>
+    <h2>Your choices</h2><p>You can edit your registration at any time and sign out from the RSVP page. To have your data deleted, ask the organising committee. All data will be deleted after the reunion.</p>
+  </div>${footer()}`;
+}
+function signinPage() {
+  const testForm = CFG && CFG.testAuth ? `<form id="testSignin" class="nom" style="margin-top:14px"><input name="name" placeholder="Test name" required><input name="email" placeholder="test@example.com" required><button class="btn ghost sm">Test sign-in</button></form>` : '';
+  return `<section class="si-hero"><div class="k" style="font-size:11px;letter-spacing:.14em;font-weight:700;color:#FDBA8C">25 YEARS · REUNION</div>
+    <h1 class="d">Silver Jubilee Reunion</h1><p>Sign in to register, vote for the organising teams and chat with your batchmates.</p></section>
+    <div class="card">
+      <ul class="si-list">
+        <li>${svg(P.check, 18).replace('<svg', '<svg style="color:var(--ok)"')}One sign-in, works on all your devices</li>
+        <li>${svg(P.check, 18).replace('<svg', '<svg style="color:var(--ok)"')}Your registration and votes stay with your account</li>
+        <li>${svg(P.check, 18).replace('<svg', '<svg style="color:var(--ok)"')}Your number and email are never shown to others</li>
+      </ul>
+    </div>
+    <div class="card">
+      <label class="agree" style="margin-top:0"><input type="checkbox" id="privacyOk"> <span>I have read and accept the <a href="#privacy" style="color:var(--accent);font-weight:600">privacy policy</a>.</span></label>
+      <div class="gwrap off" id="gwrap"><div id="gbtn"></div></div>
+      <p class="fine" id="gHint" style="text-align:center;margin:10px 0 0">Tick the box above to continue with Google.</p>
+      ${testForm}
+    </div>
+    <div class="foot">Reunion Organising Committee</div>`;
+}
+function loadGis(cb) {
+  if (gisLoaded && window.google && google.accounts) return cb();
+  const sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
+  sc.onload = () => { gisLoaded = true; cb(); };
+  sc.onerror = () => { const h = $('gHint'); if (h) h.textContent = 'Could not load Google sign-in. Check your connection and refresh.'; };
+  document.head.appendChild(sc);
+}
+async function finishSignin(credential) {
+  if (!$('privacyOk') || !$('privacyOk').checked) { toast('Please accept the privacy policy first'); return; }
+  try { await api2('/api/auth/google', { credential, privacy: true }); document.body.classList.remove('signin'); location.hash = '#home'; await load(); toast('Welcome!'); }
+  catch (e) { toast(e.message); }
+}
+function showSignin() {
+  document.body.classList.add('signin');
+  if (location.hash === '#privacy') { $('view').innerHTML = privacyPage(false); return; }
+  $('view').innerHTML = signinPage();
+  if (CFG && CFG.googleClientId) loadGis(() => {
+    google.accounts.id.initialize({ client_id: CFG.googleClientId, callback: r => finishSignin(r.credential), ux_mode: 'popup', auto_select: false });
+    google.accounts.id.renderButton($('gbtn'), { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', width: 280 });
+  });
 }
 
 // ------------------------------------------------------------------ chat
@@ -562,7 +642,7 @@ function paintChat(arg) {
   const v = $('view');
   if (!C.registered) {
     v.innerHTML = `<div class="pad"><h1 class="h1 d">Chat</h1><p class="sub">Message batchmates privately.</p></div>
-      <div class="card cta" style="margin-top:16px"><div class="t">Register to use chat</div><div class="x">Chat is open to registered batchmates. Register first, then come back here.</div><a class="btn acc" href="#rsvp">Register now</a></div>${footer()}`;
+      <div class="card"><div class="empty">Chat opens soon. The committee is switching on sign-in for the app.</div></div>${footer()}`;
     return;
   }
   if (!C.consent) {
@@ -619,7 +699,7 @@ function paintInbox(v) {
 }
 function paintPeople(v) {
   const list = (people || []).filter(p => !peopleQ || `${p.name} ${p.branch} ${p.city}`.toLowerCase().includes(peopleQ.toLowerCase()));
-  v.innerHTML = `<a class="back" href="#chat">‹ Chat</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">New message</h1><p class="sub">Registered batchmates.</p></div>
+  v.innerHTML = `<a class="back" href="#chat">‹ Chat</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">New message</h1><p class="sub">Batchmates who have joined chat.</p></div>
     <div class="search"><input type="search" id="pq" placeholder="Search name, branch or city" value="${esc(peopleQ)}" aria-label="Search batchmates"></div>
     <div class="card">${list.map(p => `<a class="conv" href="#chat/${esc(p.id)}">${avatar(p.name)}<div class="m"><div class="n"><span>${esc(p.name)}</span></div><div class="l">${esc([p.branch, p.city].filter(Boolean).join(' · ') || 'Batchmate')}</div></div></a>`).join('')
       || `<div class="empty">${people ? 'No batchmates found.' : 'Loading…'}</div>`}</div>${footer()}`;
@@ -655,6 +735,7 @@ document.addEventListener('click', e => {
   if (s) { syncForm(); const [k, v] = s.dataset.set.split('|'); form[k] = v === 'true' ? true : v === 'false' ? false : v; if (k === 'attend' && v === 'day1') form.overnight = false; render(); return; }
   if (e.target.closest('[data-edit]')) { form = { ...S.myRsvp, editing:true }; render(); return; }
   if (e.target.closest('[data-cancel]')) { form = null; render(); return; }
+  if (e.target.closest('[data-signout]')) { api2('/api/auth/logout', {}).then(() => { S = null; C = null; form = null; location.hash = '#home'; showSignin(); }); return; }
   const pp = e.target.closest('[data-pickpass]');
   if (pp) { form = S.myRsvp ? { ...S.myRsvp, editing:true, pass: pp.dataset.pickpass } : { pass: pp.dataset.pickpass, name:'', gender:'', branch:'', phone:'', city:'', attend:'both', overnight:false, pickup:'', food:'nonveg' }; keepForm = true; location.hash = '#rsvp'; return; }
   const pl = e.target.closest('[data-plan]');
@@ -675,6 +756,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('submit', async e => {
   const f = e.target;
+  if (f.id === 'testSignin') { e.preventDefault(); finishSignin(`test:${f.elements.email.value}:${f.elements.name.value}:${f.elements.email.value}`); return; }
   if (f.id === 'consentForm') {
     e.preventDefault();
     if (!f.elements.agree.checked) { toast('Please tick the box to accept the rules'); return; }
@@ -721,6 +803,7 @@ $('askYes').onclick = async () => {
   } catch (err) { toast(err.message); load(); }
 };
 addEventListener('hashchange', () => {
+  if (document.body.classList.contains('signin')) { showSignin(); scrollTo(0, 0); return; }
   if (route()[0] !== 'rsvp') form = null;
   else if (!keepForm) form = null;
   keepForm = false;
@@ -728,14 +811,17 @@ addEventListener('hashchange', () => {
   if (route()[0] === 'chat') { thread = route()[1] && route()[1] !== 'new' ? null : thread; loadChat(route()[1]); }
   render(); scrollTo(0, 0);
 });
+document.addEventListener('change', e => {
+  if (e.target.id === 'privacyOk') { $('gwrap').classList.toggle('off', !e.target.checked); $('gHint').textContent = e.target.checked ? 'Continue with your Google account.' : 'Tick the box above to continue with Google.'; }
+});
 document.addEventListener('input', e => {
   if (e.target.id === 'msg') { draft = e.target.value; e.target.style.height = 'auto'; e.target.style.height = Math.min(120, e.target.scrollHeight) + 'px'; }
   if (e.target.id === 'pq') { peopleQ = e.target.value; const pos = e.target.selectionStart; paintChat('new'); const n = $('pq'); n.focus(); n.setSelectionRange(pos, pos); }
 });
 document.addEventListener('keydown', e => { if (e.target.id === 'msg' && e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) { e.preventDefault(); $('sendForm').requestSubmit(); } });
 setInterval(() => { const [r, a] = route(); if (r === 'chat' && a !== 'new' && document.activeElement?.id !== 'msg') loadChat(a); }, 8000);
-load();
-setInterval(() => { if (!['rsvp', 'chat'].includes(route()[0]) && !nomOpen && !$('ask').open) load(); }, 60000);
+fetch('/api/config').then(r => r.json()).then(c => { CFG = c; }).catch(() => {}).finally(load);
+setInterval(() => { if (S && !['rsvp', 'chat'].includes(route()[0]) && !nomOpen && !$('ask').open) load(); }, 60000);
 </script>
 </body>
 </html>

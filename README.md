@@ -58,7 +58,7 @@ DATABASE_URL=postgres://... npm start    # or Postgres
 ```
 
 ## Chat
-- The **Chat** tab is for registered batchmates only. Each person must accept the chat rules first: be professional, no abusive or unprofessional messages, no spam, no sharing others' numbers or photos, and messages are visible to the committee for moderation.
+- The **Chat** tab needs Google sign-in (no separate registration). Each person must accept the chat rules first: be professional, no abusive or unprofessional messages, no spam, no sharing others' numbers or photos, and messages are visible to the committee for moderation.
 - Plans: **Starter ₹299** (10 messages), **Plus ₹599** (50 messages), **Unlimited ₹999**. Choosing a plan sends a request to the admin. **No payment is collected in the app.**
 - **Admin → Chat:** approve or decline requests, activate or top up plans, remove someone's access, and read or delete messages for moderation.
 - Anyone who accepted the rules can read messages sent to them. Sending needs an active plan.
@@ -76,3 +76,14 @@ DATABASE_URL=postgres://... npm start    # or Postgres
 - **Home** shows only the **Live** polls. Starting an election makes it appear on Home, and closing it removes it.
 - The **Vote** page groups elections into Live now, Coming up (nominations can still be added) and Results.
 - **Passes are assigned by the admin**, not chosen by batchmates. New registrations show "Pass to be assigned" until you set Platinum, Gold or Silver under **Admin → Registrations**. You can filter that list by "Pass: Not assigned".
+
+## Sign in with Google (required once GOOGLE_CLIENT_ID is set)
+Batchmates must accept the privacy policy and **Continue with Google** before using the app. Their registration, votes and chat follow their Google account on every device, so they never register twice. Anything they did on a phone before sign-in is moved to their account the first time they sign in on that phone.
+
+Setup (free, about 5 minutes):
+1. Go to **console.cloud.google.com** and create a project (e.g. "Reunion").
+2. Open **Google Auth Platform** (or **APIs & Services → OAuth consent screen**). Set the app name, a support email and **Audience: External**, then **Publish app** so anyone with a Google account can sign in. Only basic profile and email are used, so Google review isn't needed.
+3. Go to **Clients → Create client → Web application**. Under **Authorised JavaScript origins**, add `https://reunion-vote.onrender.com`. Create it and copy the **Client ID** (it ends in `.apps.googleusercontent.com`).
+4. In Render, add `GOOGLE_CLIENT_ID` under **Environment** with that value, then click **Save, rebuild, and deploy**.
+
+Until `GOOGLE_CLIENT_ID` is set, the app stays open without sign-in and chat shows "opens soon". Chat uses the signed-in Google profile, so no separate chat registration is needed.

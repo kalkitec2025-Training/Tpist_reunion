@@ -113,7 +113,7 @@ $('tabs').onclick = e => { const b = e.target.closest('[data-t]'); if (!b) retur
 function render() {
   const st = S.settings;
   $('hTitle').textContent = `${st.eventTitle} · Admin`;
-  $('hSub').textContent = `${S.rsvps.length} registered of ${st.expected} expected · storage: ${S.storage === 'postgres' ? 'database (permanent)' : 'file (resets on restart)'}`;
+  $('hSub').textContent = `${S.rsvps.length} registered of ${st.expected} expected · ${S.accounts} signed-in accounts · storage: ${S.storage === 'postgres' ? 'database (permanent)' : 'file (resets on restart)'}`;
   $('main').innerHTML = ({ overview, elections, rsvps, plan, settings, chat })[tab]();
 }
 
@@ -230,7 +230,7 @@ function rsvps() {
       </div><div class="row mt"><button class="btn d">Add registration</button></div></form>
     </details>
     <div class="mt">${list.map(r => `<div class="rs">
-      <div><b>${esc(r.name)}</b> <span class="sub">${esc(r.branch)}</span><br><a href="tel:${esc(r.phone)}" style="color:var(--blue)">${esc(r.phone)}</a> · ${esc(r.city || '—')}<div class="sub">${when(r.createdAt)} · ${r.source === 'call' ? 'added by caller' : 'self-registered'}</div></div>
+      <div><b>${esc(r.name)}</b> <span class="sub">${esc(r.branch)}</span><br><a href="tel:${esc(r.phone)}" style="color:var(--blue)">${esc(r.phone)}</a> · ${esc(r.city || '—')}${r.email ? `<div class="sub">${esc(r.email)}</div>` : ''}<div class="sub">${when(r.createdAt)} · ${r.source === 'call' ? 'added by caller' : 'self-registered'}</div></div>
       <div><span class="pill ${r.pass === 'platinum' ? 'd' : r.pass === 'gold' ? 'o' : ''}" style="${r.pass === 'platinum' ? 'background:#1C1D24;color:#fff' : ''}">${esc(passNm(r.pass))}</span>${r.gender ? `<span class="pill">${r.gender === 'female' ? 'Female' : 'Male'}</span>` : ''}<span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>
         <input type="text" class="mt" data-rnote="${r.id}" value="${esc(r.note)}" placeholder="Caller note" style="margin-top:8px"></div>
       <div class="row" style="align-items:stretch"><select data-rpass="${r.id}" style="flex:1" aria-label="Pass"><option value="" ${!r.pass ? 'selected' : ''}>Pass: not assigned</option>${S.settings.passes.map(p => `<option value="${p.id}" ${r.pass === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><select data-rstat="${r.id}" style="flex:1">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${r.callStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn s r" data-delr="${r.id}" style="height:40px">Delete</button></div>
@@ -332,7 +332,7 @@ const actions = {
   sadd: async () => { sched.push({ day:1, time:'', title:'', note:'', tag:'' }); render(); return false; },
   ssave: async () => { await api('/schedule', { method:'PUT', json:{ items:sched } }); sched = null; toast('Schedule saved'); },
   csv: async () => {
-    const cols = ['name','pass','gender','branch','phone','city','attend','overnight','pickup','food','callStatus','note','source','createdAt'];
+    const cols = ['name','email','pass','gender','branch','phone','city','attend','overnight','pickup','food','callStatus','note','source','createdAt'];
     const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const rows = [cols.join(',')].concat(S.rsvps.map(r => cols.map(c => cell(c === 'createdAt' ? new Date(r[c]).toISOString() : r[c])).join(',')));
     const a = document.createElement('a');

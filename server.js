@@ -54,7 +54,7 @@ function defaultDb() {
   const T = (electionId, title, status = 'todo') => ({ id: newId(), electionId, title, status });
 
   return {
-    v: 6,
+    v: 7,
     settings: {
       eventTitle: 'Silver Jubilee Reunion',
       collegeName: 'TPIST',
@@ -113,7 +113,9 @@ function defaultDb() {
     votes: {},       // electionId -> { voterId: { c: candidateId, t: time } }
     rsvps: {},       // id -> rsvp
     nominations: {}, // electionId -> { voterId: count }
-    chat: { users: {}, messages: [] }, // users keyed by rsvp id
+    chat: { users: {}, messages: [] }, // keyed by account id
+    users: {},       // Google accounts: id -> { sub, name, email, picture, privacyAt }
+    secret: crypto.randomBytes(32).toString('hex'),
     schedule: [
       S(1, '8:00 AM', 'Red-carpet arrivals', 'Platinum guests walk the red carpet with a personal announcement and photo wall', 'Platinum'),
       S(1, '8:00 AM', 'Welcome desk & registration', 'Collect your badge and welcome kit. Gold guests get a personal welcome', 'All passes'),
@@ -193,7 +195,11 @@ async function loadDb() {
     // v6: elections get a status (upcoming / live / closed); passes are assigned by admin
     data = { ...data, v: 6, elections: (data.elections || []).map(e => ({ ...e, status: e.status || ((e.id === 'women' || e.id === 'venue' || e.candidates.length) ? 'live' : 'upcoming') })) };
   }
-  if (!data || data.v !== 6) return d;
+  if (data && data.v === 6) {
+    // v7: Google accounts; chat moves from registrations to accounts (old chat data is cleared)
+    data = { ...data, v: 7, users: {}, secret: data.secret || d.secret, chat: { users: {}, messages: [] } };
+  }
+  if (!data || data.v !== 7) return d;
   return { ...d, ...data, chat: data.chat || d.chat, settings: { ...d.settings, ...data.settings }, auto: { ...d.auto, ...data.auto } };
 }
 
@@ -397,9 +403,11 @@ function publicState(voterId) {
     b.total++; if (t.status === 'done') b.done++;
     b.items.push({ title: t.title, status: t.status });
   }
-  const meId = myRsvp ? myRsvp.id : null;
+  const uid = typeof voterId === 'string' && voterId.startsWith('u:') ? voterId.slice(2) : null;
+  const acct = uid && db.users[uid];
   return {
-    chatUnread: meId ? db.chat.messages.filter(m => m.to === meId && !m.read).length : 0,
+    me: acct ? { name: acct.name, email: acct.email, picture: acct.picture } : null,
+    chatUnread: uid ? db.chat.messages.filter(m => m.to === uid && !m.read).length : 0,
     settings: db.settings,
     updatedAt: db.auto.startAt + slot * interval,
     elections: db.elections.map(e => electionView(e, voterId, slot)),
@@ -422,9 +430,71 @@ function publicState(voterId) {
 const app = express();
 app.use(express.json({ limit: '200kb' }));
 app.use(cookieParser());
+app.set('trust proxy', 1);
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
 
+// ---- Google sign-in & sessions
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const TEST_AUTH = process.env.TEST_AUTH === '1' && process.env.NODE_ENV !== 'production';
+const AUTH = !!GOOGLE_CLIENT_ID || TEST_AUTH;
+const sign = id => crypto.createHmac('sha256', db.secret).update(String(id)).digest('base64url');
+function sessionUser(req) {
+  const v = req.cookies.sid;
+  if (!v || typeof v !== 'string') return null;
+  const [id, sig] = v.split('.');
+  if (!id || !sig) return null;
+  const a = Buffer.from(sig), b = Buffer.from(sign(id));
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  return db.users[id] || null;
+}
+async function verifyGoogle(credential) {
+  if (TEST_AUTH && /^test:/.test(credential)) {
+    const [, sub, name, email] = credential.split(':');
+    return { sub, name, email, picture: '' };
+  }
+  const r = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential));
+  if (!r.ok) throw new Error('Google sign-in could not be verified');
+  const t = await r.json();
+  if (t.aud !== GOOGLE_CLIENT_ID) throw new Error('Google sign-in is for a different app');
+  if (!['accounts.google.com', 'https://accounts.google.com'].includes(t.iss)) throw new Error('Unexpected sign-in issuer');
+  if (Number(t.exp) * 1000 < Date.now()) throw new Error('Sign-in expired, please try again');
+  if (t.email_verified !== 'true' && t.email_verified !== true) throw new Error('Please use a verified Google account');
+  return { sub: t.sub, name: t.name || t.email, email: t.email, picture: t.picture || '' };
+}
+// move anything done on this device before sign-in onto the account
+function linkDevice(vid, key) {
+  if (!vid || !/^[0-9a-f-]{36}$/.test(vid)) return;
+  const mine = Object.values(db.rsvps).find(r => r.voterId === key);
+  const dev = Object.values(db.rsvps).find(r => r.voterId === vid);
+  if (dev && !mine) dev.voterId = key;
+  for (const box of Object.values(db.votes)) if (box[vid] && !box[key]) { box[key] = box[vid]; delete box[vid]; }
+  for (const box of Object.values(db.nominations || {})) if (box[vid]) { box[key] = (box[key] || 0) + box[vid]; delete box[vid]; }
+}
+app.get('/api/config', (req, res) => res.json({ auth: AUTH, googleClientId: GOOGLE_CLIENT_ID, testAuth: TEST_AUTH }));
+app.post('/api/auth/google', async (req, res) => {
+  if (!AUTH) return res.status(400).json({ error: 'Sign-in is not set up' });
+  if (req.body.privacy !== true) return res.status(400).json({ error: 'Please accept the privacy policy' });
+  let g;
+  try { g = await verifyGoogle(String(req.body.credential || '')); } catch (e) { return res.status(401).json({ error: e.message }); }
+  let user = Object.values(db.users).find(u => u.sub === g.sub);
+  if (!user) { const id = newId(); user = db.users[id] = { id, sub: g.sub, createdAt: Date.now() }; }
+  Object.assign(user, { name: str(g.name, 80), email: str(g.email, 120), picture: str(g.picture, 300), privacyAt: user.privacyAt || Date.now(), lastSeen: Date.now() });
+  linkDevice(req.cookies.vid, 'u:' + user.id);
+  saveDb();
+  res.cookie('sid', `${user.id}.${sign(user.id)}`, { maxAge: 180 * 24 * HOUR, httpOnly: true, sameSite: 'lax', secure: req.secure });
+  res.json({ ok: true });
+});
+app.post('/api/auth/logout', (req, res) => { res.clearCookie('sid'); res.json({ ok: true }); });
+// when sign-in is set up, the app's data needs a signed-in user
+app.use('/api', (req, res, next) => {
+  if (!AUTH || req.path.startsWith('/admin') || req.path.startsWith('/auth') || req.path === '/config') return next();
+  if (!sessionUser(req)) return res.status(401).json({ error: 'Please sign in', signin: true });
+  next();
+});
+
 function voterIdOf(req, res) {
+  const su = sessionUser(req);
+  if (su) return 'u:' + su.id;
   let id = req.cookies.vid;
   if (!id || !/^[0-9a-f-]{36}$/.test(id)) {
     id = crypto.randomUUID();
@@ -471,21 +541,30 @@ app.post('/api/nominate', (req, res) => {
 });
 
 // ======================================================================= chat
+// Chat is keyed by the signed-in account (db.users id), so it needs Google sign-in.
 const PLANS = [
   { id: 'p10', name: 'Starter', messages: 10, price: 299 },
   { id: 'p50', name: 'Plus', messages: 50, price: 599 },
   { id: 'unl', name: 'Unlimited', messages: null, price: 999 }
 ];
 const lastSend = new Map();
-function chatMe(req, res) {
-  const vid = voterIdOf(req, res);
-  const r = Object.values(db.rsvps).find(x => x.voterId === vid);
-  if (!r) return { vid, rsvp: null, u: null };
-  const u = (db.chat.users[r.id] ||= { consentAt: null, status: 'none', plan: null, limit: 0, used: 0, requestedAt: null });
-  return { vid, rsvp: r, u };
+const rsvpOfUser = uid => Object.values(db.rsvps).find(r => r.voterId === 'u:' + uid) || null;
+function displayName(uid) {
+  const r = rsvpOfUser(uid);
+  return (r && r.name) || (db.users[uid] && db.users[uid].name) || 'Batchmate';
 }
-function chatView(rsvp, u) {
-  const me = rsvp.id;
+function profileOf(uid) {
+  const r = rsvpOfUser(uid);
+  return { id: uid, name: displayName(uid), branch: r ? r.branch : '', city: r ? r.city : '' };
+}
+function chatMe(req) {
+  const su = sessionUser(req);
+  if (!su) return { user: null, u: null };
+  const u = (db.chat.users[su.id] ||= { consentAt: null, status: 'none', plan: null, limit: 0, used: 0, requestedAt: null });
+  return { user: su, u };
+}
+function chatView(user, u) {
+  const me = user.id;
   const peers = new Map();
   for (const m of db.chat.messages) {
     if (m.from !== me && m.to !== me) continue;
@@ -497,68 +576,75 @@ function chatView(rsvp, u) {
   }
   const plan = PLANS.find(p => p.id === u.plan) || null;
   return {
-    registered: true, name: rsvp.name, consent: !!u.consentAt, status: u.status, plan, requested: PLANS.find(p => p.id === u.requested) || null,
+    registered: true, name: displayName(me), consent: !!u.consentAt, status: u.status, plan, requested: PLANS.find(p => p.id === u.requested) || null,
     left: u.status === 'active' ? (plan && plan.messages === null ? null : Math.max(0, u.limit - u.used)) : 0,
     plans: PLANS,
-    conversations: [...peers.entries()].filter(([p]) => db.rsvps[p]).map(([p, c]) => ({ id: p, name: db.rsvps[p].name, branch: db.rsvps[p].branch, ...c })).sort((a, b) => b.t - a.t)
+    conversations: [...peers.entries()].filter(([p]) => db.users[p]).map(([p, c]) => ({ ...profileOf(p), ...c })).sort((a, b) => b.t - a.t)
   };
 }
+function needChat(req, res) {
+  if (!AUTH) { res.json({ registered: false, disabled: true }); return null; }
+  const me = chatMe(req);
+  if (!me.user) { res.status(401).json({ error: 'Please sign in' }); return null; }
+  return me;
+}
 app.get('/api/chat', (req, res) => {
-  const { rsvp, u } = chatMe(req, res);
-  if (!rsvp) return res.json({ registered: false });
-  res.json(chatView(rsvp, u));
+  const me = needChat(req, res); if (!me) return;
+  res.json(chatView(me.user, me.u));
 });
 app.post('/api/chat/consent', (req, res) => {
-  const { rsvp, u } = chatMe(req, res);
-  if (!rsvp) return res.status(403).json({ error: 'Please register first' });
+  const me = needChat(req, res); if (!me) return;
   if (req.body.agree !== true) return res.status(400).json({ error: 'Please accept the chat rules' });
-  u.consentAt = Date.now();
-  saveDb(); res.json(chatView(rsvp, u));
+  me.u.consentAt = Date.now();
+  saveDb(); res.json(chatView(me.user, me.u));
 });
 app.post('/api/chat/request', (req, res) => {
-  const { rsvp, u } = chatMe(req, res);
-  if (!rsvp || !u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
-  if (req.body.cancel) { if (u.status === 'pending') { u.status = 'none'; u.requested = null; } saveDb(); return res.json(chatView(rsvp, u)); }
+  const me = needChat(req, res); if (!me) return;
+  const u = me.u;
+  if (!u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
+  if (req.body.cancel) { if (u.status === 'pending') { u.status = 'none'; u.requested = null; } saveDb(); return res.json(chatView(me.user, u)); }
   const plan = PLANS.find(p => p.id === req.body.plan);
   if (!plan) return res.status(400).json({ error: 'Choose a plan' });
-  if (u.status === 'active' && (!PLANS.find(p => p.id === u.plan) || PLANS.find(p => p.id === u.plan).messages === null)) return res.status(409).json({ error: 'You already have unlimited messages' });
+  const cur = PLANS.find(p => p.id === u.plan);
+  if (u.status === 'active' && cur && cur.messages === null) return res.status(409).json({ error: 'You already have unlimited messages' });
   u.requested = plan.id; u.requestedAt = Date.now();
   if (u.status !== 'active') u.status = 'pending';
-  saveDb(); res.json(chatView(rsvp, u));
+  saveDb(); res.json(chatView(me.user, u));
 });
 app.get('/api/chat/people', (req, res) => {
-  const { rsvp, u } = chatMe(req, res);
-  if (!rsvp || !u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
-  res.json(Object.values(db.rsvps).filter(r => r.voterId && r.id !== rsvp.id).map(r => ({ id: r.id, name: r.name, branch: r.branch, city: r.city })).sort((a, b) => a.name.localeCompare(b.name)));
+  const me = needChat(req, res); if (!me) return;
+  if (!me.u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
+  res.json(Object.entries(db.chat.users).filter(([id, x]) => id !== me.user.id && x.consentAt && x.status !== 'revoked' && db.users[id])
+    .map(([id]) => profileOf(id)).sort((a, b) => a.name.localeCompare(b.name)));
 });
 app.get('/api/chat/thread/:id', (req, res) => {
-  const { rsvp, u } = chatMe(req, res);
-  if (!rsvp || !u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
-  const peer = db.rsvps[req.params.id];
-  if (!peer) return res.status(404).json({ error: 'Batchmate not found' });
-  const me = rsvp.id;
+  const me = needChat(req, res); if (!me) return;
+  if (!me.u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
+  if (!db.users[req.params.id]) return res.status(404).json({ error: 'Batchmate not found' });
+  const my = me.user.id, peer = req.params.id;
   let changed = false;
-  const msgs = db.chat.messages.filter(m => (m.from === me && m.to === peer.id) || (m.from === peer.id && m.to === me)).map(m => {
-    if (m.to === me && !m.read) { m.read = true; changed = true; }
-    return { id: m.id, mine: m.from === me, text: m.text, t: m.t };
+  const msgs = db.chat.messages.filter(m => (m.from === my && m.to === peer) || (m.from === peer && m.to === my)).map(m => {
+    if (m.to === my && !m.read) { m.read = true; changed = true; }
+    return { id: m.id, mine: m.from === my, text: m.text, t: m.t };
   });
   if (changed) saveDb();
-  res.json({ peer: { id: peer.id, name: peer.name, branch: peer.branch, city: peer.city }, messages: msgs, chat: chatView(rsvp, u) });
+  res.json({ peer: profileOf(peer), messages: msgs, chat: chatView(me.user, me.u) });
 });
 app.post('/api/chat/send', (req, res) => {
-  const { rsvp, u } = chatMe(req, res);
-  if (!rsvp || !u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
+  const me = needChat(req, res); if (!me) return;
+  const u = me.u;
+  if (!u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
   if (u.status !== 'active') return res.status(402).json({ error: 'Choose a plan to send messages' });
   const plan = PLANS.find(p => p.id === u.plan);
   if (plan && plan.messages !== null && u.used >= u.limit) return res.status(402).json({ error: 'You have used all your messages. Choose a new plan to continue.' });
-  const peer = db.rsvps[req.body.to];
-  if (!peer || !peer.voterId || peer.id === rsvp.id) return res.status(404).json({ error: 'Batchmate not found' });
+  const to = req.body.to, peerChat = db.chat.users[to];
+  if (!db.users[to] || to === me.user.id || !peerChat || !peerChat.consentAt) return res.status(404).json({ error: 'Batchmate not found' });
   const text = str(req.body.text, 500);
   if (!text) return res.status(400).json({ error: 'Type a message' });
   const now = Date.now();
-  if (now - (lastSend.get(rsvp.id) || 0) < 1500) return res.status(429).json({ error: 'Slow down a little' });
-  lastSend.set(rsvp.id, now);
-  db.chat.messages.push({ id: newId(), from: rsvp.id, to: peer.id, text, t: now, read: false });
+  if (now - (lastSend.get(me.user.id) || 0) < 1500) return res.status(429).json({ error: 'Slow down a little' });
+  lastSend.set(me.user.id, now);
+  db.chat.messages.push({ id: newId(), from: me.user.id, to, text, t: now, read: false });
   if (db.chat.messages.length > 20000) db.chat.messages.splice(0, db.chat.messages.length - 20000);
   u.used++;
   saveDb();
@@ -629,12 +715,13 @@ A.get('/state', (req, res) => {
     updatedAt: db.auto.startAt + slot * interval,
     nextUpdateAt: db.auto.on ? db.auto.startAt + (slot + 1) * interval : null,
     elections, schedule: db.schedule, tasks: db.tasks,
-    rsvps: Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(({ voterId, ...r }) => r),
+    rsvps: Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(({ voterId, ...r }) => ({ ...r, email: voterId && voterId.startsWith('u:') && db.users[voterId.slice(2)] ? db.users[voterId.slice(2)].email : '' })),
+    accounts: Object.keys(db.users).length,
     chat: {
       plans: PLANS,
-      users: Object.entries(db.chat.users).filter(([id]) => db.rsvps[id]).map(([id, u]) => ({ id, name: db.rsvps[id].name, branch: db.rsvps[id].branch, ...u }))
+      users: Object.entries(db.chat.users).filter(([id]) => db.users[id]).map(([id, u]) => ({ ...profileOf(id), email: db.users[id].email, ...u, id }))
         .sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0)),
-      messages: db.chat.messages.slice(-300).reverse().map(m => ({ ...m, fromName: db.rsvps[m.from]?.name || '—', toName: db.rsvps[m.to]?.name || '—' }))
+      messages: db.chat.messages.slice(-300).reverse().map(m => ({ ...m, fromName: db.users[m.from] ? displayName(m.from) : '—', toName: db.users[m.to] ? displayName(m.to) : '—' }))
     }
   });
 });
