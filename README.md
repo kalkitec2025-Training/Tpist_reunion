@@ -70,3 +70,9 @@ DATABASE_URL=postgres://... npm start    # or Postgres
 - People pick a pass when they register. Admin can change anyone's pass under **Registrations**.
 - In **Admin → Settings → Passes**, you can edit each pass's name, tagline, optional price, benefits and extra shown counts.
 - Schedule items can carry a **For** tag (for example "Platinum"), which appears as a coloured label on the Schedule page.
+
+## Election status and pass assignment
+- Each election is **Upcoming**, **Live** or **Closed** (Admin → Elections → Status, or the **Start voting now** / **Close voting** button).
+- **Home** shows only the **Live** polls. Starting an election makes it appear on Home, and closing it removes it.
+- The **Vote** page groups elections into Live now, Coming up (nominations can still be added) and Results.
+- **Passes are assigned by the admin**, not chosen by batchmates. New registrations show "Pass to be assigned" until you set Platinum, Gold or Silver under **Admin → Registrations**. You can filter that list by "Pass: Not assigned".

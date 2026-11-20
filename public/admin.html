@@ -79,11 +79,12 @@
 <div class="toast" id="toast"></div>
 
 <script>
+let qPass = '';
 let PW = sessionStorage.getItem('pw') || '', S = null, tab = 'overview', selE = null, q = '', qStatus = '', sched = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const when = t => t ? new Date(t).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' }) : '—';
-const passNm = id => ((S && S.settings.passes || []).find(p => p.id === (id || 'silver')) || { name: 'Silver' }).name;
+const passNm = id => ((S && S.settings.passes || []).find(p => p.id === id) || { name: 'No pass yet' }).name;
 const STATUS = { new:'Not called', confirmed:'Confirmed', not_reachable:'Not reachable', declined:'Not coming' };
 function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
 
@@ -125,7 +126,8 @@ function overview() {
     <section class="card" style="grid-column:1/-1"><h2>Registrations</h2><p class="hint">Live counts for food, stay and transport planning.</p>
       <div class="kpis">
         <div class="kpi"><b>${R.length}</b><span>Registered</span></div>
-        <div class="kpi"><b>${n(r => r.pass === 'platinum')} / ${n(r => r.pass === 'gold')} / ${n(r => (r.pass || 'silver') === 'silver')}</b><span>Platinum / Gold / Silver (real)</span></div>
+        <div class="kpi"><b>${n(r => r.pass === 'platinum')} / ${n(r => r.pass === 'gold')} / ${n(r => r.pass === 'silver')}</b><span>Platinum / Gold / Silver (real)</span></div>
+        <div class="kpi"><b>${n(r => !r.pass)}</b><span>Pass not assigned yet</span></div>
         <div class="kpi"><b>${n(r => r.gender === 'male')} / ${n(r => r.gender === 'female')}</b><span>Men / Women (real)</span></div>
         <div class="kpi"><b>${n(r => r.attend === 'both')}</b><span>Both days</span></div>
         <div class="kpi"><b>${n(r => r.attend === 'day1')}</b><span>Day 1 only</span></div>
@@ -139,7 +141,7 @@ function overview() {
     </section>
     <section class="card"><h2>Elections</h2><p class="hint">Current leader in each.</p>
       <div class="tw"><table><tr><th>Election</th><th>Leader</th><th>Votes</th></tr>
-      ${S.elections.map(e => `<tr><td>${esc(e.title)} ${e.mode === 'scripted' ? '<span class="pill o">scripted</span>' : '<span class="pill g">live</span>'}</td><td>${e.total ? esc(e.candidates[0].name) : '—'}</td><td>${e.total}</td></tr>`).join('')}
+      ${S.elections.map(e => `<tr><td>${esc(e.title)} <span class="pill ${e.status === 'live' ? 'g' : e.status === 'closed' ? '' : 'o'}">${e.status}</span>${e.mode === 'scripted' ? '<span class="pill">scripted</span>' : ''}</td><td>${e.total ? esc(e.candidates[0].name) : '—'}</td><td>${e.total}</td></tr>`).join('')}
       </table></div>
     </section>
     <section class="card"><h2>Scripted results clock</h2><p class="hint">Moves every scripted election (Women's Coordinator, venue) once per interval. Live elections are not affected.</p>
@@ -158,7 +160,7 @@ function elections() {
   const e = S.elections.find(x => x.id === selE);
   return `<div class="split">
     <section class="card elist" style="padding:8px">
-      ${S.elections.map(x => `<button data-sel="${x.id}" class="${x.id === selE ? 'on' : ''}"><b>${esc(x.title)}</b><small>${x.candidates.length} candidates · ${x.total} votes · ${x.mode}</small></button>`).join('')}
+      ${S.elections.map(x => `<button data-sel="${x.id}" class="${x.id === selE ? 'on' : ''}"><b>${esc(x.title)}</b><small><span class="pill ${x.status === 'live' ? 'g' : x.status === 'closed' ? '' : 'o'}">${x.status}</span> ${x.candidates.length} candidates · ${x.total} votes · ${x.mode}</small></button>`).join('')}
       <form id="newE" style="padding:12px;border-top:1px solid #EEF0F4;margin-top:6px"><label>New election</label><input type="text" name="title" placeholder="e.g. Cultural Programme" required><div class="row mt"><button class="btn d s">Add election</button></div></form>
     </section>
     ${e ? electionEditor(e) : '<section class="card">Select an election.</section>'}
@@ -172,6 +174,8 @@ function electionEditor(e) {
     <form id="eForm" class="mt">
       <div class="f2"><div><label>Title</label><input type="text" name="title" value="${esc(e.title)}"></div>
       <div><label>How results are counted</label><select name="mode"><option value="live" ${!sc ? 'selected' : ''}>Live: real votes only</option><option value="scripted" ${sc ? 'selected' : ''}>Scripted: numbers follow the script</option></select></div></div>
+      <div class="f2 mt"><div><label>Status</label><select name="status"><option value="upcoming" ${e.status === 'upcoming' ? 'selected' : ''}>Upcoming (not on Home, no voting yet)</option><option value="live" ${e.status === 'live' ? 'selected' : ''}>Live (shown on Home, voting open)</option><option value="closed" ${e.status === 'closed' ? 'selected' : ''}>Closed (results only)</option></select></div>
+      <div><label>&nbsp;</label><div class="row">${e.status !== 'live' ? `<button type="button" class="btn p" data-a="startE">Start voting now</button>` : `<button type="button" class="btn r" data-a="closeE">Close voting</button>`}</div></div></div>
       <div class="mt"><label>Description shown to voters</label><textarea name="desc">${esc(e.desc)}</textarea></div>
       <div class="f2 mt"><div><label>Confirmed coordinator (highlighted in the app, closes voting)</label><select name="confirmedId"><option value="">Not confirmed yet</option>${e.candidates.map(c => `<option value="${c.id}" ${c.id === e.confirmedId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
       <div><label>Nominations</label><label class="check" style="height:40px"><input type="checkbox" name="openNominations" ${e.openNominationsSetting ? 'checked' : ''}> Anyone can add nominees from the app</label></div></div>
@@ -204,16 +208,17 @@ function electionEditor(e) {
 // ------------------------------------------------------------ registrations
 function rsvps() {
   const st = S.settings;
-  const list = S.rsvps.filter(r => (!qStatus || r.callStatus === qStatus) && (!q || `${r.name} ${r.phone} ${r.city} ${r.branch}`.toLowerCase().includes(q.toLowerCase())));
+  const list = S.rsvps.filter(r => (!qPass || (qPass === 'none' ? !r.pass : r.pass === qPass)) && (!qStatus || r.callStatus === qStatus) && (!q || `${r.name} ${r.phone} ${r.city} ${r.branch}`.toLowerCase().includes(q.toLowerCase())));
   return `<section class="card">
     <div class="hrow"><h2>Registrations (${S.rsvps.length})</h2><div class="row"><button class="btn" data-a="csv">Export CSV</button></div></div>
     <div class="f3 mt"><div><label for="q">Search</label><input type="search" id="q" value="${esc(q)}" placeholder="Name, phone, city"></div>
+      <div><label for="qp">Pass</label><select id="qp"><option value="">All</option><option value="none" ${qPass === 'none' ? 'selected' : ''}>Not assigned</option>${st.passes.map(p => `<option value="${p.id}" ${qPass === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
       <div><label for="qs">Call status</label><select id="qs"><option value="">All</option>${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${qStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div></div>
     <details class="mt"><summary style="cursor:pointer;color:var(--blue);font-weight:600">+ Add a registration from a phone call</summary>
       <form id="newR" class="mt"><div class="f3">
         <div><label>Full name</label><input type="text" name="name" required></div>
         <div><label>Mobile</label><input type="tel" name="phone" required></div>
-        <div><label>Pass</label><select name="pass">${st.passes.map(p => `<option value="${p.id}" ${p.id === 'silver' ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
+        <div><label>Pass</label><select name="pass"><option value="">Not assigned</option>${st.passes.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>
         <div><label>Gender</label><select name="gender"><option value="male">Male</option><option value="female">Female</option></select></div>
         <div><label>Branch</label><select name="branch"><option value=""></option>${st.branches.map(b => `<option>${esc(b)}</option>`).join('')}</select></div>
         <div><label>City</label><input type="text" name="city"></div>
@@ -228,7 +233,7 @@ function rsvps() {
       <div><b>${esc(r.name)}</b> <span class="sub">${esc(r.branch)}</span><br><a href="tel:${esc(r.phone)}" style="color:var(--blue)">${esc(r.phone)}</a> · ${esc(r.city || '—')}<div class="sub">${when(r.createdAt)} · ${r.source === 'call' ? 'added by caller' : 'self-registered'}</div></div>
       <div><span class="pill ${r.pass === 'platinum' ? 'd' : r.pass === 'gold' ? 'o' : ''}" style="${r.pass === 'platinum' ? 'background:#1C1D24;color:#fff' : ''}">${esc(passNm(r.pass))}</span>${r.gender ? `<span class="pill">${r.gender === 'female' ? 'Female' : 'Male'}</span>` : ''}<span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>
         <input type="text" class="mt" data-rnote="${r.id}" value="${esc(r.note)}" placeholder="Caller note" style="margin-top:8px"></div>
-      <div class="row" style="align-items:stretch"><select data-rpass="${r.id}" style="flex:1" aria-label="Pass">${S.settings.passes.map(p => `<option value="${p.id}" ${(r.pass || 'silver') === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><select data-rstat="${r.id}" style="flex:1">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${r.callStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn s r" data-delr="${r.id}" style="height:40px">Delete</button></div>
+      <div class="row" style="align-items:stretch"><select data-rpass="${r.id}" style="flex:1" aria-label="Pass"><option value="" ${!r.pass ? 'selected' : ''}>Pass: not assigned</option>${S.settings.passes.map(p => `<option value="${p.id}" ${r.pass === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><select data-rstat="${r.id}" style="flex:1">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${r.callStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn s r" data-delr="${r.id}" style="height:40px">Delete</button></div>
     </div>`).join('') || '<p class="hint">No registrations match.</p>'}</div>
   </section>`;
 }
@@ -318,6 +323,8 @@ const actions = {
   saveAuto: async () => { await api('/auto', { method:'PUT', json:{ on:$('aOn').checked, intervalMin:+$('aInt').value } }); toast('Saved'); },
   step: async () => { await api('/auto/step', { method:'POST' }); toast('Moved to the next update'); },
   restart: async () => { if (!confirm('Restart the scripted story from now? Scripted numbers go back to their starting values.')) return false; await api('/auto/restart', { method:'POST' }); toast('Restarted'); },
+  startE: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ status:'live' } }); toast('Voting started. It now shows on Home.'); },
+  closeE: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ status:'closed' } }); toast('Voting closed'); },
   up: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ move:'up' } }); },
   down: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ move:'down' } }); },
   resetVotes: async () => { if (!confirm(`Reset all votes in "${E().title}"? Real votes and manual changes are removed.`)) return false; await api(`/elections/${selE}/reset-votes`, { method:'POST' }); toast('Votes reset'); },
@@ -362,6 +369,7 @@ document.addEventListener('change', run(async e => {
   if (t.dataset.tstat) { await api(`/tasks/${t.dataset.tstat}`, { method:'PUT', json:{ status:t.value } }); return load(); }
   if (t.dataset.s) { const [i, k] = t.dataset.s.split('|'); sched[+i][k] = k === 'day' ? +t.value : t.value; return; }
   if (t.id === 'qs') { qStatus = t.value; render(); }
+  if (t.id === 'qp') { qPass = t.value; render(); }
 }));
 document.addEventListener('input', e => { if (e.target.id === 'q') { q = e.target.value; const pos = e.target.selectionStart; render(); const n = $('q'); n.focus(); n.setSelectionRange(pos, pos); } });
 

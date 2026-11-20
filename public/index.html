@@ -282,7 +282,8 @@ let C = null, people = null, thread = null, showPlans = false, peopleQ = '', dra
 function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
 async function load() { try { const r = await fetch('/api/state', { cache:'no-store' }); S = await r.json(); render(); } catch {} }
 const route = () => { const [r, a] = (location.hash.slice(1) || 'home').split('/'); return [r === 'plan' ? 'schedule' : r, a]; };
-const votable = () => S.elections.filter(e => e.candidates.length && !e.confirmed);
+const isLive = e => e.status === 'live' && !e.confirmed;
+const votable = () => S.elections.filter(e => isLive(e) && e.candidates.length);
 
 function ticker() {
   const items = [];
@@ -320,15 +321,16 @@ function resultRow(e, idx) {
   else if (!e.total) body = `<div style="margin-top:6px;font-size:13px;color:var(--muted)">${e.candidates.length} nominee${e.candidates.length === 1 ? '' : 's'} · voting open</div>`;
   else body = `<div style="display:flex;align-items:center;gap:10px;margin-top:8px">${avatar(l.name, true)}<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;font-size:14px"><span>${esc(l.name)} leads</span><b>${pct(l.votes, e.total)}%</b></div><div class="bar"><div style="width:${pct(l.votes, e.total)}%;background:var(--accent)"></div></div></div></div>`;
   return `<a href="#vote/${esc(e.id)}" style="display:flex;gap:12px;padding:14px 0;${idx ? 'border-top:1px solid var(--line);' : ''}text-decoration:none">
-    ${icon(e)}<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;gap:8px;font-size:14px"><span style="font-weight:600">${esc(e.title)}</span><span style="color:var(--muted);white-space:nowrap">${e.total ? e.total + ' votes' : ''}</span></div>${body}</div></a>`;
+    ${icon(e)}<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;gap:8px;font-size:14px"><span style="font-weight:600">${esc(e.title)}</span><span style="color:var(--muted);white-space:nowrap">${e.total ? e.total + (e.total === 1 ? ' vote' : ' votes') : ''}</span></div>${body}</div></a>`;
 }
 function homePage() {
   const st = S.settings;
   const venue = S.elections.find(e => e.kind === 'venue');
   const vLead = venue && venue.confirmed ? venue.confirmed : venue && venue.total ? venue.candidates[0] : null;
-  const roles = S.elections.filter(e => e.candidates.length);
-  const voted = roles.filter(e => e.myVote || e.confirmed).length;
+  const roles = votable();
+  const voted = roles.filter(e => e.myVote).length;
   const me = S.myRsvp;
+  const live = S.elections.filter(isLive);
   return `${ticker()}
   ${st.announcement ? `<div class="note-bar">${svg(P.info, 18)}<span>${esc(st.announcement)}</span></div>` : ''}
   <section class="hero">
@@ -357,21 +359,21 @@ function homePage() {
   <div class="sec"><h2 class="d">${me ? 'Your registration' : 'Are you coming?'}</h2></div>
   <div class="card cta ${me ? 'ok-card' : ''}">
     ${me ? `<div class="t">You're in, ${esc(first(me.name))}!</div>
-      <div class="x">${esc(passName(me.pass))} pass · ${me.attend === 'both' ? 'Both days' : 'Day 1 only'}${me.overnight ? ' · staying overnight' : ''} · ${me.pickup ? 'pickup from ' + esc(me.pickup) : 'own transport'} · ${me.food === 'veg' ? 'veg' : 'non-veg'}</div>
+      <div class="x">${me.pass ? esc(passName(me.pass)) + ' pass' : 'Pass to be assigned'} · ${me.attend === 'both' ? 'Both days' : 'Day 1 only'}${me.overnight ? ' · staying overnight' : ''} · ${me.pickup ? 'pickup from ' + esc(me.pickup) : 'own transport'} · ${me.food === 'veg' ? 'veg' : 'non-veg'}</div>
       <a class="btn ghost sm" href="#rsvp" style="align-self:flex-start">View or edit</a>`
     : `<div class="x">Register in a minute so the teams can plan food, stay and transport. Only registered batchmates are counted as attending.</div>
       <a class="btn acc" href="#rsvp">Register now</a>`}
   </div>
 
-  <div class="sec"><h2 class="d">Your ballot</h2><a href="#vote">All elections</a></div>
+  ${roles.length ? `<div class="sec"><h2 class="d">Your ballot</h2><a href="#vote">All elections</a></div>
   <div class="card cta">
     <div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">${voted} of ${roles.length} done</span><span style="color:var(--muted)">${roles.length - voted ? `${roles.length - voted} left` : 'All done'}</span></div>
     <div class="progress"><div style="width:${pct(voted, roles.length)}%"></div></div>
     ${roles.length - voted && st.votingOpen ? `<a class="btn" href="#vote">Continue voting</a>` : ''}
-  </div>
+  </div>` : ''}
 
-  <div class="sec"><h2 class="d">Live results</h2><a href="#vote">Vote</a></div>
-  <div class="card" style="padding:2px 16px">${S.elections.map(resultRow).join('')}</div>
+  <div class="sec"><h2 class="d">Live polls</h2><a href="#vote">All elections</a></div>
+  <div class="card" style="padding:2px 16px">${live.map(resultRow).join('') || '<div class="empty">No polls are running right now.<br>New polls will appear here as soon as they start.</div>'}</div>
   ${footer()}`;
 }
 
@@ -380,11 +382,19 @@ function votePage() {
   const st = S.settings;
   return `${ticker()}<div class="pad"><h1 class="h1 d">Elections</h1>
     <p class="sub">${st.votingOpen ? 'Choose the batchmates who will run each part of the reunion. One vote per election. Tap a card for full results.' : 'Voting has closed. Thank you for taking part.'}</p></div>
-    ${anyoneNote()}<div style="height:14px"></div>
-    ${S.elections.map(e => {
+    ${anyoneNote()}
+    ${[['Live now', S.elections.filter(isLive)], ['Coming up', S.elections.filter(e => e.status === 'upcoming' && !e.confirmed)], ['Results', S.elections.filter(e => e.status === 'closed' || e.confirmed)]]
+      .filter(([, list]) => list.length).map(([label, list]) => `<div class="sec"><h2 class="d">${label}</h2></div>${list.map(voteCard).join('')}`).join('')}
+    ${footer()}`;
+}
+function voteCard(e) {
+  const st = S.settings;
+  {
       const l = e.candidates[0];
       let foot;
       if (e.confirmed) foot = `<span class="fixed-name">${avatar(e.confirmed.name, true)}${esc(e.confirmed.name)}</span><span class="chip ok">✓ Confirmed</span>`;
+      else if (e.status === 'upcoming') foot = `<span class="who">${e.candidates.length ? `${e.candidates.length} nominee${e.candidates.length === 1 ? '' : 's'} so far` : 'Nominations open'}</span><span class="chip wait">Opens soon</span>`;
+      else if (e.status === 'closed') foot = `<span class="who">${e.total ? `${avatar(l.name, true)}<span><b>${esc(l.name)}</b> won · ${pct(l.votes, e.total)}%</span>` : 'No votes'}</span><span class="chip wait">Closed</span>`;
       else {
         const who = !e.candidates.length ? 'No nominees yet · add one' : e.total ? `${avatar(l.name, true)}<span><b>${esc(l.name)}</b> leads · ${pct(l.votes, e.total)}%</span>` : `${e.candidates.length} nominee${e.candidates.length === 1 ? '' : 's'} · no votes yet`;
         const chip = !e.candidates.length ? '<span class="chip wait">Nominate</span>' : e.myVote ? '<span class="chip ok">Voted ✓</span>' : st.votingOpen ? '<span class="chip go">Vote now</span>' : '<span class="chip wait">Closed</span>';
@@ -393,14 +403,13 @@ function votePage() {
       return `<a class="card ecard ${e.confirmed ? 'fixed' : ''}" href="#vote/${esc(e.id)}">
         <div class="main">${icon(e)}<div style="flex:1;min-width:0"><div class="t">${esc(e.title)}</div><div class="x">${esc(e.desc)}</div></div>${svg(P.chevR, 18, 'chev-r')}</div>
         <div class="foot2">${foot}</div></a>`;
-    }).join('')}
-    ${footer()}`;
+  }
 }
 
 function electionPage(id) {
   const e = S.elections.find(x => x.id === id);
   if (!e) return `<a class="back" href="#vote">‹ Elections</a><div class="empty">This election is no longer available.</div>`;
-  const canVote = S.settings.votingOpen && !e.myVote && !e.confirmed;
+  const canVote = S.settings.votingOpen && !e.myVote && isLive(e);
   const rows = e.candidates.map((c, i) => {
     const p = pct(c.votes, e.total);
     const win = e.confirmed && e.confirmed.id === c.id;
@@ -424,6 +433,8 @@ function electionPage(id) {
     <div class="ehead">${icon(e)}<div><h1 class="h1 d" style="font-size:24px">${esc(e.title)}</h1><p class="sub">${esc(e.desc)}</p></div></div>
     <p class="sub" style="font-size:13px;padding:10px 20px 0">${e.total} votes · ${e.live ? 'counted live' : 'updated ' + time(S.updatedAt)}</p>
     ${e.confirmed ? `<div class="note-bar ok">${svg(P.check, 18)}<span><b>${esc(e.confirmed.name)}</b> is confirmed as ${esc(e.title)}. Voting for this role is closed.</span></div>`
+      : e.status === 'upcoming' ? `<div class="note-bar">${svg(P.info, 18)}<span>Voting for this role opens soon.${e.openNominations ? ' You can add nominees now.' : ''}</span></div>`
+      : e.status === 'closed' ? `<div class="note-bar">${svg(P.info, 18)}<span>Voting for this role has closed.</span></div>`
       : e.myVote ? `<div class="note-bar ok">${svg(P.check, 18)}<span>Thanks, your vote is counted.</span></div>` : ''}
     <div class="card" style="margin-top:16px">${rows || `<div class="empty">No nominees yet.<br>Add a batchmate below and ask everyone to vote.</div>`}</div>
     ${nomForm}
@@ -434,18 +445,18 @@ function electionPage(id) {
 const tagClass = t => /platinum/i.test(t) && !/gold|silver|all/i.test(t) ? 'platinum' : /^gold/i.test(t) && !/silver|platinum/i.test(t) ? 'gold' : /^silver/i.test(t) ? 'silver' : '';
 const tlItem = s => `<div class="it"><div class="tm">${esc(s.time)}</div><div><div class="tt">${esc(s.title)}</div>${s.note ? `<div class="tn">${esc(s.note)}</div>` : ''}${s.tag ? `<span class="tagc ${tagClass(s.tag)}">${esc(s.tag)}</span>` : ''}</div></div>`;
 const passList = () => S.settings.passes || [];
-const passName = id => (passList().find(p => p.id === id) || { name: 'Silver' }).name;
+const passName = id => (passList().find(p => p.id === id) || { name: 'To be assigned' }).name;
 function passesPage() {
   const me = S.myRsvp;
   const ok = svg(P.check, 16);
   return `<a class="back" href="#home">‹ Home</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">Reunion passes</h1>
-    <p class="sub">Choose how you'd like to celebrate. Every pass includes both days, all meals and the batch group photo.</p></div>
+    <p class="sub">Every pass includes both days, all meals and the batch group photo.</p></div>
+    <div class="note-bar">${svg(P.info, 18)}<span>Passes are assigned by the organising committee. ${me ? (me.pass ? `Your pass: <b>${esc(passName(me.pass))}</b>.` : 'Your pass will be confirmed by the committee soon.') : '<a href="#rsvp" style="font-weight:700">Register</a> and the committee will confirm your pass.'}</span></div>
     <div style="height:16px"></div>
     ${passList().map(p => `<section class="pass tier-${p.id} ${me && me.pass === p.id ? 'mine' : ''}">
       <div class="top2"><div><div class="nm acc">${esc(p.name)} pass</div><h2 class="d">${esc(p.tagline || p.name)}</h2>${p.price ? `<div class="price">${esc(p.price)}</div>` : ''}</div>
         <div class="cnt"><b class="d">${S.regShown.passes[p.id]}</b><span>registered</span></div></div>
       <ul>${p.benefits.map(b => `<li><span class="acc">${ok}</span><span>${esc(b)}</span></li>`).join('')}</ul>
-      ${me && me.pass === p.id ? '' : `<button type="button" class="btn" data-pickpass="${p.id}">${me ? 'Switch to ' : 'Register with '}${esc(p.name)}</button>`}
     </section>`).join('')}
     ${footer()}`;
 }
@@ -467,6 +478,7 @@ function teamsPage() {
       const t = S.tasks[e.id] || { total:0, done:0, items:[] };
       const lead = e.candidates[0];
       const who = e.confirmed ? `<div class="c fx">✓ Coordinator: ${esc(e.confirmed.name)}</div>`
+        : e.status === 'upcoming' ? '<div class="c">Voting opens soon</div>'
         : !e.candidates.length ? '<div class="c">Coordinator: nominations open</div>'
         : !e.total ? `<div class="c">${e.candidates.length} nominee${e.candidates.length === 1 ? '' : 's'} · voting open</div>`
         : `<div class="c">${st.votingOpen ? 'Leading' : 'Coordinator'}: ${esc(lead.name)}</div>`;
@@ -491,7 +503,7 @@ function rsvpPage() {
     <div class="card ok-card" style="margin-top:16px">
       <div style="font-weight:700;font-size:16px">You're registered ✓</div>
       <div class="kv">
-        <div>Pass</div><div><b>${esc(passName(me.pass))}</b> · <a href="#passes" style="color:var(--accent)">see benefits</a></div>
+        <div>Pass</div><div>${me.pass ? `<b>${esc(passName(me.pass))}</b> · <a href="#passes" style="color:var(--accent)">see benefits</a>` : 'To be assigned by the committee'}</div>
         <div>Name</div><div>${esc(me.name)}</div><div>Gender</div><div>${me.gender === 'female' ? 'Female' : me.gender === 'male' ? 'Male' : '—'}</div>
         <div>Branch</div><div>${esc(me.branch || '—')}</div><div>Mobile</div><div>${esc(me.phone)}</div><div>City</div><div>${esc(me.city || '—')}</div>
         <div>Attending</div><div>${me.attend === 'both' ? 'Both days' : 'Day 1 only'}</div><div>Overnight</div><div>${me.overnight ? 'Yes' : 'No'}</div>
@@ -507,8 +519,6 @@ function rsvpPage() {
     <form class="card form" id="rsvpForm" style="margin-top:16px" novalidate>
       <div class="fl"><label for="f-name">Full name</label><input id="f-name" name="name" autocomplete="name" value="${esc(form.name)}" required></div>
       <div class="fl"><div class="lb">Gender</div><div class="pills">${pill('gender', 'male', 'Male')}${pill('gender', 'female', 'Female')}</div></div>
-      <div class="fl"><div class="lb">Pass</div><div class="pills three">${passList().map(p => pill('pass', p.id, esc(p.name))).join('')}</div>
-        <div class="hint">${esc((passList().find(p => p.id === form.pass) || {}).tagline || '')} · <a href="#passes" style="color:var(--accent);font-weight:600">Compare passes</a></div></div>
       <div class="fl"><label for="f-branch">Branch</label><select id="f-branch" name="branch"><option value="">Select branch</option>${st.branches.map(b => `<option ${form.branch === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
       <div class="fl"><label for="f-phone">Mobile number</label><input id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="14" value="${esc(form.phone)}" required><div class="hint">Only the organising committee sees this.</div></div>
       <div class="fl"><label for="f-city">Current city</label><input id="f-city" name="city" autocomplete="address-level2" value="${esc(form.city)}"></div>

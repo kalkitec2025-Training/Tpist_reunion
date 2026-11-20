@@ -13,7 +13,7 @@ const newId = () => crypto.randomBytes(6).toString('hex');
 
 // =================================================================== defaults
 const role = (id, title, desc, extra = {}) => ({
-  id, kind: 'role', title, desc, mode: 'live', candidates: [], openNominations: true, confirmedId: null,
+  id, kind: 'role', title, desc, mode: 'live', status: 'upcoming', candidates: [], openNominations: true, confirmedId: null,
   favoriteId: null, cap: 300, dipEvery: 0, rateMin: 4, rateMax: 10, startTotal: 60, afterCap: 'hold', ...extra
 });
 const cand = (name, note = '', by = 'admin') => ({ id: newId(), name, note, by, offset: 0 });
@@ -22,14 +22,14 @@ function defaultDb() {
   const envStart = Date.parse(process.env.STORY_START || '');
   const women = role('women', 'Women\u2019s Coordinator',
     'Point of contact for our lady batchmates: invitations, comfort through the day and a safe evening drop.', {
-      mode: 'scripted', cap: 300, dipEvery: 5, rateMin: 5, rateMax: 12, startTotal: 150, afterCap: 'shuffle', openNominations: false,
+      mode: 'scripted', status: 'live', cap: 300, dipEvery: 5, rateMin: 5, rateMax: 12, startTotal: 150, afterCap: 'shuffle', openNominations: false,
       candidates: ['Naveen', 'Venkat Reddy', 'Vijay', 'Narendra', 'Chandra'].map(n => cand(n))
     });
   women.favoriteId = women.candidates[0].id;
 
   const venue = {
     id: 'venue', kind: 'venue', title: 'Reunion Venue', desc: 'Where should we meet? Pick a resort in Visakhapatnam.',
-    mode: 'scripted', favoriteId: null, cap: 220, dipEvery: 0, rateMin: 2, rateMax: 7, startTotal: 60, afterCap: 'hold', openNominations: false, confirmedId: null,
+    mode: 'scripted', status: 'live', favoriteId: null, cap: 220, dipEvery: 0, rateMin: 2, rateMax: 7, startTotal: 60, afterCap: 'hold', openNominations: false, confirmedId: null,
     candidates: [
       cand('Radisson Blu Resort', 'Rushikonda Beach Road'),
       cand('Sai Priya Beach Resort', 'Rushikonda Beach'),
@@ -54,7 +54,7 @@ function defaultDb() {
   const T = (electionId, title, status = 'todo') => ({ id: newId(), electionId, title, status });
 
   return {
-    v: 5,
+    v: 6,
     settings: {
       eventTitle: 'Silver Jubilee Reunion',
       collegeName: 'TPIST',
@@ -189,7 +189,11 @@ async function loadDb() {
     // v5: passes and the pass-based schedule
     data = { ...data, v: 5, schedule: d.schedule, settings: { ...data.settings, passes: d.settings.passes, passBase: d.settings.passBase } };
   }
-  if (!data || data.v !== 5) return d;
+  if (data && data.v === 5) {
+    // v6: elections get a status (upcoming / live / closed); passes are assigned by admin
+    data = { ...data, v: 6, elections: (data.elections || []).map(e => ({ ...e, status: e.status || ((e.id === 'women' || e.id === 'venue' || e.candidates.length) ? 'live' : 'upcoming') })) };
+  }
+  if (!data || data.v !== 6) return d;
   return { ...d, ...data, chat: data.chat || d.chat, settings: { ...d.settings, ...data.settings }, auto: { ...d.auto, ...data.auto } };
 }
 
@@ -375,7 +379,8 @@ function electionView(e, voterId, slot, admin = false) {
   const conf = e.confirmedId && e.candidates.find(c => c.id === e.confirmedId);
   const out = {
     id: e.id, kind: e.kind, title: e.title, desc: e.desc, mode: e.mode, live: e.mode === 'live',
-    confirmed: conf ? { id: conf.id, name: conf.name } : null, openNominations: !!e.openNominations && !conf,
+    confirmed: conf ? { id: conf.id, name: conf.name } : null, status: conf ? 'closed' : (e.status || 'live'),
+    openNominations: !!e.openNominations && !conf && (e.status || 'live') !== 'closed',
     candidates, total: candidates.reduce((s, c) => s + c.votes, 0), myVote, hasHistory
   };
   if (admin) Object.assign(out, { confirmedId: e.confirmedId || null, openNominationsSetting: !!e.openNominations, favoriteId: e.favoriteId, cap: e.cap, dipEvery: e.dipEvery, rateMin: e.rateMin, rateMax: e.rateMax, startTotal: e.startTotal, afterCap: e.afterCap, realVoters: Object.keys(real).length });
@@ -406,10 +411,10 @@ function publicState(voterId) {
       const male = (db.settings.regBaseMale || 0) + R.filter(r => r.gender === 'male').length;
       const female = (db.settings.regBaseFemale || 0) + R.filter(r => r.gender === 'female').length;
       const base = db.settings.passBase || {};
-      const passes = Object.fromEntries(['platinum', 'gold', 'silver'].map(p => [p, (base[p] || 0) + R.filter(r => (r.pass || 'silver') === p).length]));
+      const passes = Object.fromEntries(['platinum', 'gold', 'silver'].map(p => [p, (base[p] || 0) + R.filter(r => r.pass === p).length]));
       return { male, female, total: male + female + R.filter(r => !r.gender).length, passes };
     })(),
-    myRsvp: myRsvp && { name: myRsvp.name, gender: myRsvp.gender, pass: myRsvp.pass || 'silver', branch: myRsvp.branch, phone: myRsvp.phone, city: myRsvp.city, attend: myRsvp.attend, overnight: myRsvp.overnight, pickup: myRsvp.pickup, food: myRsvp.food }
+    myRsvp: myRsvp && { name: myRsvp.name, gender: myRsvp.gender, pass: myRsvp.pass || '', branch: myRsvp.branch, phone: myRsvp.phone, city: myRsvp.city, attend: myRsvp.attend, overnight: myRsvp.overnight, pickup: myRsvp.pickup, food: myRsvp.food }
   };
 }
 
@@ -440,6 +445,7 @@ app.post('/api/vote', (req, res) => {
   if (!e) return res.status(404).json({ error: 'Election not found' });
   if (!e.candidates.some(c => c.id === req.body.candidateId)) return res.status(404).json({ error: 'Candidate not found' });
   if (e.confirmedId) return res.status(403).json({ error: 'This coordinator is already confirmed' });
+  if ((e.status || 'live') !== 'live') return res.status(403).json({ error: e.status === 'upcoming' ? 'Voting has not started yet' : 'Voting has closed' });
   const box = (db.votes[e.id] ||= {});
   if (box[vid]) return res.status(409).json({ error: 'You have already voted in this election' });
   box[vid] = { c: req.body.candidateId, t: Date.now() };
@@ -451,7 +457,7 @@ app.post('/api/nominate', (req, res) => {
   const vid = voterIdOf(req, res);
   const e = findElection(req.body.electionId);
   if (!e) return res.status(404).json({ error: 'Election not found' });
-  if (!db.settings.votingOpen || !e.openNominations || e.confirmedId) return res.status(403).json({ error: 'Nominations are closed for this role' });
+  if (!db.settings.votingOpen || !e.openNominations || e.confirmedId || e.status === 'closed') return res.status(403).json({ error: 'Nominations are closed for this role' });
   const name = str(req.body.name, 40).replace(/\s+/g, ' ');
   if (name.length < 2) return res.status(400).json({ error: 'Please enter a name' });
   if (e.candidates.some(c => c.name.toLowerCase() === name.toLowerCase())) return res.status(409).json({ error: `${name} is already nominated` });
@@ -564,7 +570,7 @@ function cleanRsvp(b) {
   const r = {
     name: str(b.name, 80), gender: b.gender === 'female' ? 'female' : b.gender === 'male' ? 'male' : '', branch: str(b.branch, 30), phone, city: str(b.city, 60),
     attend: b.attend === 'day1' ? 'day1' : 'both',
-    pass: ['platinum', 'gold', 'silver'].includes(b.pass) ? b.pass : 'silver',
+    pass: ['platinum', 'gold', 'silver'].includes(b.pass) ? b.pass : '',
     overnight: !!b.overnight, pickup: str(b.pickup, 60), food: b.food === 'veg' ? 'veg' : 'nonveg'
   };
   if (r.attend === 'day1') r.overnight = false;
@@ -579,11 +585,12 @@ app.post('/api/rsvp', (req, res) => {
   if (!db.settings.rsvpOpen) return res.status(403).json({ error: 'Registrations are closed' });
   let data;
   try { data = cleanRsvp(req.body); } catch (e) { return res.status(400).json({ error: e.message }); }
+  delete data.pass;
   const existing = Object.values(db.rsvps).find(r => r.voterId === vid);
   if (existing) Object.assign(existing, data, { updatedAt: Date.now() });
   else {
     const id = newId();
-    db.rsvps[id] = { id, voterId: vid, ...data, source: 'self', callStatus: 'new', note: '', createdAt: Date.now(), updatedAt: Date.now() };
+    db.rsvps[id] = { id, voterId: vid, ...data, pass: '', source: 'self', callStatus: 'new', note: '', createdAt: Date.now(), updatedAt: Date.now() };
   }
   saveDb();
   res.json(publicState(vid));
@@ -700,6 +707,7 @@ A.put('/elections/:id', (req, res) => {
   if (typeof b.desc === 'string') e.desc = str(b.desc, 300);
   if (b.mode === 'live' || b.mode === 'scripted') e.mode = b.mode;
   if (typeof b.openNominations === 'boolean') e.openNominations = b.openNominations;
+  if (['upcoming', 'live', 'closed'].includes(b.status)) e.status = b.status;
   if (b.confirmedId === null || b.confirmedId === '') e.confirmedId = null;
   else if (e.candidates.some(c => c.id === b.confirmedId)) e.confirmedId = b.confirmedId;
   if (b.favoriteId === null || b.favoriteId === '') e.favoriteId = null;
@@ -768,7 +776,7 @@ A.put('/rsvps/:id', (req, res) => {
   const r = db.rsvps[req.params.id];
   if (!r) return res.status(404).json({ error: 'Not found' });
   if (['new', 'confirmed', 'not_reachable', 'declined'].includes(req.body.callStatus)) r.callStatus = req.body.callStatus;
-  if (['platinum', 'gold', 'silver'].includes(req.body.pass)) r.pass = req.body.pass;
+  if (['platinum', 'gold', 'silver', ''].includes(req.body.pass)) r.pass = req.body.pass;
   if (typeof req.body.note === 'string') r.note = str(req.body.note, 300);
   r.updatedAt = Date.now();
   saveDb(); res.json({ ok: true });
