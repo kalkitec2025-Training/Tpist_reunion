@@ -331,7 +331,7 @@ function render() {
   if (r === 'chat') { renderChat(arg); return; }
   if (r === 'privacy') { $('view').innerHTML = privacyPage(true); return; }
   $('view').innerHTML = r === 'vote' && arg ? electionPage(arg) : r === 'vote' ? votePage() : r === 'schedule' ? schedulePage()
-    : r === 'teams' ? teamsPage() : r === 'rsvp' ? rsvpPage() : r === 'passes' ? passesPage() : homePage();
+    : r === 'teams' ? teamsPage() : r === 'rsvp' ? rsvpPage() : r === 'passes' ? passesPage() : r === 'members' ? membersPage() : homePage();
 }
 
 // ------------------------------------------------------------------ home
@@ -365,7 +365,7 @@ function homePage() {
     </div>
   </section>
   <div class="stats">
-    <div class="stat"><div class="n d">${S.regShown.total}</div><div class="l">Registered</div></div>
+    <a class="stat" href="#members" style="text-decoration:none;display:block"><div class="n d">${S.regShown.total}</div><div class="l" style="display:flex;justify-content:space-between;align-items:center">Registered ${svg(P.chevR, 14)}</div></a>
     <div class="stat"><div class="n d">${S.regShown.male}</div><div class="l">Men</div></div>
     <div class="stat"><div class="n d">${S.regShown.female}</div><div class="l">Women</div></div>
   </div>
@@ -472,6 +472,15 @@ const tagClass = t => /platinum/i.test(t) && !/gold|silver|all/i.test(t) ? 'plat
 const tlItem = s => `<div class="it"><div class="tm">${esc(s.time)}</div><div><div class="tt">${esc(s.title)}</div>${s.note ? `<div class="tn">${esc(s.note)}</div>` : ''}${s.tag ? `<span class="tagc ${tagClass(s.tag)}">${esc(s.tag)}</span>` : ''}</div></div>`;
 const passList = () => S.settings.passes || [];
 const passName = id => (passList().find(p => p.id === id) || { name: 'To be assigned' }).name;
+let MEM = null;
+function membersPage() {
+  if (!MEM) { api2('/api/members').then(d => { MEM = d; if (route()[0] === 'members') render(); }).catch(e => toast(e.message)); return '<div class="loading">Loading…</div>'; }
+  const rows = MEM.members.map(m => `<div class="conv">${avatar(m.name)}<div class="m"><div class="n"><span style="font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em">${esc(m.name)}</span><small>${ago(m.t)}</small></div></div></div>`).join('');
+  return `<a class="back" href="#home">‹ Home</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">Registered batchmates</h1>
+    <p class="sub">${MEM.total} registered so far. Names are hidden for privacy.</p></div>
+    ${lockNote('Full names are visible to the organising committee only.')}
+    <div class="card" style="margin-top:14px">${rows || '<div class="empty">No registrations yet.</div>'}</div>${footer()}`;
+}
 function passesPage() {
   const me = S.myRsvp;
   const ok = svg(P.check, 16);
@@ -817,7 +826,7 @@ addEventListener('hashchange', () => {
   if (route()[0] !== 'rsvp') form = null;
   else if (!keepForm) form = null;
   keepForm = false;
-  nomOpen = null; draft = ''; showPlans = false;
+  nomOpen = null; draft = ''; showPlans = false; if (route()[0] === 'members') MEM = null;
   if (route()[0] === 'chat') { thread = route()[1] && route()[1] !== 'new' ? null : thread; loadChat(route()[1]); }
   render(); scrollTo(0, 0);
 });
