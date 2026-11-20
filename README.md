@@ -87,3 +87,10 @@ Setup (free, about 5 minutes):
 4. In Render, add `GOOGLE_CLIENT_ID` under **Environment** with that value, then click **Save, rebuild, and deploy**.
 
 Until `GOOGLE_CLIENT_ID` is set, the app stays open without sign-in and chat shows "opens soon". Chat uses the signed-in Google profile, so no separate chat registration is needed.
+
+## Privacy rules (names)
+- People's names appear **only inside live polls**, so batchmates can vote.
+- Everywhere else the app shows **counts only**: Teams (coordinators confirmed, nominees), upcoming and closed elections, and confirmed results. A lock note says names are visible to the admin only. This is enforced by the server, not just hidden on screen.
+- In chat, people appear as an **initial plus 10 stars** (e.g. `R**********`), with no branch or city, plus a count of members.
+- **Chat filter:** messages are blocked if they contain phone numbers, emails, requests for numbers or contact details (including "WhatsApp", "phone no", "number pampu"), blocked words, or spam. The sender automatically gets a warning from the **Organising Committee** (at most one every 10 minutes).
+- **Admin → Chat:** see blocked messages, send any member a committee message or warning, and edit the blocked-words list.

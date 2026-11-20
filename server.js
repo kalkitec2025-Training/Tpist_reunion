@@ -10,6 +10,8 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const HOUR = 3600 * 1000;
 const newId = () => crypto.randomBytes(6).toString('hex');
+// privacy: outside live polls, people are shown as an initial plus stars
+const mask = name => (String(name || '?').trim().charAt(0).toUpperCase() || '?') + '*'.repeat(10);
 
 // =================================================================== defaults
 const role = (id, title, desc, extra = {}) => ({
@@ -383,9 +385,13 @@ function electionView(e, voterId, slot, admin = false) {
     ...(admin ? { offset: c.offset || 0, real: realCounts[c.id] || 0, by: c.by || 'admin' } : {})
   })).sort((a, b) => b.votes - a.votes || a.i - b.i);
   const conf = e.confirmedId && e.candidates.find(c => c.id === e.confirmedId);
+  const isLiveNow = !conf && (e.status || 'live') === 'live';
+  if (!admin && !isLiveNow && e.kind !== 'venue') {
+    for (const c of candidates) { c.name = mask(c.name); c.note = ''; }
+  }
   const out = {
     id: e.id, kind: e.kind, title: e.title, desc: e.desc, mode: e.mode, live: e.mode === 'live',
-    confirmed: conf ? { id: conf.id, name: conf.name } : null, status: conf ? 'closed' : (e.status || 'live'),
+    confirmed: conf ? (admin || e.kind === 'venue' ? { id: conf.id, name: conf.name } : { id: null, name: null }) : null, status: conf ? 'closed' : (e.status || 'live'),
     openNominations: !!e.openNominations && !conf && (e.status || 'live') !== 'closed',
     candidates, total: candidates.reduce((s, c) => s + c.votes, 0), myVote, hasHistory
   };
@@ -553,10 +559,31 @@ function displayName(uid) {
   const r = rsvpOfUser(uid);
   return (r && r.name) || (db.users[uid] && db.users[uid].name) || 'Batchmate';
 }
-function profileOf(uid) {
+const COMMITTEE = 'committee';
+function profileOf(uid, full = false) {
+  if (uid === COMMITTEE) return { id: COMMITTEE, name: 'Organising Committee', branch: '', city: '', committee: true };
   const r = rsvpOfUser(uid);
+  if (!full) return { id: uid, name: mask(displayName(uid)), branch: '', city: '' };
   return { id: uid, name: displayName(uid), branch: r ? r.branch : '', city: r ? r.city : '' };
 }
+const DEFAULT_BLOCKED = ['idiot', 'stupid', 'bloody', 'bastard', 'fuck', 'shit', 'sexy', 'sex', 'dating', 'date with me', 'nude', 'pervert'];
+const ASK_CONTACT = /(phone|mobile|cell|contact|whats\s*app|wa)\s*(no|num|number|nbr|#)|\b(your|ur|send|share|give|ivvu|pampu|cheppu)\b[^.?!]{0,20}\b(number|num|no\.?)\b|\bnumber\s*(ivvu|pampu|cheppu|do|bhejo|send)\b|\bcall\s*me\b|\bwhats\s*app\b|\binsta(gram)?\s*(id|handle)\b|\b(email|mail)\s*(id|address)\b/i;
+function chatBlockReason(text) {
+  const digits = (text.match(/\d/g) || []).length;
+  if (digits >= 8 || /(\+?91[\s-]?)?[6-9]\d{2}[\s-]?\d{3}[\s-]?\d{4}/.test(text)) return 'sharing phone numbers is not allowed in chat';
+  if (/[\w.+-]+@[\w-]+\.[\w.]+/.test(text)) return 'sharing email addresses is not allowed in chat';
+  if (ASK_CONTACT.test(text)) return 'asking for phone numbers or contact details is not allowed in chat';
+  const words = (db.settings.chatBlocked && db.settings.chatBlocked.length ? db.settings.chatBlocked : DEFAULT_BLOCKED);
+  const low = ' ' + text.toLowerCase().replace(/[^a-z0-9\u0C00-\u0C7F\u0900-\u097F\s]/g, ' ').replace(/\s+/g, ' ') + ' ';
+  const hit = words.find(w => w && low.includes(' ' + w.toLowerCase().trim() + ' '));
+  if (hit) return 'the message contains words that break the chat rules';
+  if (!/[a-z\u0C00-\u0C7F\u0900-\u097F]{2,}/i.test(text) || /(.)\1{7,}/.test(text)) return 'the message looks like spam';
+  return null;
+}
+function committeeMessage(uid, text) {
+  db.chat.messages.push({ id: newId(), from: COMMITTEE, to: uid, text: str(text, 500), t: Date.now(), read: false });
+}
+const lastWarn = new Map();
 function chatMe(req) {
   const su = sessionUser(req);
   if (!su) return { user: null, u: null };
@@ -579,7 +606,8 @@ function chatView(user, u) {
     registered: true, name: displayName(me), consent: !!u.consentAt, status: u.status, plan, requested: PLANS.find(p => p.id === u.requested) || null,
     left: u.status === 'active' ? (plan && plan.messages === null ? null : Math.max(0, u.limit - u.used)) : 0,
     plans: PLANS,
-    conversations: [...peers.entries()].filter(([p]) => db.users[p]).map(([p, c]) => ({ ...profileOf(p), ...c })).sort((a, b) => b.t - a.t)
+    conversations: [...peers.entries()].filter(([p]) => db.users[p] || p === COMMITTEE).map(([p, c]) => ({ ...profileOf(p), ...c })).sort((a, b) => b.t - a.t),
+    members: Object.values(db.chat.users).filter(x => x.consentAt && x.status !== 'revoked').length
   };
 }
 function needChat(req, res) {
@@ -620,7 +648,7 @@ app.get('/api/chat/people', (req, res) => {
 app.get('/api/chat/thread/:id', (req, res) => {
   const me = needChat(req, res); if (!me) return;
   if (!me.u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
-  if (!db.users[req.params.id]) return res.status(404).json({ error: 'Batchmate not found' });
+  if (!db.users[req.params.id] && req.params.id !== COMMITTEE) return res.status(404).json({ error: 'Batchmate not found' });
   const my = me.user.id, peer = req.params.id;
   let changed = false;
   const msgs = db.chat.messages.filter(m => (m.from === my && m.to === peer) || (m.from === peer && m.to === my)).map(m => {
@@ -641,6 +669,17 @@ app.post('/api/chat/send', (req, res) => {
   if (!db.users[to] || to === me.user.id || !peerChat || !peerChat.consentAt) return res.status(404).json({ error: 'Batchmate not found' });
   const text = str(req.body.text, 500);
   if (!text) return res.status(400).json({ error: 'Type a message' });
+  const reason = chatBlockReason(text);
+  if (reason) {
+    (db.chat.flags ||= []).push({ id: newId(), uid: me.user.id, to, text, reason, t: Date.now() });
+    if (db.chat.flags.length > 500) db.chat.flags.splice(0, db.chat.flags.length - 500);
+    if (Date.now() - (lastWarn.get(me.user.id) || 0) > 10 * 60 * 1000) {
+      lastWarn.set(me.user.id, Date.now());
+      committeeMessage(me.user.id, `Your message was not delivered because ${reason}. Please keep chat respectful and professional, and do not ask for or share phone numbers. Repeated attempts can lead to chat access being removed.`);
+    }
+    saveDb();
+    return res.status(422).json({ error: `Not sent: ${reason}.` });
+  }
   const now = Date.now();
   if (now - (lastSend.get(me.user.id) || 0) < 1500) return res.status(429).json({ error: 'Slow down a little' });
   lastSend.set(me.user.id, now);
@@ -719,9 +758,11 @@ A.get('/state', (req, res) => {
     accounts: Object.keys(db.users).length,
     chat: {
       plans: PLANS,
-      users: Object.entries(db.chat.users).filter(([id]) => db.users[id]).map(([id, u]) => ({ ...profileOf(id), email: db.users[id].email, ...u, id }))
+      users: Object.entries(db.chat.users).filter(([id]) => db.users[id]).map(([id, u]) => ({ ...profileOf(id, true), email: db.users[id].email, ...u, id, flags: (db.chat.flags || []).filter(f => f.uid === id).length }))
         .sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0)),
-      messages: db.chat.messages.slice(-300).reverse().map(m => ({ ...m, fromName: db.users[m.from] ? displayName(m.from) : '—', toName: db.users[m.to] ? displayName(m.to) : '—' }))
+      messages: db.chat.messages.slice(-300).reverse().map(m => ({ ...m, fromName: m.from === COMMITTEE ? 'Organising Committee' : db.users[m.from] ? displayName(m.from) : '—', toName: db.users[m.to] ? displayName(m.to) : '—' })),
+      flags: (db.chat.flags || []).slice(-200).reverse().map(f => ({ ...f, name: db.users[f.uid] ? displayName(f.uid) : '—', toName: db.users[f.to] ? displayName(f.to) : '—' })),
+      blocked: db.settings.chatBlocked && db.settings.chatBlocked.length ? db.settings.chatBlocked : DEFAULT_BLOCKED
     }
   });
 });
@@ -887,6 +928,18 @@ A.post('/chat/:id', (req, res) => {
   } else if (a === 'decline') { u.status = u.plan ? 'active' : 'declined'; u.requested = null; }
   else if (a === 'revoke') { u.status = 'revoked'; u.requested = null; }
   else return res.status(400).json({ error: 'Unknown action' });
+  saveDb(); res.json({ ok: true });
+});
+A.post('/chat/:id/message', (req, res) => {
+  if (!db.users[req.params.id]) return res.status(404).json({ error: 'Not found' });
+  const text = str(req.body.text, 500);
+  if (!text) return res.status(400).json({ error: 'Type a message' });
+  committeeMessage(req.params.id, text);
+  saveDb(); res.json({ ok: true });
+});
+A.put('/chat/blocked', (req, res) => {
+  if (!Array.isArray(req.body.words)) return res.status(400).json({ error: 'words required' });
+  db.settings.chatBlocked = req.body.words.map(w => str(w, 40).toLowerCase()).filter(Boolean).slice(0, 300);
   saveDb(); res.json({ ok: true });
 });
 A.delete('/chat/messages/:id', (req, res) => {
