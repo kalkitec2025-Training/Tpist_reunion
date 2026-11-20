@@ -898,6 +898,42 @@ A.post('/rsvps', (req, res) => {
   db.rsvps[id] = { id, voterId: null, ...data, source: 'call', callStatus: req.body.callStatus || 'confirmed', note: str(req.body.note, 300), createdAt: Date.now(), updatedAt: Date.now() };
   saveDb(); res.json({ ok: true });
 });
+// test data: clearly marked, no phone numbers, removable in one go
+const TEST_MEN = ['Ravi Kumar', 'Srinivas Rao', 'Prasad', 'Venkatesh', 'Ramesh Babu', 'Suresh', 'Kiran Kumar', 'Mahesh', 'Naresh', 'Sekhar', 'Rajesh', 'Satish', 'Harish', 'Sandeep', 'Mohan Rao', 'Anil Kumar', 'Vamsi', 'Chaitanya', 'Phani Kumar', 'Murali', 'Gopi', 'Raghu', 'Sai Krishna', 'Bhaskar', 'Durga Prasad', 'Pavan', 'Krishna Mohan', 'Nagaraju', 'Siva', 'Ramana', 'Jagadeesh', 'Hari Babu', 'Lokesh', 'Manohar', 'Vijay Kumar', 'Sudheer'];
+const TEST_WOMEN = ['Lakshmi', 'Madhavi', 'Swathi', 'Anitha', 'Padma', 'Sirisha', 'Kavitha', 'Sravani', 'Deepthi', 'Bhavani', 'Sunitha', 'Radhika', 'Haritha', 'Jyothi', 'Prasanna', 'Sailaja', 'Vani', 'Aruna'];
+A.post('/rsvps/test', (req, res) => {
+  const n = num(req.body.count, 1, 300) || 54;
+  const branches = db.settings.branches.length ? db.settings.branches : ['CSE'];
+  const cities = ['Hyderabad', 'Visakhapatnam', 'Vizianagaram', 'Bengaluru', 'Chennai', 'Pune', 'Bobbili', 'Srikakulam', 'Vijayawada'];
+  const pick = (arr, i) => arr[i % arr.length];
+  const r = rng(hash(Date.now() & 0xffffffff, 7));
+  const passes = ['platinum', 'gold', 'silver'];
+  let men = 0, women = 0;
+  for (let i = 0; i < n; i++) {
+    const female = i % 3 === 2;
+    const name = female ? pick(TEST_WOMEN, women++) : pick(TEST_MEN, men++);
+    const id = newId();
+    const roll = r();
+    db.rsvps[id] = {
+      id, voterId: null, source: 'test', callStatus: r() < 0.6 ? 'confirmed' : 'new', note: 'Test registration',
+      name, gender: female ? 'female' : 'male', branch: pick(branches, Math.floor(r() * 100)), phone: '', city: pick(cities, Math.floor(r() * 100)),
+      attend: r() < 0.8 ? 'both' : 'day1', overnight: false, pickup: r() < 0.5 ? pick(db.settings.pickupPoints, Math.floor(r() * 100)) : '',
+      food: r() < 0.3 ? 'veg' : 'nonveg', pass: roll < 0.15 ? passes[0] : roll < 0.45 ? passes[1] : passes[2],
+      createdAt: Date.now() - Math.floor(r() * 5 * 24 * HOUR), updatedAt: Date.now()
+    };
+    if (db.rsvps[id].attend === 'both' && !female) db.rsvps[id].overnight = r() < 0.7;
+  }
+  if (req.body.replaceExtra !== false) {
+    db.settings.regBaseMale = 0; db.settings.regBaseFemale = 0;
+    db.settings.passBase = { platinum: 0, gold: 0, silver: 0 };
+  }
+  saveDb(); res.json({ ok: true, added: n });
+});
+A.delete('/rsvps/test', (req, res) => {
+  let removed = 0;
+  for (const [id, r] of Object.entries(db.rsvps)) if (r.source === 'test') { delete db.rsvps[id]; removed++; }
+  saveDb(); res.json({ ok: true, removed });
+});
 A.put('/rsvps/:id', (req, res) => {
   const r = db.rsvps[req.params.id];
   if (!r) return res.status(404).json({ error: 'Not found' });

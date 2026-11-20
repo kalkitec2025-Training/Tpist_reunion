@@ -210,7 +210,8 @@ function rsvps() {
   const st = S.settings;
   const list = S.rsvps.filter(r => (!qPass || (qPass === 'none' ? !r.pass : r.pass === qPass)) && (!qStatus || r.callStatus === qStatus) && (!q || `${r.name} ${r.phone} ${r.city} ${r.branch}`.toLowerCase().includes(q.toLowerCase())));
   return `<section class="card">
-    <div class="hrow"><h2>Registrations (${S.rsvps.length})</h2><div class="row"><button class="btn" data-a="csv">Export CSV</button></div></div>
+    <div class="hrow"><h2>Registrations (${S.rsvps.length}${S.rsvps.some(r => r.source === 'test') ? `, ${S.rsvps.filter(r => r.source === 'test').length} test` : ''})</h2>
+      <div class="row"><button class="btn" data-a="addTest">Add 54 test registrations</button>${S.rsvps.some(r => r.source === 'test') ? '<button class="btn r" data-a="delTest">Delete all test registrations</button>' : ''}<button class="btn" data-a="csv">Export CSV</button></div></div>
     <div class="f3 mt"><div><label for="q">Search</label><input type="search" id="q" value="${esc(q)}" placeholder="Name, phone, city"></div>
       <div><label for="qp">Pass</label><select id="qp"><option value="">All</option><option value="none" ${qPass === 'none' ? 'selected' : ''}>Not assigned</option>${st.passes.map(p => `<option value="${p.id}" ${qPass === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
       <div><label for="qs">Call status</label><select id="qs"><option value="">All</option>${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${qStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div></div>
@@ -230,7 +231,7 @@ function rsvps() {
       </div><div class="row mt"><button class="btn d">Add registration</button></div></form>
     </details>
     <div class="mt">${list.map(r => `<div class="rs">
-      <div><b>${esc(r.name)}</b> <span class="sub">${esc(r.branch)}</span><br><a href="tel:${esc(r.phone)}" style="color:var(--blue)">${esc(r.phone)}</a> · ${esc(r.city || '—')}${r.email ? `<div class="sub">${esc(r.email)}</div>` : ''}<div class="sub">${when(r.createdAt)} · ${r.source === 'call' ? 'added by caller' : 'self-registered'}</div></div>
+      <div><b>${esc(r.name)}</b> <span class="sub">${esc(r.branch)}</span><br>${r.phone ? `<a href="tel:${esc(r.phone)}" style="color:var(--blue)">${esc(r.phone)}</a>` : '<span class="sub">no phone</span>'} · ${esc(r.city || '—')}${r.email ? `<div class="sub">${esc(r.email)}</div>` : ''}<div class="sub">${when(r.createdAt)} · ${r.source === 'test' ? '<span class="pill o">Test</span>' : r.source === 'call' ? 'added by caller' : 'self-registered'}</div></div>
       <div><span class="pill ${r.pass === 'platinum' ? 'd' : r.pass === 'gold' ? 'o' : ''}" style="${r.pass === 'platinum' ? 'background:#1C1D24;color:#fff' : ''}">${esc(passNm(r.pass))}</span>${r.gender ? `<span class="pill">${r.gender === 'female' ? 'Female' : 'Male'}</span>` : ''}<span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>
         <input type="text" class="mt" data-rnote="${r.id}" value="${esc(r.note)}" placeholder="Caller note" style="margin-top:8px"></div>
       <div class="row" style="align-items:stretch"><select data-rpass="${r.id}" style="flex:1" aria-label="Pass"><option value="" ${!r.pass ? 'selected' : ''}>Pass: not assigned</option>${S.settings.passes.map(p => `<option value="${p.id}" ${r.pass === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><select data-rstat="${r.id}" style="flex:1">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${r.callStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn s r" data-delr="${r.id}" style="height:40px">Delete</button></div>
@@ -327,6 +328,14 @@ const actions = {
   startE: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ status:'live' } }); toast('Voting started. It now shows on Home.'); },
   closeE: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ status:'closed' } }); toast('Voting closed'); },
   saveBlocked: async () => { await api('/chat/blocked', { method:'PUT', json:{ words:$('blockedWords').value.split('\n').map(x => x.trim()).filter(Boolean) } }); toast('Blocked words saved'); },
+  addTest: async () => {
+    if (!confirm('Add 54 test registrations? They are marked "Test", have no phone numbers, and replace the extra counts in Settings so Home shows 54.')) return false;
+    const r = await api('/rsvps/test', { method:'POST', json:{ count:54 } }); toast(`${r.added} test registrations added`);
+  },
+  delTest: async () => {
+    if (!confirm('Delete all test registrations? Real registrations are not affected.')) return false;
+    const r = await api('/rsvps/test', { method:'DELETE' }); toast(`${r.removed} test registrations deleted`);
+  },
   up: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ move:'up' } }); },
   down: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ move:'down' } }); },
   resetVotes: async () => { if (!confirm(`Reset all votes in "${E().title}"? Real votes and manual changes are removed.`)) return false; await api(`/elections/${selE}/reset-votes`, { method:'POST' }); toast('Votes reset'); },
