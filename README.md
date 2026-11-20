@@ -1,39 +1,55 @@
-# ReunionVote: Women's Coordinator Election
+# TPIST Silver Jubilee Reunion app
 
-A mobile voting page in the "Live Results" style, plus an admin panel. The four candidates (Naveen, Venkat Reddy, Vijay, Narendra) and their photos load automatically on first start.
+A mobile web app for the 25-year reunion of Thandra Paparaya Institute of Science & Technology (TPIST), plus an admin panel at `/admin`.
 
-## How the numbers behave
-- The **script fully controls** the public numbers. Real clicks are recorded and shown only in the admin panel. Each person who votes sees their own +1, so it feels counted.
-- Every hour the total climbs by 5 to 12 votes, fewer at night (IST), until it reaches **300**.
-- After 300, votes keep shifting between people every hour, so the total stays at 300.
-- **Naveen** ends nearly every hour on top. Every 5th update he slips to 2nd, then takes the lead back the next hour.
-- The "LAST HOUR" ticker and the "▲ 4 this hour" labels come from the same script.
-- The script is deterministic. A restart doesn't change the numbers, and every phone sees the same count.
+## What batchmates see
+- **Home:** event card (date to be announced, venue poll leader), headcount, their registration, voting progress, live results and the weekend schedule.
+- **Vote:** one election per organising role, plus the venue poll. Each person gets one vote per election.
+- **Plan:** the Day 1 and Day 2 schedule, plus each organising team with its current leader and task progress.
+- **RSVP:** name, branch, mobile, city, both days or Day 1 only, overnight stay, pickup point, and veg or non-veg.
+
+### Elections (all editable in admin)
+
+| Election | Counting | Notes |
+|---|---|---|
+| Reunion Venue | scripted, no favourite | 4 Visakhapatnam resorts |
+| Overall Event Coordinator | live | |
+| Tele-calling & RSVP | live | |
+| Food & Catering | live | |
+| Hospitality & Stay | live | |
+| Transport | live | includes the ladies' evening drop |
+| Photography & Videography | live | |
+| Venue & Arrangements | live | |
+| Finance & Contributions | live | |
+| Women's Coordinator | scripted | Naveen always ends on top, with an occasional dip to 2nd; total climbs to 300 |
+
+- **Live** means only real votes count, plus any manual ± from admin.
+- **Scripted** means the numbers follow the hourly script, and the voter sees their own vote added.
+- You can switch any election between the two in **Admin → Elections**.
+- Elections with no candidates show "Nominations open". Add names in admin when you have them.
 
 ## Admin panel (`/admin`)
-- **Auto-voting:** turn it on or off (off freezes the numbers), set the target total, update interval, favourite, how often the dip happens, votes per update, and starting votes. You can also run the next update now or restart the story from now.
-- **Candidates:** use −10, −1, +1 or +10 to add votes on top of the script. Manual changes stay until you clear them. You can also rename a candidate, replace a photo, add a candidate or delete one.
-- **Update history:** what the page showed at each of the last 12 updates.
-- **Reunion details:** headline, college name, batch year, years since graduation, reunion date, venue, the voting-closes countdown, and opening or closing voting.
-- **Real votes:** the genuine counts.
+- **Overview:** registration counts (both days, Day 1 only, overnight, veg and non-veg, pickups by point, confirmed by call), the leader of every election, and the script clock.
+- **Elections:** add or rename candidates with an optional note (e.g. "ECE, Hyderabad"), use ±1 or ±10, switch between live and scripted, set the script options, and reset votes. You can also add, delete or reorder elections.
+- **Registrations:** search, filter by call status (Not called, Confirmed, Not reachable, Not coming), add caller notes, add people registered over the phone, and export to CSV.
+- **Plan & tasks:** edit the schedule, and add tasks for each team and tick them off.
+- **Settings:** event name, college, date text, expected count, announcement banner, branches, pickup points, and whether voting and registrations are open.
+
+## Free, permanent storage (important)
+Render's free plan wipes local files on every restart. Without a database, registrations, real votes and admin edits are lost. The app uses a free Postgres database when `DATABASE_URL` is set:
+
+1. Go to **neon.tech** and sign up free (no card needed). Create a project, choosing the region closest to India, such as Singapore.
+2. Copy the **connection string**. It looks like `postgresql://user:pass@ep-xxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`.
+3. In Render, open the `reunion-vote` service, go to **Environment**, add `DATABASE_URL` with that value, and save.
+
+The admin header then shows "storage: database (permanent)".
+
+## Keep it awake
+On the free plan the app sleeps after about 15 idle minutes, and the next visit takes 30–60 seconds to load. Add a free monitor on **cron-job.org** or **UptimeRobot** that opens `https://<your-app>.onrender.com/healthz` every 10 minutes.
 
 ## Run locally
 ```bash
 npm install
-ADMIN_PASSWORD=yourSecret npm start
-# http://localhost:3000   and   http://localhost:3000/admin
+ADMIN_PASSWORD=secret npm start          # file storage in ./data
+DATABASE_URL=postgres://... npm start    # or Postgres
 ```
-
-## Deploy on Render
-1. Push this folder to a GitHub repo.
-2. On Render, choose **New → Blueprint** and pick the repo. It reads `render.yaml`.
-3. Enter an `ADMIN_PASSWORD` when Render asks.
-4. Open `/admin` and fill in the college name, batch, date and venue.
-5. Share the link.
-
-`STORY_START` in `render.yaml` is when the hourly story begins. Set it to when you'll share the link.
-
-### Staying on Render's free plan
-- **Survives restarts:** the vote numbers (rebuilt from `STORY_START` and `STORY_SEED`) and the four photos (stored in the repo).
-- **Lost on restart:** anything you change in the admin panel after deploying, such as typed-in details, manual ±votes and real votes. So put the college name, batch, date and venue into the defaults at the top of `server.js` before you deploy.
-- **Keep it awake:** a free sleeping app takes 30–60 seconds to load. Set up a free monitor (UptimeRobot or cron-job.org) to open your link every 10 minutes.
