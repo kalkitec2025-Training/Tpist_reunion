@@ -1,11 +1,12 @@
-# TPIST Silver Jubilee Reunion app
+# Silver Jubilee Reunion app
 
-A mobile web app for the 25-year reunion of Thandra Paparaya Institute of Science & Technology (TPIST), plus an admin panel at `/admin`.
+A mobile web app for our 25-year batch reunion, plus an admin panel at `/admin`. The college name is not shown in the app.
 
 ## What batchmates see
-- **Home:** event card (date to be announced, venue poll leader), headcount, their registration, voting progress, live results and the weekend schedule.
+- **Home:** event card, Registered / Men / Women counts, venue status, their registration, voting progress and live results for every election.
 - **Vote:** one election per organising role, plus the venue poll. Each person gets one vote per election.
-- **Plan:** the Day 1 and Day 2 schedule, plus each organising team with its current leader and task progress.
+- **Schedule:** the Day 1 and Day 2 timings.
+- **Teams:** each organising team with its coordinator (confirmed, leading, or nominations open) and task progress.
 - **RSVP:** name, branch, mobile, city, both days or Day 1 only, overnight stay, pickup point, and veg or non-veg.
 
 ### Elections (all editable in admin)
@@ -14,19 +15,20 @@ A mobile web app for the 25-year reunion of Thandra Paparaya Institute of Scienc
 |---|---|---|
 | Reunion Venue | scripted, no favourite | 4 Visakhapatnam resorts |
 | Overall Event Coordinator | live | |
-| Tele-calling & RSVP | scripted sample | |
-| Food & Catering | scripted sample | |
-| Hospitality & Stay | scripted sample | |
-| Transport | scripted sample | includes the ladies' evening drop |
-| Photography & Videography | scripted sample | |
-| Venue & Arrangements | scripted sample | |
-| Finance & Contributions | scripted sample | |
+| Tele-calling & RSVP | live, nominees added in the app | |
+| Food & Catering | live, nominees added in the app | |
+| Hospitality & Stay | live, nominees added in the app | |
+| Transport | live, nominees added in the app | includes the ladies' evening drop |
+| Photography & Videography | live, nominees added in the app | |
+| Venue & Arrangements | live, nominees added in the app | |
+| Finance & Contributions | live, nominees added in the app | |
 | Women's Coordinator | scripted | Naveen always ends on top, with an occasional dip to 2nd; total climbs to 300 |
 
 - **Live** means only real votes count, plus any manual ± from admin.
 - **Scripted** means the numbers follow the hourly script, and the voter sees their own vote added.
 - You can switch any election between the two in **Admin → Elections**.
-- The team elections start with **sample nominees** (placeholder names) so the app looks active. Replace them with real names in **Admin → Elections**, then switch each election to **Live** when real voting starts.
+- Team elections start empty. Anyone can tap **Add a nominee** on a team's page (up to 2 per person per role), and everyone votes.
+- When a coordinator is decided, choose them under **Confirmed coordinator** in **Admin → Elections**. The app then highlights the name in green and closes voting for that role.
 - The Home page shows registrations as real sign-ups plus extra counts for men and women, set in **Admin → Settings**. Set both to 0 to show real numbers only.
 
 ## Admin panel (`/admin`)

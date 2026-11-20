@@ -110,7 +110,7 @@ $('tabs').onclick = e => { const b = e.target.closest('[data-t]'); if (!b) retur
 
 function render() {
   const st = S.settings;
-  $('hTitle').textContent = `${st.collegeName} Reunion · Admin`;
+  $('hTitle').textContent = `${st.eventTitle} · Admin`;
   $('hSub').textContent = `${S.rsvps.length} registered of ${st.expected} expected · storage: ${S.storage === 'postgres' ? 'database (permanent)' : 'file (resets on restart)'}`;
   $('main').innerHTML = ({ overview, elections, rsvps, plan, settings })[tab]();
 }
@@ -171,6 +171,8 @@ function electionEditor(e) {
       <div class="f2"><div><label>Title</label><input type="text" name="title" value="${esc(e.title)}"></div>
       <div><label>How results are counted</label><select name="mode"><option value="live" ${!sc ? 'selected' : ''}>Live: real votes only</option><option value="scripted" ${sc ? 'selected' : ''}>Scripted: numbers follow the script</option></select></div></div>
       <div class="mt"><label>Description shown to voters</label><textarea name="desc">${esc(e.desc)}</textarea></div>
+      <div class="f2 mt"><div><label>Confirmed coordinator (highlighted in the app, closes voting)</label><select name="confirmedId"><option value="">Not confirmed yet</option>${e.candidates.map(c => `<option value="${c.id}" ${c.id === e.confirmedId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+      <div><label>Nominations</label><label class="check" style="height:40px"><input type="checkbox" name="openNominations" ${e.openNominationsSetting ? 'checked' : ''}> Anyone can add nominees from the app</label></div></div>
       ${sc ? `<div class="f3 mt">
         <div><label>Always ends on top</label><select name="favoriteId"><option value="">Nobody (natural spread)</option>${e.candidates.map(c => `<option value="${c.id}" ${c.id === e.favoriteId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
         <div><label>Target total votes</label><input type="number" name="cap" value="${e.cap}"></div>
@@ -188,7 +190,7 @@ function electionEditor(e) {
     ${e.candidates.length ? e.candidates.map(c => `<div class="crow">
       <input type="text" value="${esc(c.name)}" data-cname="${c.id}" aria-label="Name">
       <input type="text" value="${esc(c.note)}" data-cnote="${c.id}" placeholder="Note (optional)" aria-label="Note">
-      <div class="votes">${c.votes}<small>${c.real} real${c.offset ? ` · ${c.offset > 0 ? '+' : ''}${c.offset} manual` : ''}</small></div>
+      <div class="votes">${c.votes}<small>${c.real} real${c.offset ? ` · ${c.offset > 0 ? '+' : ''}${c.offset} manual` : ''}${c.by === 'public' ? ' · added in app' : ''}</small></div>
       <div class="row acts"><button class="btn s" data-adj="${c.id}|-10">−10</button><button class="btn s" data-adj="${c.id}|-1">−1</button><button class="btn s" data-adj="${c.id}|1">+1</button><button class="btn s" data-adj="${c.id}|10">+10</button>${c.offset ? `<button class="btn s" data-clr="${c.id}">Clear</button>` : ''}<button class="btn s r" data-delc="${c.id}">Remove</button></div>
     </div>`).join('') : '<p class="hint">No candidates yet. The app shows "Nominations open".</p>'}
     <form id="newC" class="f3 mt" style="align-items:end"><div><label>Candidate name</label><input type="text" name="name" required></div><div><label>Note (optional)</label><input type="text" name="note" placeholder="e.g. ECE, Hyderabad"></div><div><button class="btn d">Add candidate</button></div></form>
@@ -326,6 +328,7 @@ document.addEventListener('submit', run(async e => {
   if (f.id === 'newE') { const r = await api('/elections', { method:'POST', json:d }); selE = r.id; toast('Election added'); }
   else if (f.id === 'eForm') {
     for (const k of ['cap','dipEvery','rateMin','rateMax','startTotal']) if (k in d) d[k] = +d[k];
+    d.openNominations = !!d.openNominations;
     await api(`/elections/${selE}`, { method:'PUT', json:d }); toast('Election saved');
   }
   else if (f.id === 'newC') { await api(`/elections/${selE}/candidates`, { method:'POST', json:d }); toast('Candidate added'); }

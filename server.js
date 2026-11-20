@@ -13,23 +13,23 @@ const newId = () => crypto.randomBytes(6).toString('hex');
 
 // =================================================================== defaults
 const role = (id, title, desc, extra = {}) => ({
-  id, kind: 'role', title, desc, mode: 'live', candidates: [],
+  id, kind: 'role', title, desc, mode: 'live', candidates: [], openNominations: true, confirmedId: null,
   favoriteId: null, cap: 300, dipEvery: 0, rateMin: 4, rateMax: 10, startTotal: 60, afterCap: 'hold', ...extra
 });
-const cand = (name, note = '') => ({ id: newId(), name, note, offset: 0 });
+const cand = (name, note = '', by = 'admin') => ({ id: newId(), name, note, by, offset: 0 });
 
 function defaultDb() {
   const envStart = Date.parse(process.env.STORY_START || '');
   const women = role('women', 'Women\u2019s Coordinator',
     'Point of contact for our lady batchmates: invitations, comfort through the day and a safe evening drop.', {
-      mode: 'scripted', cap: 300, dipEvery: 5, rateMin: 5, rateMax: 12, startTotal: 150, afterCap: 'shuffle',
+      mode: 'scripted', cap: 300, dipEvery: 5, rateMin: 5, rateMax: 12, startTotal: 150, afterCap: 'shuffle', openNominations: false,
       candidates: ['Naveen', 'Venkat Reddy', 'Vijay', 'Narendra', 'Chandra'].map(n => cand(n))
     });
   women.favoriteId = women.candidates[0].id;
 
   const venue = {
     id: 'venue', kind: 'venue', title: 'Reunion Venue', desc: 'Where should we meet? Pick a resort in Visakhapatnam.',
-    mode: 'scripted', favoriteId: null, cap: 220, dipEvery: 0, rateMin: 2, rateMax: 7, startTotal: 60, afterCap: 'hold',
+    mode: 'scripted', favoriteId: null, cap: 220, dipEvery: 0, rateMin: 2, rateMax: 7, startTotal: 60, afterCap: 'hold', openNominations: false, confirmedId: null,
     candidates: [
       cand('Radisson Blu Resort', 'Rushikonda Beach Road'),
       cand('Sai Priya Beach Resort', 'Rushikonda Beach'),
@@ -38,28 +38,15 @@ function defaultDb() {
     ]
   };
 
-  // sample nominees: scripted with a natural spread until replaced with real names in admin
-  const team = (id, title, desc, names, cap) => role(id, title, desc, {
-    mode: 'scripted', cap, startTotal: Math.round(cap * 0.4), rateMin: 1, rateMax: 4, afterCap: 'hold',
-    candidates: names.map(([n, note]) => cand(n, note))
-  });
   const elections = [
-    team('overall', 'Overall Event Coordinator', 'Owns the full plan, runs the committee calls and keeps every team on schedule. Confirms the final venue once the venue poll closes.',
-      [['Prasad', 'MECH · Hyderabad'], ['Srinivas Rao', 'CSE · Visakhapatnam'], ['Madhavi', 'ECE · Bengaluru']], 160),
-    team('telecalling', 'Tele-calling & RSVP', 'Reaches every batchmate by phone, confirms attendance and keeps the guest list current.',
-      [['Kiran', 'EEE · Vizianagaram'], ['Swathi', 'CSE · Hyderabad']], 120),
-    team('food', 'Food & Catering', 'Caterer, menus and counts for all meals: Day 1 breakfast to Day 2 breakfast.',
-      [['Ramesh', 'MECH · Visakhapatnam'], ['Lakshmi', 'ECE · Chennai'], ['Sekhar', 'CIVIL · Bobbili']], 140),
-    team('hospitality', 'Hospitality & Stay', 'Welcome desk, name badges, kits, and rooms for the overnight stay.',
-      [['Anitha', 'IT · Pune'], ['Ravi Kumar', 'EEE · Visakhapatnam']], 110),
-    team('transport', 'Transport', 'Pickups on Day 1, the ladies\u2019 evening drop, and departures on Day 2.',
-      [['Suresh', 'MECH · Srikakulam'], ['Mohan', 'CIVIL · Vizianagaram']], 120),
-    team('media', 'Photography & Videography', 'Photographer, videographer, the big group photo and the then-and-now slideshow.',
-      [['Harish', 'ECE · Hyderabad'], ['Sandeep', 'CSE · Bengaluru']], 115),
-    team('arrangements', 'Venue & Arrangements', 'Venue booking, stage, sound and lights, banners, decor and the programme.',
-      [['Rajesh', 'CIVIL · Visakhapatnam'], ['Venu', 'MECH · Bobbili']], 105),
-    team('finance', 'Finance & Contributions', 'Collects contributions, tracks every expense and shares the accounts with the batch.',
-      [['Satish', 'CSE · Hyderabad'], ['Padma', 'IT · Visakhapatnam']], 100),
+    role('overall', 'Overall Event Coordinator', 'Owns the full plan, runs the committee calls and keeps every team on schedule. Confirms the final venue once the venue poll closes.'),
+    role('telecalling', 'Tele-calling & RSVP', 'Reaches every batchmate by phone, confirms attendance and keeps the guest list current.'),
+    role('food', 'Food & Catering', 'Caterer, menus and counts for all meals: Day 1 breakfast to Day 2 breakfast.'),
+    role('hospitality', 'Hospitality & Stay', 'Welcome desk, name badges, kits, and rooms for the overnight stay.'),
+    role('transport', 'Transport', 'Pickups on Day 1, the ladies\u2019 evening drop, and departures on Day 2.'),
+    role('media', 'Photography & Videography', 'Photographer, videographer, the big group photo and the then-and-now slideshow.'),
+    role('arrangements', 'Venue & Arrangements', 'Venue booking, stage, sound and lights, banners, decor and the programme.'),
+    role('finance', 'Finance & Contributions', 'Collects contributions, tracks every expense and shares the accounts with the batch.'),
     women
   ];
 
@@ -67,7 +54,7 @@ function defaultDb() {
   const T = (electionId, title, status = 'todo') => ({ id: newId(), electionId, title, status });
 
   return {
-    v: 3,
+    v: 4,
     settings: {
       eventTitle: 'Silver Jubilee Reunion',
       collegeName: 'TPIST',
@@ -95,6 +82,7 @@ function defaultDb() {
     elections: [venue, ...elections],
     votes: {},       // electionId -> { voterId: { c: candidateId, t: time } }
     rsvps: {},       // id -> rsvp
+    nominations: {}, // electionId -> { voterId: count }
     schedule: [
       S(1, '8:00 AM', 'Arrivals & registration', 'Collect your name badge and welcome kit'),
       S(1, '8:30 AM', 'Welcome breakfast'),
@@ -146,6 +134,15 @@ async function loadDb() {
     try { data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch { data = null; }
   }
   const d = defaultDb();
+  if (data && data.v === 3) {
+    // v4: team elections restart empty with public nominations; keep the rest
+    const keep = {};
+    for (const e of data.elections || []) if (e.id === 'women' || e.id === 'venue') keep[e.id] = { openNominations: false, confirmedId: null, ...e };
+    const elections = d.elections.map(e => keep[e.id] || e);
+    const votes = Object.fromEntries(Object.entries(data.votes || {}).filter(([k]) => keep[k]));
+    return { ...d, elections, votes, rsvps: data.rsvps || {}, schedule: data.schedule || d.schedule, tasks: data.tasks || d.tasks,
+      auto: { ...d.auto, ...data.auto }, settings: { ...d.settings, ...data.settings } };
+  }
   if (data && data.v === 2) {
     // upgrade: new teams, tasks and settings; keep registrations, live votes and the clock
     const keep = new Set(d.elections.filter(e => e.mode === 'live').map(e => e.id));
@@ -153,7 +150,7 @@ async function loadDb() {
     return { ...d, rsvps: data.rsvps || {}, votes, auto: { ...d.auto, ...data.auto },
       settings: { ...d.settings, ...data.settings, regBaseMale: d.settings.regBaseMale, regBaseFemale: d.settings.regBaseFemale, venueStatus: d.settings.venueStatus } };
   }
-  if (!data || data.v !== 3) return d;
+  if (!data || data.v !== 4) return d;
   return { ...d, ...data, settings: { ...d.settings, ...data.settings }, auto: { ...d.auto, ...data.auto } };
 }
 
@@ -334,13 +331,15 @@ function electionView(e, voterId, slot, admin = false) {
     id: c.id, name: c.name, note: c.note || '',
     votes: Math.max(0, counts[c.id] + (c.offset || 0)),
     lastHour: last[c.id], i,
-    ...(admin ? { offset: c.offset || 0, real: realCounts[c.id] || 0 } : {})
+    ...(admin ? { offset: c.offset || 0, real: realCounts[c.id] || 0, by: c.by || 'admin' } : {})
   })).sort((a, b) => b.votes - a.votes || a.i - b.i);
+  const conf = e.confirmedId && e.candidates.find(c => c.id === e.confirmedId);
   const out = {
     id: e.id, kind: e.kind, title: e.title, desc: e.desc, mode: e.mode, live: e.mode === 'live',
+    confirmed: conf ? { id: conf.id, name: conf.name } : null, openNominations: !!e.openNominations && !conf,
     candidates, total: candidates.reduce((s, c) => s + c.votes, 0), myVote, hasHistory
   };
-  if (admin) Object.assign(out, { favoriteId: e.favoriteId, cap: e.cap, dipEvery: e.dipEvery, rateMin: e.rateMin, rateMax: e.rateMax, startTotal: e.startTotal, afterCap: e.afterCap, realVoters: Object.keys(real).length });
+  if (admin) Object.assign(out, { confirmedId: e.confirmedId || null, openNominationsSetting: !!e.openNominations, favoriteId: e.favoriteId, cap: e.cap, dipEvery: e.dipEvery, rateMin: e.rateMin, rateMax: e.rateMax, startTotal: e.startTotal, afterCap: e.afterCap, realVoters: Object.keys(real).length });
   return out;
 }
 
@@ -397,9 +396,27 @@ app.post('/api/vote', (req, res) => {
   const e = findElection(req.body.electionId);
   if (!e) return res.status(404).json({ error: 'Election not found' });
   if (!e.candidates.some(c => c.id === req.body.candidateId)) return res.status(404).json({ error: 'Candidate not found' });
+  if (e.confirmedId) return res.status(403).json({ error: 'This coordinator is already confirmed' });
   const box = (db.votes[e.id] ||= {});
   if (box[vid]) return res.status(409).json({ error: 'You have already voted in this election' });
   box[vid] = { c: req.body.candidateId, t: Date.now() };
+  saveDb();
+  res.json(publicState(vid));
+});
+
+app.post('/api/nominate', (req, res) => {
+  const vid = voterIdOf(req, res);
+  const e = findElection(req.body.electionId);
+  if (!e) return res.status(404).json({ error: 'Election not found' });
+  if (!db.settings.votingOpen || !e.openNominations || e.confirmedId) return res.status(403).json({ error: 'Nominations are closed for this role' });
+  const name = str(req.body.name, 40).replace(/\s+/g, ' ');
+  if (name.length < 2) return res.status(400).json({ error: 'Please enter a name' });
+  if (e.candidates.some(c => c.name.toLowerCase() === name.toLowerCase())) return res.status(409).json({ error: `${name} is already nominated` });
+  if (e.candidates.length >= 15) return res.status(409).json({ error: 'This role already has the maximum number of nominees' });
+  const mine = ((db.nominations ||= {})[e.id] ||= {});
+  if ((mine[vid] || 0) >= 2) return res.status(429).json({ error: 'You can add up to 2 nominees per role' });
+  mine[vid] = (mine[vid] || 0) + 1;
+  e.candidates.push(cand(name, str(req.body.note, 60), 'public'));
   saveDb();
   res.json(publicState(vid));
 });
@@ -525,6 +542,9 @@ A.put('/elections/:id', (req, res) => {
   if (str(b.title, 80)) e.title = str(b.title, 80);
   if (typeof b.desc === 'string') e.desc = str(b.desc, 300);
   if (b.mode === 'live' || b.mode === 'scripted') e.mode = b.mode;
+  if (typeof b.openNominations === 'boolean') e.openNominations = b.openNominations;
+  if (b.confirmedId === null || b.confirmedId === '') e.confirmedId = null;
+  else if (e.candidates.some(c => c.id === b.confirmedId)) e.confirmedId = b.confirmedId;
   if (b.favoriteId === null || b.favoriteId === '') e.favoriteId = null;
   else if (e.candidates.some(c => c.id === b.favoriteId)) e.favoriteId = b.favoriteId;
   for (const [k, lo, hi] of [['cap', 0, 100000], ['dipEvery', 0, 1000], ['rateMin', 0, 1000], ['rateMax', 0, 1000], ['startTotal', 0, 100000]]) {
@@ -573,6 +593,7 @@ A.delete('/elections/:id/candidates/:cid', (req, res) => {
   if (!e) return res.status(404).json({ error: 'Not found' });
   e.candidates = e.candidates.filter(c => c.id !== req.params.cid);
   if (e.favoriteId === req.params.cid) e.favoriteId = null;
+  if (e.confirmedId === req.params.cid) e.confirmedId = null;
   const box = db.votes[e.id] || {};
   for (const [v, x] of Object.entries(box)) if (x.c === req.params.cid) delete box[v];
   saveDb(); res.json({ ok: true });
