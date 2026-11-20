@@ -150,6 +150,29 @@
   nav.tabs a .badge[hidden] { display:none; }
   nav.tabs a .badge { position:absolute; top:6px; left:calc(50% + 6px); background:var(--accent); color:#fff; font-size:10px; min-width:16px; height:16px; border-radius:8px; display:grid; place-items:center; padding:0 4px; }
 
+  .ptiles { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin-top:12px; }
+  .ptile { border-radius:12px; padding:12px; text-decoration:none; display:block; }
+  .ptile .pn { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+  .ptile .pc { font-size:24px; font-weight:700; margin-top:4px; } .ptile .pl { font-size:11px; opacity:.75; }
+  .tier-platinum { background:#1C1D24; color:#F2F2F4; } .tier-platinum .acc { color:#D9DBE3; }
+  .tier-gold { background:#FFF6E0; color:#5A3E00; border:1px solid #EBCB7A; } .tier-gold .acc { color:#9A6B00; }
+  .tier-silver { background:#F1F2F6; color:#2A2D38; border:1px solid #D4D7DF; } .tier-silver .acc { color:#5B6070; }
+  .pass { border-radius:20px; padding:20px; margin:0 20px 14px; position:relative; overflow:hidden; }
+  .pass .top2 { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .pass .nm { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; }
+  .pass h2 { margin:6px 0 0; font-size:24px; line-height:1.15; }
+  .pass .tg { font-size:14px; opacity:.8; margin-top:4px; }
+  .pass .cnt { text-align:right; } .pass .cnt b { display:block; font-size:26px; } .pass .cnt span { font-size:11px; opacity:.75; }
+  .pass ul { list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:9px; }
+  .pass li { display:flex; gap:10px; font-size:14px; line-height:1.45; }
+  .pass li svg { flex-shrink:0; margin-top:2px; }
+  .pass .price { font-size:14px; font-weight:700; margin-top:10px; }
+  .pass .btn { width:100%; margin-top:18px; }
+  .tier-platinum .btn { background:#F2F2F4; color:#1C1D24; } .tier-gold .btn { background:#9A6B00; color:#fff; } .tier-silver .btn { background:#2A2D38; color:#fff; }
+  .pass.mine:before { content:'YOUR PASS'; position:absolute; top:0; right:20px; font-size:10px; font-weight:700; letter-spacing:.1em; padding:4px 8px; border-radius:0 0 6px 6px; background:var(--ok); color:#fff; }
+  .tagc { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; margin-top:5px; background:var(--ok-soft); color:var(--ok); }
+  .tagc.platinum { background:#1C1D24; color:#F2F2F4; } .tagc.gold { background:#FFF1CC; color:#7A5400; } .tagc.silver { background:#E8EAF0; color:#3D4150; }
+  .pills.three { grid-template-columns:repeat(3, 1fr); }
   .rules ol { margin:10px 0 0; padding-left:20px; display:flex; flex-direction:column; gap:8px; font-size:14px; line-height:1.5; }
   .agree { display:flex; gap:10px; align-items:flex-start; font-size:14px; margin:16px 0; line-height:1.45; }
   .agree input { width:20px; height:20px; accent-color:var(--accent); flex-shrink:0; margin-top:1px; }
@@ -254,6 +277,7 @@ function icon(e) {
 }
 
 let S = null, day = 1, pending = null, form = null, nomOpen = null;
+let keepForm = false;
 let C = null, people = null, thread = null, showPlans = false, peopleQ = '', draft = '';
 function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
 async function load() { try { const r = await fetch('/api/state', { cache:'no-store' }); S = await r.json(); render(); } catch {} }
@@ -284,7 +308,7 @@ function render() {
   $('chatBadge').hidden = !S.chatUnread; $('chatBadge').textContent = S.chatUnread;
   if (r === 'chat') { renderChat(arg); return; }
   $('view').innerHTML = r === 'vote' && arg ? electionPage(arg) : r === 'vote' ? votePage() : r === 'schedule' ? schedulePage()
-    : r === 'teams' ? teamsPage() : r === 'rsvp' ? rsvpPage() : homePage();
+    : r === 'teams' ? teamsPage() : r === 'rsvp' ? rsvpPage() : r === 'passes' ? passesPage() : homePage();
 }
 
 // ------------------------------------------------------------------ home
@@ -322,6 +346,10 @@ function homePage() {
     <div class="stat"><div class="n d">${S.regShown.female}</div><div class="l">Women</div></div>
   </div>
   <p class="fine">Registered batchmates are counted as attending. Anyone in the batch can vote.</p>
+  <div class="card" style="margin-top:12px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><b class="d" style="font-size:16px">Registered by pass</b><a href="#passes" style="font-size:13px;font-weight:600;color:var(--accent);text-decoration:none">Compare passes</a></div>
+    <div class="ptiles">${passList().map(p => `<a class="ptile tier-${p.id}" href="#passes"><div class="pn acc">${esc(p.name)}</div><div class="pc d">${S.regShown.passes[p.id]}</div><div class="pl">registered</div></a>`).join('')}</div>
+  </div>
 
   <a class="card ecard" href="#vote/venue" style="margin-top:12px"><div class="main" style="align-items:center">${venue ? icon(venue) : ''}
     <div style="flex:1;min-width:0"><div class="t">Venue: ${esc(st.venueStatus || 'Not yet confirmed')}</div><div class="x">${vLead ? `${esc(vLead.name)} is leading the poll. ` : ''}The Overall Event Coordinator will confirm the final venue after voting closes.</div></div>${svg(P.chevR, 18, 'chev-r')}</div></a>
@@ -329,7 +357,7 @@ function homePage() {
   <div class="sec"><h2 class="d">${me ? 'Your registration' : 'Are you coming?'}</h2></div>
   <div class="card cta ${me ? 'ok-card' : ''}">
     ${me ? `<div class="t">You're in, ${esc(first(me.name))}!</div>
-      <div class="x">${me.attend === 'both' ? 'Both days' : 'Day 1 only'}${me.overnight ? ' · staying overnight' : ''} · ${me.pickup ? 'pickup from ' + esc(me.pickup) : 'own transport'} · ${me.food === 'veg' ? 'veg' : 'non-veg'}</div>
+      <div class="x">${esc(passName(me.pass))} pass · ${me.attend === 'both' ? 'Both days' : 'Day 1 only'}${me.overnight ? ' · staying overnight' : ''} · ${me.pickup ? 'pickup from ' + esc(me.pickup) : 'own transport'} · ${me.food === 'veg' ? 'veg' : 'non-veg'}</div>
       <a class="btn ghost sm" href="#rsvp" style="align-self:flex-start">View or edit</a>`
     : `<div class="x">Register in a minute so the teams can plan food, stay and transport. Only registered batchmates are counted as attending.</div>
       <a class="btn acc" href="#rsvp">Register now</a>`}
@@ -403,7 +431,24 @@ function electionPage(id) {
 }
 
 // ------------------------------------------------------------------ schedule
-const tlItem = s => `<div class="it"><div class="tm">${esc(s.time)}</div><div><div class="tt">${esc(s.title)}</div>${s.note ? `<div class="tn">${esc(s.note)}</div>` : ''}</div></div>`;
+const tagClass = t => /platinum/i.test(t) && !/gold|silver|all/i.test(t) ? 'platinum' : /^gold/i.test(t) && !/silver|platinum/i.test(t) ? 'gold' : /^silver/i.test(t) ? 'silver' : '';
+const tlItem = s => `<div class="it"><div class="tm">${esc(s.time)}</div><div><div class="tt">${esc(s.title)}</div>${s.note ? `<div class="tn">${esc(s.note)}</div>` : ''}${s.tag ? `<span class="tagc ${tagClass(s.tag)}">${esc(s.tag)}</span>` : ''}</div></div>`;
+const passList = () => S.settings.passes || [];
+const passName = id => (passList().find(p => p.id === id) || { name: 'Silver' }).name;
+function passesPage() {
+  const me = S.myRsvp;
+  const ok = svg(P.check, 16);
+  return `<a class="back" href="#home">‹ Home</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">Reunion passes</h1>
+    <p class="sub">Choose how you'd like to celebrate. Every pass includes both days, all meals and the batch group photo.</p></div>
+    <div style="height:16px"></div>
+    ${passList().map(p => `<section class="pass tier-${p.id} ${me && me.pass === p.id ? 'mine' : ''}">
+      <div class="top2"><div><div class="nm acc">${esc(p.name)} pass</div><h2 class="d">${esc(p.tagline || p.name)}</h2>${p.price ? `<div class="price">${esc(p.price)}</div>` : ''}</div>
+        <div class="cnt"><b class="d">${S.regShown.passes[p.id]}</b><span>registered</span></div></div>
+      <ul>${p.benefits.map(b => `<li><span class="acc">${ok}</span><span>${esc(b)}</span></li>`).join('')}</ul>
+      ${me && me.pass === p.id ? '' : `<button type="button" class="btn" data-pickpass="${p.id}">${me ? 'Switch to ' : 'Register with '}${esc(p.name)}</button>`}
+    </section>`).join('')}
+    ${footer()}`;
+}
 function schedulePage() {
   const items = S.schedule.filter(s => s.day === day);
   return `<div class="pad"><h1 class="h1 d">Schedule</h1><p class="sub">${esc(S.settings.eventDate)}. Timings may change slightly.</p></div>
@@ -440,12 +485,13 @@ function teamsPage() {
 // ------------------------------------------------------------------ rsvp
 function rsvpPage() {
   const st = S.settings, me = S.myRsvp;
-  if (!form) form = me ? { ...me } : { name:'', gender:'', branch:'', phone:'', city:'', attend:'both', overnight:false, pickup:'', food:'nonveg', editing:false };
+  if (!form) form = me ? { ...me } : { pass:'silver', name:'', gender:'', branch:'', phone:'', city:'', attend:'both', overnight:false, pickup:'', food:'nonveg', editing:false };
   if (me && !form.editing) {
     return `<div class="pad"><h1 class="h1 d">Your registration</h1><p class="sub">The Tele-calling team may call to confirm. Update anything here.</p></div>
     <div class="card ok-card" style="margin-top:16px">
       <div style="font-weight:700;font-size:16px">You're registered ✓</div>
       <div class="kv">
+        <div>Pass</div><div><b>${esc(passName(me.pass))}</b> · <a href="#passes" style="color:var(--accent)">see benefits</a></div>
         <div>Name</div><div>${esc(me.name)}</div><div>Gender</div><div>${me.gender === 'female' ? 'Female' : me.gender === 'male' ? 'Male' : '—'}</div>
         <div>Branch</div><div>${esc(me.branch || '—')}</div><div>Mobile</div><div>${esc(me.phone)}</div><div>City</div><div>${esc(me.city || '—')}</div>
         <div>Attending</div><div>${me.attend === 'both' ? 'Both days' : 'Day 1 only'}</div><div>Overnight</div><div>${me.overnight ? 'Yes' : 'No'}</div>
@@ -461,6 +507,8 @@ function rsvpPage() {
     <form class="card form" id="rsvpForm" style="margin-top:16px" novalidate>
       <div class="fl"><label for="f-name">Full name</label><input id="f-name" name="name" autocomplete="name" value="${esc(form.name)}" required></div>
       <div class="fl"><div class="lb">Gender</div><div class="pills">${pill('gender', 'male', 'Male')}${pill('gender', 'female', 'Female')}</div></div>
+      <div class="fl"><div class="lb">Pass</div><div class="pills three">${passList().map(p => pill('pass', p.id, esc(p.name))).join('')}</div>
+        <div class="hint">${esc((passList().find(p => p.id === form.pass) || {}).tagline || '')} · <a href="#passes" style="color:var(--accent);font-weight:600">Compare passes</a></div></div>
       <div class="fl"><label for="f-branch">Branch</label><select id="f-branch" name="branch"><option value="">Select branch</option>${st.branches.map(b => `<option ${form.branch === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
       <div class="fl"><label for="f-phone">Mobile number</label><input id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="14" value="${esc(form.phone)}" required><div class="hint">Only the organising committee sees this.</div></div>
       <div class="fl"><label for="f-city">Current city</label><input id="f-city" name="city" autocomplete="address-level2" value="${esc(form.city)}"></div>
@@ -597,6 +645,8 @@ document.addEventListener('click', e => {
   if (s) { syncForm(); const [k, v] = s.dataset.set.split('|'); form[k] = v === 'true' ? true : v === 'false' ? false : v; if (k === 'attend' && v === 'day1') form.overnight = false; render(); return; }
   if (e.target.closest('[data-edit]')) { form = { ...S.myRsvp, editing:true }; render(); return; }
   if (e.target.closest('[data-cancel]')) { form = null; render(); return; }
+  const pp = e.target.closest('[data-pickpass]');
+  if (pp) { form = S.myRsvp ? { ...S.myRsvp, editing:true, pass: pp.dataset.pickpass } : { pass: pp.dataset.pickpass, name:'', gender:'', branch:'', phone:'', city:'', attend:'both', overnight:false, pickup:'', food:'nonveg' }; keepForm = true; location.hash = '#rsvp'; return; }
   const pl = e.target.closest('[data-plan]');
   if (pl) { api2('/api/chat/request', { plan: pl.dataset.plan }).then(d => { C = d; showPlans = false; paintChat(); toast('Request sent to admin'); scrollTo(0, 0); }).catch(err => toast(err.message)); return; }
   if (e.target.closest('[data-cancelreq]')) { api2('/api/chat/request', { cancel: true }).then(d => { C = d; paintChat(); }).catch(err => toast(err.message)); return; }
@@ -662,6 +712,8 @@ $('askYes').onclick = async () => {
 };
 addEventListener('hashchange', () => {
   if (route()[0] !== 'rsvp') form = null;
+  else if (!keepForm) form = null;
+  keepForm = false;
   nomOpen = null; draft = ''; showPlans = false;
   if (route()[0] === 'chat') { thread = route()[1] && route()[1] !== 'new' ? null : thread; loadChat(route()[1]); }
   render(); scrollTo(0, 0);

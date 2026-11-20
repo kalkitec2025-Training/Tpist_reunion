@@ -62,3 +62,11 @@ DATABASE_URL=postgres://... npm start    # or Postgres
 - Plans: **Starter ₹299** (10 messages), **Plus ₹599** (50 messages), **Unlimited ₹999**. Choosing a plan sends a request to the admin. **No payment is collected in the app.**
 - **Admin → Chat:** approve or decline requests, activate or top up plans, remove someone's access, and read or delete messages for moderation.
 - Anyone who accepted the rules can read messages sent to them. Sending needs an active plan.
+
+## Passes
+- **Platinum:** red-carpet welcome, 5 minutes on stage, the "Giving Back" showcase of their services to society, front-row seating, a premium kit, a portrait session, a full-page souvenir feature, a priority room, and a dedicated pickup and drop.
+- **Gold:** personal welcome, seats in rows 2–4, a deluxe kit, an on-stage shout-out, a photo with faculty, a half-page souvenir feature, and priority pickup.
+- **Silver:** welcome kit, all meals, open seating, the group photo and event video, and their name in the souvenir.
+- People pick a pass when they register. Admin can change anyone's pass under **Registrations**.
+- In **Admin → Settings → Passes**, you can edit each pass's name, tagline, optional price, benefits and extra shown counts.
+- Schedule items can carry a **For** tag (for example "Platinum"), which appears as a coloured label on the Schedule page.

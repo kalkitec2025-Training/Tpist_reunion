@@ -83,6 +83,7 @@ let PW = sessionStorage.getItem('pw') || '', S = null, tab = 'overview', selE = 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const when = t => t ? new Date(t).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' }) : '—';
+const passNm = id => ((S && S.settings.passes || []).find(p => p.id === (id || 'silver')) || { name: 'Silver' }).name;
 const STATUS = { new:'Not called', confirmed:'Confirmed', not_reachable:'Not reachable', declined:'Not coming' };
 function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
 
@@ -124,6 +125,7 @@ function overview() {
     <section class="card" style="grid-column:1/-1"><h2>Registrations</h2><p class="hint">Live counts for food, stay and transport planning.</p>
       <div class="kpis">
         <div class="kpi"><b>${R.length}</b><span>Registered</span></div>
+        <div class="kpi"><b>${n(r => r.pass === 'platinum')} / ${n(r => r.pass === 'gold')} / ${n(r => (r.pass || 'silver') === 'silver')}</b><span>Platinum / Gold / Silver (real)</span></div>
         <div class="kpi"><b>${n(r => r.gender === 'male')} / ${n(r => r.gender === 'female')}</b><span>Men / Women (real)</span></div>
         <div class="kpi"><b>${n(r => r.attend === 'both')}</b><span>Both days</span></div>
         <div class="kpi"><b>${n(r => r.attend === 'day1')}</b><span>Day 1 only</span></div>
@@ -211,6 +213,7 @@ function rsvps() {
       <form id="newR" class="mt"><div class="f3">
         <div><label>Full name</label><input type="text" name="name" required></div>
         <div><label>Mobile</label><input type="tel" name="phone" required></div>
+        <div><label>Pass</label><select name="pass">${st.passes.map(p => `<option value="${p.id}" ${p.id === 'silver' ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
         <div><label>Gender</label><select name="gender"><option value="male">Male</option><option value="female">Female</option></select></div>
         <div><label>Branch</label><select name="branch"><option value=""></option>${st.branches.map(b => `<option>${esc(b)}</option>`).join('')}</select></div>
         <div><label>City</label><input type="text" name="city"></div>
@@ -223,9 +226,9 @@ function rsvps() {
     </details>
     <div class="mt">${list.map(r => `<div class="rs">
       <div><b>${esc(r.name)}</b> <span class="sub">${esc(r.branch)}</span><br><a href="tel:${esc(r.phone)}" style="color:var(--blue)">${esc(r.phone)}</a> · ${esc(r.city || '—')}<div class="sub">${when(r.createdAt)} · ${r.source === 'call' ? 'added by caller' : 'self-registered'}</div></div>
-      <div>${r.gender ? `<span class="pill">${r.gender === 'female' ? 'Female' : 'Male'}</span>` : ''}<span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>
+      <div><span class="pill ${r.pass === 'platinum' ? 'd' : r.pass === 'gold' ? 'o' : ''}" style="${r.pass === 'platinum' ? 'background:#1C1D24;color:#fff' : ''}">${esc(passNm(r.pass))}</span>${r.gender ? `<span class="pill">${r.gender === 'female' ? 'Female' : 'Male'}</span>` : ''}<span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>
         <input type="text" class="mt" data-rnote="${r.id}" value="${esc(r.note)}" placeholder="Caller note" style="margin-top:8px"></div>
-      <div class="row" style="align-items:stretch"><select data-rstat="${r.id}" style="flex:1">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${r.callStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn s r" data-delr="${r.id}" style="height:40px">Delete</button></div>
+      <div class="row" style="align-items:stretch"><select data-rpass="${r.id}" style="flex:1" aria-label="Pass">${S.settings.passes.map(p => `<option value="${p.id}" ${(r.pass || 'silver') === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><select data-rstat="${r.id}" style="flex:1">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${r.callStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn s r" data-delr="${r.id}" style="height:40px">Delete</button></div>
     </div>`).join('') || '<p class="hint">No registrations match.</p>'}</div>
   </section>`;
 }
@@ -236,9 +239,9 @@ function plan() {
   const teams = S.elections.filter(e => e.kind === 'role');
   return `<div class="grid" style="grid-template-columns:minmax(0,1fr)">
   <section class="card"><h2>Weekend schedule</h2><p class="hint">Shown on the Plan tab. Edit, then save.</p>
-    <div class="tw"><table><tr><th style="width:90px">Day</th><th style="width:120px">Time</th><th>Title</th><th>Note</th><th></th></tr>
+    <div class="tw"><table><tr><th style="width:90px">Day</th><th style="width:120px">Time</th><th>Title</th><th>Note</th><th style="width:150px">For</th><th></th></tr>
     ${sched.map((s, i) => `<tr><td><select data-s="${i}|day"><option value="1" ${s.day == 1 ? 'selected' : ''}>Day 1</option><option value="2" ${s.day == 2 ? 'selected' : ''}>Day 2</option></select></td>
-      <td><input type="text" data-s="${i}|time" value="${esc(s.time)}"></td><td><input type="text" data-s="${i}|title" value="${esc(s.title)}"></td><td><input type="text" data-s="${i}|note" value="${esc(s.note)}"></td>
+      <td><input type="text" data-s="${i}|time" value="${esc(s.time)}"></td><td><input type="text" data-s="${i}|title" value="${esc(s.title)}"></td><td><input type="text" data-s="${i}|note" value="${esc(s.note)}"></td><td><input type="text" data-s="${i}|tag" value="${esc(s.tag || '')}" placeholder="e.g. Platinum"></td>
       <td><button class="btn s r" data-sdel="${i}">✕</button></td></tr>`).join('')}
     </table></div>
     <div class="row mt"><button class="btn" data-a="sadd">+ Add item</button><button class="btn p" data-a="ssave">Save schedule</button></div>
@@ -296,6 +299,14 @@ function settings() {
     <div class="mt"><label>Announcement banner (leave empty to hide)</label><textarea name="announcement">${esc(s.announcement)}</textarea></div>
     <div class="f2 mt"><div><label>Branches (comma separated)</label><input type="text" name="branches" value="${esc(s.branches.join(', '))}"></div>
       <div><label>Pickup points (comma separated)</label><input type="text" name="pickupPoints" value="${esc(s.pickupPoints.join(', '))}"></div></div>
+    <h2 class="mt" style="margin-top:22px">Passes</h2><p class="hint">Benefits are shown on the Passes page, one per line. Leave the price empty to hide it. Extra counts are added to real registrations; keep their total equal to men + women above.</p>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit, minmax(240px, 1fr))">${s.passes.map(p => `<div class="kpi" style="display:flex;flex-direction:column;gap:8px">
+      <div><label>Name</label><input type="text" name="pass_${p.id}_name" value="${esc(p.name)}"></div>
+      <div><label>Tagline</label><input type="text" name="pass_${p.id}_tagline" value="${esc(p.tagline || '')}"></div>
+      <div><label>Price (optional)</label><input type="text" name="pass_${p.id}_price" value="${esc(p.price || '')}" placeholder="e.g. ₹5,000"></div>
+      <div><label>Benefits (one per line)</label><textarea name="pass_${p.id}_benefits" style="min-height:150px">${esc(p.benefits.join('\n'))}</textarea></div>
+      <div><label>Shown registrations: extra</label><input type="number" name="pass_${p.id}_base" value="${(s.passBase || {})[p.id] || 0}"></div>
+    </div>`).join('')}</div>
     <div class="row mt" style="gap:20px"><label class="check"><input type="checkbox" name="votingOpen" ${s.votingOpen ? 'checked' : ''}> Voting open</label><label class="check"><input type="checkbox" name="rsvpOpen" ${s.rsvpOpen ? 'checked' : ''}> Registrations open</label></div>
     <div class="row mt"><button class="btn p">Save settings</button></div></form>
   </section>`;
@@ -311,10 +322,10 @@ const actions = {
   down: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ move:'down' } }); },
   resetVotes: async () => { if (!confirm(`Reset all votes in "${E().title}"? Real votes and manual changes are removed.`)) return false; await api(`/elections/${selE}/reset-votes`, { method:'POST' }); toast('Votes reset'); },
   delE: async () => { if (!confirm(`Delete the election "${E().title}" and its tasks?`)) return false; await api(`/elections/${selE}`, { method:'DELETE' }); selE = null; toast('Deleted'); },
-  sadd: async () => { sched.push({ day:1, time:'', title:'', note:'' }); render(); return false; },
+  sadd: async () => { sched.push({ day:1, time:'', title:'', note:'', tag:'' }); render(); return false; },
   ssave: async () => { await api('/schedule', { method:'PUT', json:{ items:sched } }); sched = null; toast('Schedule saved'); },
   csv: async () => {
-    const cols = ['name','gender','branch','phone','city','attend','overnight','pickup','food','callStatus','note','source','createdAt'];
+    const cols = ['name','pass','gender','branch','phone','city','attend','overnight','pickup','food','callStatus','note','source','createdAt'];
     const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const rows = [cols.join(',')].concat(S.rsvps.map(r => cols.map(c => cell(c === 'createdAt' ? new Date(r[c]).toISOString() : r[c])).join(',')));
     const a = document.createElement('a');
@@ -345,6 +356,7 @@ document.addEventListener('change', run(async e => {
   const t = e.target;
   if (t.dataset.cname) { await api(`/elections/${selE}/candidates/${t.dataset.cname}`, { method:'PUT', json:{ name:t.value } }); toast('Name saved'); return load(); }
   if (t.dataset.cnote !== undefined && t.dataset.cnote) { await api(`/elections/${selE}/candidates/${t.dataset.cnote}`, { method:'PUT', json:{ note:t.value } }); toast('Note saved'); return; }
+  if (t.dataset.rpass) { await api(`/rsvps/${t.dataset.rpass}`, { method:'PUT', json:{ pass:t.value } }); toast('Pass updated'); return load(); }
   if (t.dataset.rstat) { await api(`/rsvps/${t.dataset.rstat}`, { method:'PUT', json:{ callStatus:t.value } }); toast('Status saved'); return load(); }
   if (t.dataset.rnote) { await api(`/rsvps/${t.dataset.rnote}`, { method:'PUT', json:{ note:t.value } }); toast('Note saved'); return; }
   if (t.dataset.tstat) { await api(`/tasks/${t.dataset.tstat}`, { method:'PUT', json:{ status:t.value } }); return load(); }
@@ -366,6 +378,10 @@ document.addEventListener('submit', run(async e => {
   else if (f.id === 'newR') { d.overnight = d.overnight === 'true'; await api('/rsvps', { method:'POST', json:d }); toast('Registration added'); }
   else if (f.id === 'newT') { await api('/tasks', { method:'POST', json:d }); toast('Task added'); }
   else if (f.id === 'sForm') {
+    const ids = S.settings.passes.map(p => p.id);
+    d.passes = ids.map(id => ({ id, name:d[`pass_${id}_name`], tagline:d[`pass_${id}_tagline`], price:d[`pass_${id}_price`], benefits:String(d[`pass_${id}_benefits`] || '').split('\n').map(x => x.trim()).filter(Boolean) }));
+    d.passBase = Object.fromEntries(ids.map(id => [id, +d[`pass_${id}_base`]]));
+    for (const k of Object.keys(d)) if (k.startsWith('pass_')) delete d[k];
     const json = { ...d, expected:+d.expected, regBaseMale:+d.regBaseMale, regBaseFemale:+d.regBaseFemale, votingOpen:!!d.votingOpen, rsvpOpen:!!d.rsvpOpen,
       branches:d.branches.split(',').map(x => x.trim()).filter(Boolean), pickupPoints:d.pickupPoints.split(',').map(x => x.trim()).filter(Boolean) };
     await api('/settings', { method:'PUT', json }); toast('Settings saved');

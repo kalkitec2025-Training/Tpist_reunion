@@ -50,11 +50,11 @@ function defaultDb() {
     women
   ];
 
-  const S = (day, time, title, note = '') => ({ id: newId(), day, time, title, note });
+  const S = (day, time, title, note = '', tag = '') => ({ id: newId(), day, time, title, note, tag });
   const T = (electionId, title, status = 'todo') => ({ id: newId(), electionId, title, status });
 
   return {
-    v: 4,
+    v: 5,
     settings: {
       eventTitle: 'Silver Jubilee Reunion',
       collegeName: 'TPIST',
@@ -64,6 +64,36 @@ function defaultDb() {
       eventDate: 'Date will be announced shortly',
       expected: 400,
       venueStatus: 'Not yet confirmed',
+      passes: [
+        { id: 'platinum', name: 'Platinum', price: '', tagline: 'The full red-carpet experience', benefits: [
+          'Red-carpet welcome with a personal announcement',
+          'Five minutes on stage to share your journey and views',
+          'Showcase your services to society in the Giving Back segment',
+          'Reserved front-row seating all day',
+          'Premium welcome kit: engraved memento, jubilee jacket, leather diary and pen',
+          'Professional portrait session',
+          'Full-page feature in the reunion souvenir',
+          'Priority room for the overnight stay',
+          'Dedicated pickup and drop'
+        ] },
+        { id: 'gold', name: 'Gold', price: '', tagline: 'Comfort with a few extra touches', benefits: [
+          'Personal welcome at the entrance',
+          'Reserved seating in rows 2 to 4',
+          'Deluxe welcome kit: memento, jubilee T-shirt and diary',
+          'On-stage shout-out in "25 years in 2 minutes"',
+          'Photo with our faculty',
+          'Half-page feature in the reunion souvenir',
+          'Priority pickup'
+        ] },
+        { id: 'silver', name: 'Silver', price: '', tagline: 'Everything you need to enjoy both days', benefits: [
+          'Welcome kit: name badge, jubilee T-shirt and memento',
+          'All meals across both days',
+          'Open seating',
+          'Batch group photo and event video',
+          'Your name in the reunion souvenir'
+        ] }
+      ],
+      passBase: { platinum: 8, gold: 17, silver: 29 },  // shown on the app on top of real registrations
       regBaseMale: 36,     // shown on the app on top of real registrations
       regBaseFemale: 18,
       announcement: '',
@@ -85,22 +115,26 @@ function defaultDb() {
     nominations: {}, // electionId -> { voterId: count }
     chat: { users: {}, messages: [] }, // users keyed by rsvp id
     schedule: [
-      S(1, '8:00 AM', 'Arrivals & registration', 'Collect your name badge and welcome kit'),
-      S(1, '8:30 AM', 'Welcome breakfast'),
-      S(1, '10:00 AM', 'Inauguration', 'Lamp lighting and felicitation of our faculty'),
-      S(1, '11:00 AM', '25 years in 2 minutes', 'Every batchmate shares their journey'),
-      S(1, '1:00 PM', 'Lunch'),
+      S(1, '8:00 AM', 'Red-carpet arrivals', 'Platinum guests walk the red carpet with a personal announcement and photo wall', 'Platinum'),
+      S(1, '8:00 AM', 'Welcome desk & registration', 'Collect your badge and welcome kit. Gold guests get a personal welcome', 'All passes'),
+      S(1, '8:30 AM', 'Welcome breakfast', '', 'All passes'),
+      S(1, '10:00 AM', 'Inauguration', 'Lamp lighting and felicitation of our faculty. Platinum guests seated in the front row', 'All passes'),
+      S(1, '10:45 AM', 'Voices of the Batch', 'Platinum guests share their journey and views on stage (5 minutes each)', 'Platinum'),
+      S(1, '11:45 AM', 'Giving Back showcase', 'Platinum guests present the services they offer to society', 'Platinum'),
+      S(1, '12:30 PM', '25 years in 2 minutes', 'Gold shout-outs on stage, then quick intros from everyone', 'Gold & Silver'),
+      S(1, '1:30 PM', 'Lunch'),
       S(1, '2:30 PM', 'Games & batch awards', 'Including the Women\u2019s Coordinator crowning'),
-      S(1, '4:30 PM', 'Batch group photo'),
+      S(1, '4:00 PM', 'Portrait sessions', 'Professional portraits for Platinum; photos with faculty for Gold', 'Platinum & Gold'),
+      S(1, '4:30 PM', 'Batch group photo', '', 'All passes'),
       S(1, '5:00 PM', 'High tea'),
-      S(1, '6:00 PM', 'Cultural evening & music'),
+      S(1, '6:00 PM', 'Cultural evening & music', 'Front rows reserved for Platinum, next rows for Gold'),
       S(1, '8:00 PM', 'Dinner'),
       S(1, '9:00 PM', 'Ladies\u2019 transport departs', 'Drops to home or station, arranged by the Transport team'),
-      S(1, '9:30 PM', 'Overnight stay & campfire night', 'For batchmates staying over'),
+      S(1, '9:30 PM', 'Overnight stay & campfire night', 'Priority rooms for Platinum, then Gold'),
       S(2, '6:30 AM', 'Sunrise beach walk', 'Optional'),
       S(2, '8:30 AM', 'Breakfast'),
       S(2, '10:00 AM', 'What next?', 'Batch fund, WhatsApp groups, next reunion'),
-      S(2, '11:00 AM', 'Checkout & departures')
+      S(2, '11:00 AM', 'Checkout & departures', 'Dedicated drops for Platinum guests')
     ],
     tasks: [
       T('overall', 'Weekly committee call', 'done'), T('overall', 'Fix the reunion date', 'doing'), T('overall', 'Confirm final venue after the poll'), T('overall', 'Agree contribution per head', 'doing'),
@@ -151,7 +185,11 @@ async function loadDb() {
     return { ...d, rsvps: data.rsvps || {}, votes, auto: { ...d.auto, ...data.auto },
       settings: { ...d.settings, ...data.settings, regBaseMale: d.settings.regBaseMale, regBaseFemale: d.settings.regBaseFemale, venueStatus: d.settings.venueStatus } };
   }
-  if (!data || data.v !== 4) return d;
+  if (data && data.v === 4) {
+    // v5: passes and the pass-based schedule
+    data = { ...data, v: 5, schedule: d.schedule, settings: { ...data.settings, passes: d.settings.passes, passBase: d.settings.passBase } };
+  }
+  if (!data || data.v !== 5) return d;
   return { ...d, ...data, chat: data.chat || d.chat, settings: { ...d.settings, ...data.settings }, auto: { ...d.auto, ...data.auto } };
 }
 
@@ -367,9 +405,11 @@ function publicState(voterId) {
       const R = Object.values(db.rsvps);
       const male = (db.settings.regBaseMale || 0) + R.filter(r => r.gender === 'male').length;
       const female = (db.settings.regBaseFemale || 0) + R.filter(r => r.gender === 'female').length;
-      return { male, female, total: male + female + R.filter(r => !r.gender).length };
+      const base = db.settings.passBase || {};
+      const passes = Object.fromEntries(['platinum', 'gold', 'silver'].map(p => [p, (base[p] || 0) + R.filter(r => (r.pass || 'silver') === p).length]));
+      return { male, female, total: male + female + R.filter(r => !r.gender).length, passes };
     })(),
-    myRsvp: myRsvp && { name: myRsvp.name, gender: myRsvp.gender, branch: myRsvp.branch, phone: myRsvp.phone, city: myRsvp.city, attend: myRsvp.attend, overnight: myRsvp.overnight, pickup: myRsvp.pickup, food: myRsvp.food }
+    myRsvp: myRsvp && { name: myRsvp.name, gender: myRsvp.gender, pass: myRsvp.pass || 'silver', branch: myRsvp.branch, phone: myRsvp.phone, city: myRsvp.city, attend: myRsvp.attend, overnight: myRsvp.overnight, pickup: myRsvp.pickup, food: myRsvp.food }
   };
 }
 
@@ -524,6 +564,7 @@ function cleanRsvp(b) {
   const r = {
     name: str(b.name, 80), gender: b.gender === 'female' ? 'female' : b.gender === 'male' ? 'male' : '', branch: str(b.branch, 30), phone, city: str(b.city, 60),
     attend: b.attend === 'day1' ? 'day1' : 'both',
+    pass: ['platinum', 'gold', 'silver'].includes(b.pass) ? b.pass : 'silver',
     overnight: !!b.overnight, pickup: str(b.pickup, 60), food: b.food === 'veg' ? 'veg' : 'nonveg'
   };
   if (r.attend === 'day1') r.overnight = false;
@@ -602,6 +643,18 @@ A.put('/settings', (req, res) => {
     if (Array.isArray(b[k])) s[k] = b[k].map(x => str(x, 60)).filter(Boolean).slice(0, 30);
   }
   for (const k of ['votingOpen', 'rsvpOpen']) if (typeof b[k] === 'boolean') s[k] = b[k];
+  if (Array.isArray(b.passes)) {
+    s.passes = s.passes.map(p => {
+      const n = b.passes.find(x => x && x.id === p.id);
+      if (!n) return p;
+      return { ...p, name: str(n.name, 30) || p.name, price: str(n.price, 30), tagline: str(n.tagline, 80),
+        benefits: Array.isArray(n.benefits) ? n.benefits.map(x => str(x, 120)).filter(Boolean).slice(0, 15) : p.benefits };
+    });
+  }
+  if (b.passBase && typeof b.passBase === 'object') {
+    s.passBase = { ...s.passBase };
+    for (const k of ['platinum', 'gold', 'silver']) { const v = num(b.passBase[k], 0, 100000); if (v !== undefined) s.passBase[k] = v; }
+  }
   saveDb();
   res.json({ ok: true });
 });
@@ -715,6 +768,7 @@ A.put('/rsvps/:id', (req, res) => {
   const r = db.rsvps[req.params.id];
   if (!r) return res.status(404).json({ error: 'Not found' });
   if (['new', 'confirmed', 'not_reachable', 'declined'].includes(req.body.callStatus)) r.callStatus = req.body.callStatus;
+  if (['platinum', 'gold', 'silver'].includes(req.body.pass)) r.pass = req.body.pass;
   if (typeof req.body.note === 'string') r.note = str(req.body.note, 300);
   r.updatedAt = Date.now();
   saveDb(); res.json({ ok: true });
@@ -750,7 +804,7 @@ A.put('/schedule', (req, res) => {
   if (!Array.isArray(req.body.items)) return res.status(400).json({ error: 'items required' });
   db.schedule = req.body.items.slice(0, 60).map(x => ({
     id: str(x.id, 20) || newId(), day: x.day === 2 || x.day === '2' ? 2 : 1,
-    time: str(x.time, 20), title: str(x.title, 80), note: str(x.note, 160)
+    time: str(x.time, 20), title: str(x.title, 80), note: str(x.note, 160), tag: str(x.tag, 30)
   })).filter(x => x.title);
   saveDb(); res.json({ ok: true });
 });
