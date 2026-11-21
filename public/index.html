@@ -445,7 +445,7 @@ function electionPage(id) {
     const win = e.confirmed && e.confirmed.id === c.id;
     const ch = c.lastHour > 0 ? `<span class="up">▲ ${c.lastHour} this hour</span>` : c.lastHour < 0 ? `<span class="dn">▼ ${-c.lastHour} this hour</span>` : '';
     const vbtn = c.video ? `<button type="button" class="vbtn" style="background:var(--accent-soft);color:var(--accent);display:inline-flex;align-items:center;gap:5px;margin-right:6px" data-watch="${esc(e.id)}|${esc(c.id)}" aria-label="Watch ${esc(c.name)}'s video">${svg(P.play, 12)}Watch</button>` : '';
-    const btn = vbtn + (win ? '<span class="chip ok">✓ Confirmed</span>' : e.myVote === c.id ? '<span class="vbtn mine">Your vote ✓</span>'
+    const btn = vbtn + (win ? '<span class="chip ok">✓ Confirmed</span>' : e.myVote === c.id ? ''
       : canVote ? `<button type="button" class="vbtn" data-vote="${esc(e.id)}|${esc(c.id)}">Vote</button>` : '');
     return `<div class="cand ${win ? 'win' : i === 0 && e.total ? 'lead' : ''}">${avatar(c.name)}<div class="m">
       <div class="l1"><span>${esc(c.name)}</span><span>${p}%</span></div>
