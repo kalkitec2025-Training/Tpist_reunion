@@ -219,7 +219,8 @@ function rsvps() {
   const list = S.rsvps.filter(r => (!qPass || (qPass === 'none' ? !r.pass : r.pass === qPass)) && (!qStatus || r.callStatus === qStatus) && (!q || `${r.name} ${r.phone} ${r.city} ${r.branch}`.toLowerCase().includes(q.toLowerCase())));
   return `<section class="card">
     <div class="hrow"><h2>Registrations (${S.rsvps.length}${S.rsvps.some(r => r.source === 'test') ? `, ${S.rsvps.filter(r => r.source === 'test').length} test` : ''})</h2>
-      <div class="row"><button class="btn" data-a="addTest">Add 54 test registrations</button>${S.rsvps.some(r => r.source === 'test') ? '<button class="btn r" data-a="delTest">Delete all test registrations</button>' : ''}<button class="btn" data-a="csv">Export CSV</button></div></div>
+      <div class="row"><input type="number" id="testN" min="1" max="300" value="20" style="width:80px" aria-label="How many test registrations"><button class="btn" data-a="addTest">Add test registrations</button>
+        <label class="check" style="font-weight:500;font-size:13px"><input type="checkbox" id="testReplace" ${S.rsvps.some(r => r.source === 'test') ? '' : 'checked'}> Use instead of the extra counts</label>${S.rsvps.some(r => r.source === 'test') ? '<button class="btn r" data-a="delTest">Delete all test registrations</button>' : ''}<button class="btn" data-a="csv">Export CSV</button></div></div>
     <div class="f3 mt"><div><label for="q">Search</label><input type="search" id="q" value="${esc(q)}" placeholder="Name, phone, city"></div>
       <div><label for="qp">Pass</label><select id="qp"><option value="">All</option><option value="none" ${qPass === 'none' ? 'selected' : ''}>Not assigned</option>${st.passes.map(p => `<option value="${p.id}" ${qPass === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
       <div><label for="qs">Call status</label><select id="qs"><option value="">All</option>${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${qStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div></div>
@@ -383,8 +384,9 @@ const actions = {
   closeE: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ status:'closed' } }); toast('Voting closed'); },
   saveBlocked: async () => { await api('/chat/blocked', { method:'PUT', json:{ words:$('blockedWords').value.split('\n').map(x => x.trim()).filter(Boolean) } }); toast('Blocked words saved'); },
   addTest: async () => {
-    if (!confirm('Add 54 test registrations? They are marked "Test", have no phone numbers, and replace the extra counts in Settings so Home shows 54.')) return false;
-    const r = await api('/rsvps/test', { method:'POST', json:{ count:54 } }); toast(`${r.added} test registrations added`);
+    const n = Math.max(1, Math.min(300, +$('testN').value || 20)), rep = $('testReplace').checked;
+    if (!confirm(`Add ${n} test registrations? They are marked "Test" and have no phone numbers.${rep ? ' The extra counts in Settings will be set to 0, so Home shows only real and test registrations.' : ' Home counts go up by ' + n + '.'}`)) return false;
+    const r = await api('/rsvps/test', { method:'POST', json:{ count:n, replaceExtra:rep } }); toast(`${r.added} test registrations added`);
   },
   delTest: async () => {
     if (!confirm('Delete all test registrations? Real registrations are not affected.')) return false;

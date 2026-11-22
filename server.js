@@ -1005,8 +1005,10 @@ A.post('/rsvps', (req, res) => {
   saveDb(); res.json({ ok: true });
 });
 // test data: clearly marked, no phone numbers, removable in one go
-const TEST_MEN = ['Ravi Kumar', 'Srinivas Rao', 'Prasad', 'Venkatesh', 'Ramesh Babu', 'Suresh', 'Kiran Kumar', 'Mahesh', 'Naresh', 'Sekhar', 'Rajesh', 'Satish', 'Harish', 'Sandeep', 'Mohan Rao', 'Anil Kumar', 'Vamsi', 'Chaitanya', 'Phani Kumar', 'Murali', 'Gopi', 'Raghu', 'Sai Krishna', 'Bhaskar', 'Durga Prasad', 'Pavan', 'Krishna Mohan', 'Nagaraju', 'Siva', 'Ramana', 'Jagadeesh', 'Hari Babu', 'Lokesh', 'Manohar', 'Vijay Kumar', 'Sudheer'];
-const TEST_WOMEN = ['Lakshmi', 'Madhavi', 'Swathi', 'Anitha', 'Padma', 'Sirisha', 'Kavitha', 'Sravani', 'Deepthi', 'Bhavani', 'Sunitha', 'Radhika', 'Haritha', 'Jyothi', 'Prasanna', 'Sailaja', 'Vani', 'Aruna'];
+const TEST_MEN = ['Ravi Kumar', 'Srinivas Rao', 'Prasad', 'Venkatesh', 'Ramesh Babu', 'Suresh', 'Kiran Kumar', 'Mahesh', 'Naresh', 'Sekhar', 'Rajesh', 'Satish', 'Harish', 'Sandeep', 'Mohan Rao', 'Anil Kumar', 'Vamsi', 'Chaitanya', 'Phani Kumar', 'Murali', 'Gopi', 'Raghu', 'Sai Krishna', 'Bhaskar', 'Durga Prasad', 'Pavan', 'Krishna Mohan', 'Nagaraju', 'Siva', 'Ramana', 'Jagadeesh', 'Hari Babu', 'Lokesh', 'Manohar', 'Vijay Kumar', 'Sudheer',
+  'Ravindra', 'Srikanth', 'Prakash Rao', 'Anand', 'Madhu Babu', 'Sridhar', 'Venu Gopal', 'Kishore', 'Nagendra', 'Ramakrishna', 'Sateesh Kumar', 'Bala Krishna', 'Uday', 'Dinesh', 'Gowtham', 'Appa Rao', 'Tirupathi', 'Narasimha', 'Chandra Sekhar', 'Ashok'];
+const TEST_WOMEN = ['Lakshmi', 'Madhavi', 'Swathi', 'Anitha', 'Padma', 'Sirisha', 'Kavitha', 'Sravani', 'Deepthi', 'Bhavani', 'Sunitha', 'Radhika', 'Haritha', 'Jyothi', 'Prasanna', 'Sailaja', 'Vani', 'Aruna',
+  'Sujatha', 'Rama Devi', 'Kalyani', 'Hema', 'Sowjanya', 'Neelima', 'Vijaya Lakshmi', 'Geetha', 'Usha Rani', 'Pavani', 'Anuradha', 'Mounika'];
 A.post('/rsvps/test', (req, res) => {
   const n = num(req.body.count, 1, 300) || 54;
   const branches = db.settings.branches.length ? db.settings.branches : ['CSE'];
@@ -1014,7 +1016,8 @@ A.post('/rsvps/test', (req, res) => {
   const pick = (arr, i) => arr[i % arr.length];
   const r = rng(hash(Date.now() & 0xffffffff, 7));
   const passes = ['platinum', 'gold', 'silver'];
-  let men = 0, women = 0;
+  const existing = Object.values(db.rsvps).filter(x => x.source === 'test');
+  let men = existing.filter(x => x.gender === 'male').length, women = existing.filter(x => x.gender === 'female').length;
   for (let i = 0; i < n; i++) {
     const female = i % 3 === 2;
     const name = female ? pick(TEST_WOMEN, women++) : pick(TEST_MEN, men++);
@@ -1029,7 +1032,7 @@ A.post('/rsvps/test', (req, res) => {
     };
     if (db.rsvps[id].attend === 'both' && !female) db.rsvps[id].overnight = r() < 0.7;
   }
-  if (req.body.replaceExtra !== false) {
+  if (req.body.replaceExtra === true) {
     db.settings.regBaseMale = 0; db.settings.regBaseFemale = 0;
     db.settings.passBase = { platinum: 0, gold: 0, silver: 0 };
   }
