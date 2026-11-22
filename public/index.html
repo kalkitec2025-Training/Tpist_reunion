@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#F6F7FB; --card:#fff; --ink:#12131A; --muted:#5B6070; --line:#E6E8F0; --accent:#C2410C; --accent-soft:#FFF4EC; --track:#EEF0F5; --ok:#1F7A4D; --ok-soft:#E5F5EC; }
+  :root { --live:#16A34A; --live-dark:#15803D; --live-soft:#DCFCE7; --bg:#F6F7FB; --card:#fff; --ink:#12131A; --muted:#5B6070; --line:#E6E8F0; --accent:#C2410C; --accent-soft:#FFF4EC; --track:#EEF0F5; --ok:#1F7A4D; --ok-soft:#E5F5EC; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { margin:0; background:var(--bg); color:var(--ink); font-family:Inter, system-ui, -apple-system, sans-serif; -webkit-font-smoothing:antialiased; }
   .d { font-family:'Space Grotesk', Inter, sans-serif; }
@@ -28,7 +28,7 @@
   @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(31,122,77,.45)} 70%{box-shadow:0 0 0 7px rgba(31,122,77,0)} 100%{box-shadow:0 0 0 0 rgba(31,122,77,0)} }
 
   .ticker { background:var(--ink); color:#D7DAE4; padding:9px 20px; font-size:12px; display:flex; gap:10px; align-items:center; white-space:nowrap; overflow:hidden; }
-  .ticker b { background:var(--accent); color:#fff; font-size:10px; letter-spacing:.08em; padding:3px 7px; border-radius:4px; flex-shrink:0; }
+  .ticker b { background:var(--live-dark); color:#fff; font-size:10px; letter-spacing:.08em; padding:3px 7px; border-radius:4px; flex-shrink:0; }
   .ticker span { overflow:hidden; text-overflow:ellipsis; }
 
   .pad { padding:20px 20px 0; }
@@ -86,7 +86,7 @@
   .fixed-name { display:flex; align-items:center; gap:8px; color:var(--ok); font-weight:700; font-size:14px; }
   .fixed-name .tag { font-size:11px; font-weight:700; letter-spacing:.04em; background:var(--ok); color:#fff; border-radius:6px; padding:3px 7px; }
   .chip { font-size:12px; font-weight:600; padding:5px 10px; border-radius:99px; white-space:nowrap; flex-shrink:0; }
-  .chip.go { background:var(--accent-soft); color:var(--accent); } .chip.ok { background:var(--ok-soft); color:var(--ok); } .chip.wait { background:var(--track); color:var(--muted); }
+  .chip.go { background:var(--live-soft); color:var(--live-dark); } .chip.ok { background:var(--ok-soft); color:var(--ok); } .chip.wait { background:var(--track); color:var(--muted); }
   .chev-r { color:#A3A8BA; flex-shrink:0; align-self:center; }
 
   .av { width:42px; height:42px; border-radius:50%; display:grid; place-items:center; font-weight:700; font-size:14px; flex-shrink:0; }
@@ -101,9 +101,9 @@
   .cand .nt { font-size:12px; color:var(--muted); margin-top:1px; }
   .bar { height:7px; background:var(--track); border-radius:99px; margin-top:7px; overflow:hidden; }
   .bar div { height:7px; border-radius:99px; background:#A3A8BA; transition:width .7s ease; }
-  .cand.lead .bar div { background:var(--accent); } .cand.win .bar div { background:var(--ok); }
+  .cand.lead .bar div { background:var(--live); } .cand.win .bar div { background:var(--ok); }
   .cand .l3 { display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:12px; color:var(--muted); gap:8px; }
-  .up { color:var(--ok); font-weight:600; } .dn { color:#B42318; font-weight:600; }
+  .up { color:var(--live-dark); font-weight:600; } .dn { color:#6B7080; font-weight:600; }
   .vbtn { height:36px; padding:0 14px; border-radius:10px; border:0; background:var(--ink); color:#fff; font-size:13px; font-weight:600; cursor:pointer; }
   .vbtn.mine { background:var(--ok-soft); color:var(--ok); display:inline-flex; align-items:center; }
   .back { display:inline-flex; align-items:center; gap:4px; font-size:14px; font-weight:600; color:var(--muted); text-decoration:none; padding:16px 20px 0; }
@@ -355,7 +355,7 @@ function resultRow(e, idx) {
   if (e.confirmed) body = `<div class="fixed-name" style="margin-top:8px">${avatar(e.confirmed.name, true)}${esc(e.confirmed.name)}<span class="tag">CONFIRMED</span></div>`;
   else if (!e.candidates.length) body = `<div style="margin-top:6px;font-size:13px;color:var(--muted)">Nominations open · add a name</div>`;
   else if (!e.total) body = `<div style="margin-top:6px;font-size:13px;color:var(--muted)">${e.candidates.length} nominee${e.candidates.length === 1 ? '' : 's'} · voting open</div>`;
-  else body = `<div style="display:flex;align-items:center;gap:10px;margin-top:8px">${avatar(l.name, true)}<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;font-size:14px"><span>${esc(l.name)} leads</span><b>${pct(l.votes, e.total)}%</b></div><div class="bar"><div style="width:${pct(l.votes, e.total)}%;background:var(--accent)"></div></div></div></div>`;
+  else body = `<div style="display:flex;align-items:center;gap:10px;margin-top:8px">${avatar(l.name, true)}<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;font-size:14px"><span>${esc(l.name)} leads</span><b>${pct(l.votes, e.total)}%</b></div><div class="bar"><div style="width:${pct(l.votes, e.total)}%;background:var(--live)"></div></div></div></div>`;
   return `<a href="#vote/${esc(e.id)}" style="display:flex;gap:12px;padding:14px 0;${idx ? 'border-top:1px solid var(--line);' : ''}text-decoration:none">
     ${icon(e)}<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;gap:8px;font-size:14px"><span style="font-weight:600">${esc(e.title)}</span><span style="color:var(--muted);white-space:nowrap">${e.total ? e.total + (e.total === 1 ? ' vote' : ' votes') : ''}</span></div>${body}</div></a>`;
 }
