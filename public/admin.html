@@ -322,7 +322,7 @@ function settings() {
       <div><label>Benefits (one per line)</label><textarea name="pass_${p.id}_benefits" style="min-height:150px">${esc(p.benefits.join('\n'))}</textarea></div>
       <div><label>Shown registrations: extra</label><input type="number" name="pass_${p.id}_base" value="${(s.passBase || {})[p.id] || 0}"></div>
     </div>`).join('')}</div>
-    <h2 class="mt" style="margin-top:22px">WhatsApp Group (Home)</h2><p class="hint">Numbers shown on the Home page. Locations: one per line, like <code>India: 3</code>.</p>
+    <h2 class="mt" style="margin-top:22px">WhatsApp Group (Home)</h2><p class="hint">Numbers shown on the Home page. Locations: one per line, like <code>India: 3</code>. Shown as flags for common countries (India, USA, UK, Australia, Canada, UAE, Singapore, Germany…); you can also use a 2-letter country code like <code>NZ: 1</code>.</p>
     <div class="f3">
       <div><label>Active members</label><input type="number" name="wa_active" value="${(s.whatsapp || {}).active ?? 0}"></div>
       <div><label>Left</label><input type="number" name="wa_left" value="${(s.whatsapp || {}).left ?? 0}"></div>
