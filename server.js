@@ -32,7 +32,7 @@ const role = (id, title, desc, extra = {}) => ({
 const cand = (name, note = '', by = 'admin') => ({ id: newId(), name, note, by, offset: 0 });
 
 const SEED_AD = () => ({
-  id: 'meetho', active: true, placement: 'home-middle', title: 'Meetho Mohan', subtitle: '@MeethoMohan · YouTube',
+  id: 'meetho', active: true, placement: 'home-top', badge: 'Featured', video: null, likes: {}, title: 'Meetho Mohan', subtitle: '@MeethoMohan · YouTube',
   text: 'Analysis that goes beyond "time pass". Sharp takes, explained simply in Telugu.',
   cta: 'Subscribe', url: 'https://www.youtube.com/@MeethoMohan', image: '/ads/meetho-mohan.jpg', views: 0, clicks: 0, createdAt: Date.now()
 });
@@ -72,7 +72,7 @@ function defaultDb() {
   const T = (electionId, title, status = 'todo') => ({ id: newId(), electionId, title, status });
 
   return {
-    v: 8,
+    v: 9,
     settings: {
       eventTitle: 'Silver Jubilee Reunion',
       collegeName: 'TPIST',
@@ -219,7 +219,11 @@ async function loadDb() {
     data = { ...data, v: 7, users: {}, secret: data.secret || d.secret, chat: { users: {}, messages: [] } };
   }
   if (data && data.v === 7) data = { ...data, v: 8, ads: d.ads };
-  if (!data || data.v !== 8) return d;
+  if (data && data.v === 8) {
+    // v9: ad likes, badge, video preview; move the first ad to the top of Home
+    data = { ...data, v: 9, ads: (data.ads || []).map(a => ({ badge: a.id === 'meetho' ? 'Featured' : '', video: null, likes: {}, ...a, placement: a.id === 'meetho' && a.placement === 'home-middle' ? 'home-top' : a.placement })) };
+  }
+  if (!data || data.v !== 9) return d;
   return { ...d, ...data, chat: data.chat || d.chat, settings: { ...d.settings, ...data.settings }, auto: { ...d.auto, ...data.auto } };
 }
 
@@ -439,7 +443,9 @@ function publicState(voterId) {
     me: acct ? { name: acct.name, email: acct.email, picture: acct.picture } : null,
     chatUnread: uid ? db.chat.messages.filter(m => m.to === uid && !m.read).length : 0,
     settings: db.settings,
-    ads: (db.ads || []).filter(a => a.active).map(({ id, placement, title, subtitle, text, cta, image }) => ({ id, placement, title, subtitle, text, cta, image })),
+    ads: (db.ads || []).filter(a => a.active).map(({ id, placement, title, subtitle, text, cta, image, badge, video, likes }) => ({
+      id, placement, title, subtitle, text, cta, image, badge: badge || '', video: video ? { embed: video.embed, url: video.url } : null,
+      likeCount: Object.keys(likes || {}).length, liked: !!(voterId && likes && likes[voterId]) })),
     updatedAt: db.auto.startAt + slot * interval,
     elections: db.elections.map(e => electionView(e, voterId, slot)),
     schedule: db.schedule,
@@ -546,6 +552,15 @@ const findElection = id => db.elections.find(e => e.id === id);
 
 app.get('/api/state', (req, res) => res.json(publicState(voterIdOf(req, res))));
 
+app.post('/api/ads/:id/like', (req, res) => {
+  const key = voterIdOf(req, res);
+  const ad = (db.ads || []).find(a => a.id === req.params.id && a.active);
+  if (!ad) return res.status(404).json({ error: 'Not found' });
+  ad.likes ||= {};
+  if (ad.likes[key]) delete ad.likes[key]; else ad.likes[key] = Date.now();
+  saveDb();
+  res.json({ likeCount: Object.keys(ad.likes).length, liked: !!ad.likes[key] });
+});
 app.post('/api/ads/:id/view', (req, res) => {
   const ad = (db.ads || []).find(a => a.id === req.params.id);
   if (ad) { ad.views = (ad.views || 0) + 1; saveDb(); }
@@ -833,7 +848,7 @@ A.get('/state', (req, res) => {
     elections, schedule: db.schedule, tasks: db.tasks,
     rsvps: Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(({ voterId, ...r }) => ({ ...r, email: voterId && voterId.startsWith('u:') && db.users[voterId.slice(2)] ? db.users[voterId.slice(2)].email : '' })),
     accounts: Object.keys(db.users).length,
-    ads: db.ads || [],
+    ads: (db.ads || []).map(({ likes, ...a }) => ({ ...a, likeCount: Object.keys(likes || {}).length })),
     chat: {
       plans: PLANS,
       users: Object.entries(db.chat.users).filter(([id]) => db.users[id]).map(([id, u]) => ({ ...profileOf(id, true), email: db.users[id].email, ...u, id, flags: (db.chat.flags || []).filter(f => f.uid === id).length }))
@@ -1087,20 +1102,25 @@ function cleanAd(b, ad) {
     else throw new Error('Image must be a JPG, PNG or WebP under 300 KB');
   }
   if (['home-top', 'home-middle', 'home-bottom'].includes(b.placement)) out.placement = b.placement;
+  if (typeof b.badge === 'string') out.badge = str(b.badge, 30);
+  if (typeof b.video === 'string') {
+    if (!b.video.trim()) out.video = null;
+    else { const v = embedOf(b.video); if (!v || v.kind !== 'youtube') throw new Error('Video preview must be a YouTube link'); out.video = v; }
+  }
   if (typeof b.active === 'boolean') out.active = b.active;
   return out;
 }
 A.post('/ads', (req, res) => {
   let a; try { a = cleanAd(req.body); } catch (e) { return res.status(400).json({ error: e.message }); }
   if (!a.title || !a.url) return res.status(400).json({ error: 'Title and link are required' });
-  (db.ads ||= []).push({ id: newId(), active: true, placement: 'home-middle', subtitle: '', text: '', cta: 'Visit', image: '', views: 0, clicks: 0, createdAt: Date.now(), ...a });
+  (db.ads ||= []).push({ id: newId(), active: true, placement: 'home-middle', badge: '', video: null, likes: {}, subtitle: '', text: '', cta: 'Visit', image: '', views: 0, clicks: 0, createdAt: Date.now(), ...a });
   saveDb(); res.json({ ok: true });
 });
 A.put('/ads/:id', (req, res) => {
   const ad = (db.ads || []).find(x => x.id === req.params.id);
   if (!ad) return res.status(404).json({ error: 'Not found' });
   try { Object.assign(ad, cleanAd(req.body, ad)); } catch (e) { return res.status(400).json({ error: e.message }); }
-  if (req.body.resetStats) { ad.views = 0; ad.clicks = 0; }
+  if (req.body.resetStats) { ad.views = 0; ad.clicks = 0; ad.likes = {}; }
   saveDb(); res.json({ ok: true });
 });
 A.delete('/ads/:id', (req, res) => {

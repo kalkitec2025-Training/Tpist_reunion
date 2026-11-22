@@ -304,6 +304,8 @@ function adForm(ad) {
     <div style="grid-column:1/-1"><label>Short text (1–2 lines)</label><input type="text" name="text" value="${esc(ad ? ad.text : '')}"></div>
     <div><label>Button text</label><input type="text" name="cta" value="${esc(ad ? ad.cta : 'Visit')}"></div>
     <div><label>Link (https://…)</label><input type="text" name="url" value="${esc(ad ? ad.url : '')}" placeholder="https://" required></div>
+    <div><label>Badge (optional, e.g. Featured or Batchmate's channel)</label><input type="text" name="badge" value="${esc(ad ? ad.badge || '' : '')}"></div>
+    <div><label>Video preview (optional YouTube link)</label><input type="text" name="video" value="${esc(ad && ad.video ? ad.video.url : '')}" placeholder="https://youtu.be/…"></div>
     <div><label>Where it shows</label><select name="placement">${Object.entries(PLACE).map(([k, v]) => `<option value="${k}" ${(ad ? ad.placement : 'home-middle') === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
     <div><label>Image (round, JPG/PNG)</label><input type="file" accept="image/*" data-adimg="${id}"><input type="hidden" name="image" value="${esc(ad ? ad.image : '')}"></div>
   </div>
@@ -313,16 +315,16 @@ function adForm(ad) {
 }
 function adPreview(ad) {
   return `<div style="border:1px solid #E3E5EB;border-radius:14px;padding:14px;max-width:340px;position:relative;background:#fff">
-    <span style="position:absolute;top:10px;right:12px;font-size:10px;font-weight:700;letter-spacing:.08em;color:#8A8FA0">SPONSORED</span>
+    <span style="position:absolute;top:10px;right:12px;font-size:10px;font-weight:700;letter-spacing:.08em;color:#8A8FA0">SPONSORED</span>${ad.badge ? `<div style="display:inline-block;font-size:10px;font-weight:800;background:#FFF1CC;color:#7A5400;padding:2px 7px;border-radius:5px;margin-bottom:8px;text-transform:uppercase">${esc(ad.badge)}</div>` : ''}
     <div style="display:flex;gap:12px;align-items:center">${ad.image ? `<img src="${esc(ad.image)}" alt="" style="width:56px;height:56px;border-radius:50%;object-fit:cover">` : ''}<div><b style="font-size:16px">${esc(ad.title)}</b><div class="sub">${esc(ad.subtitle || '')}</div></div></div>
     ${ad.text ? `<div style="font-size:13px;margin-top:8px;color:#3D4150">${esc(ad.text)}</div>` : ''}
-    <div style="margin-top:10px;background:#0F0F0F;color:#fff;border-radius:99px;text-align:center;padding:9px;font-weight:700;font-size:13px">${esc(ad.cta || 'Visit')}</div></div>`;
+    <div style="display:flex;gap:8px;margin-top:10px"><div style="border:1px solid #D5D8E2;border-radius:99px;padding:8px 12px;font-weight:700;font-size:13px">👍 ${ad.likeCount || 0}</div><div style="flex:1;background:#0F0F0F;color:#fff;border-radius:99px;text-align:center;padding:9px;font-weight:700;font-size:13px">${esc(ad.cta || 'Visit')}</div></div>${ad.video ? '<div class="sub" style="margin-top:6px">▶ Video preview on the photo</div>' : ''}</div>`;
 }
 function ads() {
   const list = S.ads || [];
   return `<div class="grid" style="grid-template-columns:minmax(0,1fr)">
   ${list.map(ad => `<section class="card"><div class="hrow"><h2>${esc(ad.title)} <span class="pill ${ad.active ? 'g' : ''}">${ad.active ? 'Showing' : 'Off'}</span></h2>
-      <div class="row"><span class="pill b">${ad.views || 0} views</span><span class="pill b">${ad.clicks || 0} clicks</span><span class="pill">${ad.views ? Math.round((ad.clicks || 0) / ad.views * 1000) / 10 : 0}% click rate</span></div></div>
+      <div class="row"><span class="pill b">${ad.views || 0} views</span><span class="pill b">${ad.clicks || 0} clicks</span><span class="pill b">${ad.likeCount || 0} likes</span><span class="pill">${ad.views ? Math.round((ad.clicks || 0) / ad.views * 1000) / 10 : 0}% click rate</span></div></div>
     <div style="display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;margin-top:12px" class="adgrid">${adForm(ad)}${adPreview(ad)}</div></section>`).join('')}
   <section class="card"><h2>Add a new ad</h2><p class="hint">Ads appear on the Home page with a "Sponsored" label. Clicks open the link in a new tab and are counted.</p>${adForm(null)}</section>
   </div><style>@media (max-width:860px){.adgrid{grid-template-columns:minmax(0,1fr)!important}}</style>`;
@@ -460,7 +462,7 @@ document.addEventListener('submit', run(async e => {
   e.preventDefault();
   const f = e.target, d = Object.fromEntries(new FormData(f));
   if (f.classList.contains('adForm')) {
-    const json = { title:d.title, subtitle:d.subtitle, text:d.text, cta:d.cta, url:d.url, placement:d.placement, image:d.image, active:!!d.active };
+    const json = { title:d.title, subtitle:d.subtitle, text:d.text, cta:d.cta, url:d.url, placement:d.placement, image:d.image, badge:d.badge, video:d.video, active:!!d.active };
     if (f.dataset.ad === 'new') { await api('/ads', { method:'POST', json }); toast('Ad added'); } else { await api(`/ads/${f.dataset.ad}`, { method:'PUT', json }); toast('Ad saved'); }
     return load();
   }
