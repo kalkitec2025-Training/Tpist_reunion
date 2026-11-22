@@ -32,27 +32,10 @@
   .btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 54px; border-radius: 99px; font-weight: 700; font-size: 17px; text-decoration: none; border: 0; cursor: pointer; font-family: inherit; }
   .sub { margin-top: 24px; background: #FF0033; color: #fff; }
   .open { margin-top: 12px; background: #272727; color: #F1F1F1; }
-  .btn:focus-visible, .vid:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
-  h2 { font-size: 20px; font-weight: 800; margin: 36px 0 4px; display: flex; justify-content: space-between; align-items: baseline; }
-  h2 small { font-size: 13px; font-weight: 500; color: #AAAAAA; }
-  .list { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
-  .vid { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 12px; text-align: left; background: none; border: 0; padding: 0; color: inherit; cursor: pointer; font-family: inherit; border-radius: 12px; }
-  .thumb { position: relative; width: 168px; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: #272727; }
-  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .thumb i { position: absolute; inset: 0; display: grid; place-items: center; }
-  .thumb i span { width: 40px; height: 28px; border-radius: 8px; background: rgba(0,0,0,.65); display: grid; place-items: center; }
-  .vt { font-size: 15px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .vm { font-size: 12px; color: #AAAAAA; margin-top: 6px; }
-  @media (max-width: 360px) { .vid { grid-template-columns: 136px minmax(0, 1fr); } .thumb { width: 136px; } }
+  .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
   .note { font-size: 13px; color: #AAAAAA; text-align: center; margin-top: 18px; line-height: 1.5; }
   .note a { color: #F1F1F1; }
   .foot { margin-top: 30px; font-size: 12px; color: #717171; text-align: center; }
-  dialog { border: 0; padding: 0; width: min(94vw, 640px); background: #000; border-radius: 16px; overflow: hidden; color: #F1F1F1; }
-  dialog::backdrop { background: rgba(0,0,0,.85); }
-  .player { position: relative; padding-top: 56.25%; }
-  .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-  .dbar { display: flex; gap: 8px; padding: 12px; background: #1C1C1C; }
-  .dbar .btn { height: 44px; font-size: 15px; }
 </style>
 </head>
 <body>
@@ -76,27 +59,15 @@
   </a>
   <a class="btn open" href="https://www.youtube.com/@MeethoMohan/videos" target="_blank" rel="noopener">Open the channel</a>
 
-  <h2 id="vh" hidden>Videos <small id="vcount"></small></h2>
-  <div class="list" id="list"></div>
   <p class="note" id="note" hidden></p>
   <div class="foot">Numbers come live from YouTube</div>
 </main>
 
-<dialog id="dlg" aria-label="Video player">
-  <div class="player" id="player"></div>
-  <div class="dbar"><a class="btn sub" id="ytlink" style="margin:0;flex:1" href="#" target="_blank" rel="noopener">Open in YouTube</a><button type="button" class="btn open" style="margin:0;width:auto;padding:0 20px" id="close">Close</button></div>
-</dialog>
 
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const short = n => n == null ? '—' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(/\.0$/, '') + 'K' : String(n);
-function ago(t) {
-  const s = (Date.now() - new Date(t)) / 1000;
-  const u = [[31536000, 'year'], [2592000, 'month'], [604800, 'week'], [86400, 'day'], [3600, 'hour'], [60, 'minute']];
-  for (const [sec, name] of u) if (s >= sec) { const n = Math.floor(s / sec); return `${n} ${name}${n > 1 ? 's' : ''} ago`; }
-  return 'just now';
-}
 let D = null;
 async function load() {
   try {
@@ -106,7 +77,7 @@ async function load() {
   } catch {
     $('stats').hidden = true;
     $('note').hidden = false;
-    $('note').innerHTML = 'Videos could not be loaded right now. <a href="https://www.youtube.com/@MeethoMohan/videos" target="_blank" rel="noopener">See them on YouTube</a>.';
+    $('note').innerHTML = 'Channel numbers could not be loaded right now.';
     return;
   }
   const tiles = [
@@ -115,27 +86,7 @@ async function load() {
     [D.likes, D.complete ? 'Likes' : 'Recent likes']
   ];
   $('stats').innerHTML = tiles.map(([n, l]) => `<div class="stat"><b>${short(n)}</b><span>${l}</span></div>`).join('');
-  $('vh').hidden = false;
-  $('vcount').textContent = D.complete ? `${D.videos.length}` : `latest ${D.videos.length}`;
-  $('list').innerHTML = D.videos.map(v => `
-    <button type="button" class="vid" data-id="${esc(v.id)}" aria-label="Play ${esc(v.title)}">
-      <span class="thumb"><img src="https://i.ytimg.com/vi/${esc(v.id)}/mqdefault.jpg" alt="" loading="lazy"><i><span><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><polygon points="7 4 20 12 7 20" fill="#fff"/></svg></span></i></span>
-      <span><span class="vt">${esc(v.title)}</span><span class="vm" style="display:block">${short(v.views)} views · ${short(v.likes)} likes · ${ago(v.published)}</span></span>
-    </button>`).join('');
-  if (!D.complete && D.videoCount > D.videos.length) {
-    $('note').hidden = false;
-    $('note').innerHTML = `Showing the latest ${D.videos.length} of ${D.videoCount} videos. <a href="https://www.youtube.com/@MeethoMohan/videos" target="_blank" rel="noopener">See all on YouTube</a>.`;
-  }
 }
-$('list').addEventListener('click', e => {
-  const b = e.target.closest('[data-id]'); if (!b) return;
-  const id = b.dataset.id;
-  $('player').innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1" title="YouTube video" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
-  $('ytlink').href = `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
-  $('dlg').showModal();
-});
-$('close').onclick = () => $('dlg').close();
-$('dlg').addEventListener('close', () => { $('player').innerHTML = ''; });
 load();
 </script>
 </body>
