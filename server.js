@@ -129,6 +129,7 @@ function defaultDb() {
     nominations: {}, // electionId -> { voterId: count }
     chat: { users: {}, messages: [] }, // keyed by account id
     users: {},       // Google accounts: id -> { sub, name, email, picture, privacyAt }
+    activity: {},    // account id -> visits, page views, taps and time in the app (admin only)
     secret: crypto.randomBytes(32).toString('hex'),
     schedule: [
       S(1, '8:00 AM', 'Red-carpet arrivals', 'Platinum guests walk the red carpet with a personal announcement and photo wall', 'Platinum'),
@@ -508,6 +509,31 @@ app.post('/api/auth/google', async (req, res) => {
   res.cookie('sid', `${user.id}.${sign(user.id)}`, { maxAge: 180 * 24 * HOUR, httpOnly: true, sameSite: 'lax', secure: req.secure });
   res.json({ ok: true });
 });
+// ---- usage stats for signed-in batchmates (seen only by admins)
+app.post('/api/track', (req, res) => {
+  const u = sessionUser(req);
+  if (!u) return res.json({ ok: false });
+  const evs = Array.isArray(req.body && req.body.events) ? req.body.events.slice(0, 40) : [];
+  const A = (db.activity ||= {});
+  const a = (A[u.id] ||= { visits: 0, views: 0, clicks: 0, secs: 0, pages: {}, taps: {}, first: Date.now(), last: 0, log: [] });
+  const now = Date.now();
+  for (const e of evs) {
+    if (!e || typeof e !== 'object') continue;
+    const page = str(e.page, 40) || 'home', label = str(e.label, 60);
+    if (e.type === 'visit') { a.visits++; a.log.push({ t: now, k: 'visit', page }); }
+    else if (e.type === 'page') { a.views++; a.pages[page] = (a.pages[page] || 0) + 1; a.log.push({ t: now, k: 'page', page }); }
+    else if (e.type === 'click' && label) {
+      a.clicks++;
+      const key = `${page} · ${label}`;
+      if (a.taps[key] || Object.keys(a.taps).length < 150) a.taps[key] = (a.taps[key] || 0) + 1;
+      a.log.push({ t: now, k: 'click', page, label });
+    } else if (e.type === 'time') a.secs += Math.max(0, Math.min(600, Math.round(+e.sec || 0)));
+  }
+  if (a.log.length > 300) a.log = a.log.slice(-300);
+  a.last = now; u.lastSeen = now;
+  saveDb();
+  res.json({ ok: true });
+});
 app.post('/api/auth/logout', (req, res) => { res.clearCookie('sid'); res.json({ ok: true }); });
 // when sign-in is set up, the app's data needs a signed-in user
 app.use('/api', (req, res, next) => {
@@ -791,6 +817,23 @@ A.use(requireAdmin);
 
 A.post('/login', (req, res) => res.json({ ok: true }));
 
+function activityReport() {
+  const A = db.activity || {}, IST = 5.5 * HOUR, day0 = Math.floor((Date.now() + IST) / (24 * HOUR)) * 24 * HOUR - IST;
+  const pages = {}, taps = {};
+  const people = Object.entries(A).filter(([id]) => db.users[id]).map(([id, a]) => {
+    for (const [k, n] of Object.entries(a.pages)) pages[k] = (pages[k] || 0) + n;
+    for (const [k, n] of Object.entries(a.taps)) taps[k] = (taps[k] || 0) + n;
+    const u = db.users[id];
+    return { name: u.name || '', email: u.email || '', picture: u.picture || '', visits: a.visits, views: a.views, clicks: a.clicks, secs: a.secs, first: a.first, last: a.last,
+      pages: Object.entries(a.pages).sort((x, y) => y[1] - x[1]), taps: Object.entries(a.taps).sort((x, y) => y[1] - x[1]).slice(0, 15), log: a.log.slice(-60).reverse() };
+  }).sort((x, y) => y.last - x.last);
+  const top = o => Object.entries(o).sort((x, y) => y[1] - x[1]).slice(0, 10);
+  return {
+    people, today: people.filter(p => p.last >= day0).length, week: people.filter(p => p.last >= Date.now() - 7 * 24 * HOUR).length,
+    visits: people.reduce((n, p) => n + p.visits, 0), views: people.reduce((n, p) => n + p.views, 0), clicks: people.reduce((n, p) => n + p.clicks, 0), secs: people.reduce((n, p) => n + p.secs, 0),
+    topPages: top(pages), topTaps: top(taps)
+  };
+}
 A.get('/state', (req, res) => {
   const slot = currentSlot();
   const interval = db.auto.intervalMin * 60 * 1000;
@@ -814,6 +857,7 @@ A.get('/state', (req, res) => {
     elections, schedule: db.schedule, tasks: db.tasks,
     rsvps: Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(({ voterId, ...r }) => ({ ...r, email: voterId && voterId.startsWith('u:') && db.users[voterId.slice(2)] ? db.users[voterId.slice(2)].email : '' })),
     accounts: Object.keys(db.users).length,
+    activity: activityReport(),
     accountList: Object.values(db.users).map(u => {
       const r = Object.values(db.rsvps).find(x => x.voterId === 'u:' + u.id);
       return { name: u.name || '', email: u.email || '', picture: u.picture || '', createdAt: u.createdAt, lastSeen: u.lastSeen || u.createdAt, registered: !!r, rsvpName: r ? r.name : '', chat: !!(db.chat.users[u.id] && db.chat.users[u.id].consentAt) };

@@ -51,6 +51,15 @@
   .rs { border-top:1px solid #EEF0F4; padding:12px 0; display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1.6fr) minmax(0,1fr); gap:12px; align-items:start; }
   .acc { border-top:1px solid #EEF0F4; padding:10px 0; display:grid; grid-template-columns:40px minmax(0,1fr) auto; gap:10px; align-items:center; }
   .acc img, .acc .av { width:40px; height:40px; border-radius:50%; object-fit:cover; background:#E8EEF9; color:#2563EB; display:grid; place-items:center; font-weight:700; }
+  .bars div { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; font-size:13px; padding:5px 0; position:relative; }
+  .bars i { position:absolute; left:0; bottom:0; height:3px; border-radius:2px; background:#2563EB; opacity:.5; }
+  .who { border-top:1px solid #EEF0F4; padding:12px 0; }
+  .who summary { list-style:none; cursor:pointer; display:grid; grid-template-columns:40px minmax(0,1fr) auto; gap:10px; align-items:center; }
+  .who summary::-webkit-details-marker { display:none; }
+  .who img, .who .av { width:40px; height:40px; border-radius:50%; object-fit:cover; background:#E8EEF9; color:#2563EB; display:grid; place-items:center; font-weight:700; }
+  .nums { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; color:var(--muted); margin-top:2px; } .nums b { color:var(--ink, #1C1D24); }
+  .tl { font-size:12px; border-left:2px solid #E3E7EF; margin:6px 0 0 6px; padding-left:12px; }
+  .tl div { padding:3px 0; } .tl .v { color:#16A34A; font-weight:700; }
   @media (max-width:760px) { .rs { grid-template-columns:minmax(0,1fr); } }
   .hist { font-size:12px; color:var(--muted); line-height:1.7; }
   #login { max-width:360px; margin:80px auto; }
@@ -73,7 +82,7 @@
       <div class="row"><a href="/" target="_blank"><button class="btn">Open app ↗</button></a></div></div>
     <nav id="tabs">
       <button data-t="overview" class="on">Overview</button><button data-t="elections">Elections</button>
-      <button data-t="rsvps">Registrations</button><button data-t="plan">Plan & tasks</button><button data-t="chat">Chat</button><button data-t="settings">Settings</button>
+      <button data-t="rsvps">Registrations</button><button data-t="plan">Plan & tasks</button><button data-t="activity">Activity</button><button data-t="chat">Chat</button><button data-t="settings">Settings</button>
     </nav>
   </div></header>
   <main id="main"></main>
@@ -116,7 +125,7 @@ function render() {
   const st = S.settings;
   $('hTitle').textContent = `${st.eventTitle} · Admin`;
   $('hSub').textContent = `${S.rsvps.length} registered of ${st.expected} expected · ${S.accounts} signed-in accounts · storage: ${S.storage === 'postgres' ? 'database (permanent)' : 'file (resets on restart)'}`;
-  $('main').innerHTML = ({ overview, elections, rsvps, plan, settings, chat })[tab]();
+  $('main').innerHTML = ({ overview, elections, rsvps, plan, settings, chat, activity })[tab]();
 }
 
 // ------------------------------------------------------------ overview
@@ -261,6 +270,44 @@ function accountsCard() {
         <div class="sub">First sign-in ${when(a.createdAt)}${a.lastSeen && a.lastSeen !== a.createdAt ? ` · last ${when(a.lastSeen)}` : ''}</div></div>
       <div style="text-align:right">${a.registered ? `<span class="pill g">Registered</span>${a.rsvpName && a.rsvpName !== a.name ? `<div class="sub">as ${esc(a.rsvpName)}</div>` : ''}` : '<span class="pill o">Not registered</span>'}${a.chat ? '<div class="sub">Chat on</div>' : ''}</div>
     </div>`).join('')}</div></details></section>`;
+}
+
+// ------------------------------------------------------------ activity
+const PAGE = { home:'Home', vote:'Vote', schedule:'Schedule', plan:'Schedule', teams:'Teams', chat:'Chat', rsvp:'Register', passes:'Passes', members:'Registered list', privacy:'Privacy policy', signin:'Sign-in' };
+function pageName(k) {
+  const [r, a] = String(k).split('/');
+  if (r === 'vote' && a) { const e = S.elections.find(x => x.id === a); return 'Vote › ' + (e ? e.title : a); }
+  return (PAGE[r] || r) + (a ? ' › ' + a : '');
+}
+function tapName(k) { const i = k.indexOf(' · '); return i < 0 ? k : `${k.slice(i + 3)} <span class="sub">on ${esc(pageName(k.slice(0, i)))}</span>`; }
+const dur = s => s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : `${Math.floor(s / 3600)}h ${Math.round(s % 3600 / 60)}m`;
+const bars = (rows, name) => { const max = Math.max(1, ...rows.map(r => r[1])); return rows.length ? `<div class="bars">${rows.map(([k, n]) => `<div><span>${name(k)}</span><b>${n}</b><i style="width:${Math.round(n / max * 100)}%"></i></div>`).join('')}</div>` : '<p class="hint">Nothing yet.</p>'; };
+function activity() {
+  const A = S.activity || { people: [] };
+  return `<div class="grid">
+    <section class="card" style="grid-column:1/-1"><h2>App usage</h2><p class="hint">Signed-in batchmates only. Visits, pages and taps are recorded from this update onwards.</p>
+      <div class="kpis">
+        <div class="kpi"><b>${A.today || 0}</b><span>Active today</span></div>
+        <div class="kpi"><b>${A.week || 0}</b><span>Active in last 7 days</span></div>
+        <div class="kpi"><b>${A.visits || 0}</b><span>Visits</span></div>
+        <div class="kpi"><b>${A.views || 0}</b><span>Pages opened</span></div>
+        <div class="kpi"><b>${A.clicks || 0}</b><span>Taps</span></div>
+        <div class="kpi"><b>${dur(A.secs || 0)}</b><span>Time in app</span></div>
+      </div></section>
+    <section class="card"><h2>Most opened pages</h2>${bars(A.topPages || [], k => esc(pageName(k)))}</section>
+    <section class="card"><h2>Most tapped</h2>${bars(A.topTaps || [], k => tapName(esc(k)))}</section>
+    <section class="card" style="grid-column:1/-1"><h2>People (${A.people.length})</h2><p class="hint">Most recent first. Tap a person for pages, taps and their timeline.</p>
+      ${A.people.map(p => `<details class="who"><summary>
+        ${p.picture ? `<img src="${esc(p.picture)}" alt="" referrerpolicy="no-referrer">` : `<span class="av">${esc((p.name || p.email || '?')[0].toUpperCase())}</span>`}
+        <div style="min-width:0"><b>${esc(p.name || '—')}</b><div class="sub" style="overflow:hidden;text-overflow:ellipsis">${esc(p.email)}</div>
+          <div class="nums"><span><b>${p.visits}</b> visits</span><span><b>${p.views}</b> pages</span><span><b>${p.clicks}</b> taps</span><span><b>${dur(p.secs)}</b> in app</span></div></div>
+        <div class="sub" style="text-align:right">Last seen<br>${esc(when(p.last))}</div></summary>
+        <div class="f3 mt" style="align-items:start">
+          <div><label>Pages opened</label>${bars(p.pages, k => esc(pageName(k)))}</div>
+          <div><label>Top taps</label>${bars(p.taps, k => tapName(esc(k)))}</div>
+          <div><label>Recent activity</label><div class="tl">${p.log.map(l => `<div>${l.k === 'visit' ? '<span class="v">Opened the app</span>' : l.k === 'page' ? 'Viewed ' + esc(pageName(l.page)) : 'Tapped “' + esc(l.label) + '” <span class="sub">on ' + esc(pageName(l.page)) + '</span>'}<div class="sub">${esc(when(l.t))}</div></div>`).join('') || '<span class="hint">Nothing yet.</span>'}</div></div>
+        </div></details>`).join('') || '<p class="hint">No activity yet. It appears once batchmates sign in and use the app.</p>'}
+    </section></div>`;
 }
 
 // ------------------------------------------------------------ plan

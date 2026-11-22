@@ -327,8 +327,37 @@ async function load() {
     const r = await fetch('/api/state', { cache:'no-store' });
     if (r.status === 401) { S = null; showSignin(); return; }
     S = await r.json(); document.body.classList.remove('signin'); render();
+    if (!tracked && S.me) { tracked = true; track('visit'); track('page'); }
   } catch {}
 }
+// ---- usage stats (pages opened, buttons tapped, time in app); only the committee sees them
+let tracked = false, TQ = [], tTimer = null, activeSecs = 0, hiddenAt = 0;
+const curPage = () => { const [r, a] = route(); return a && !['chat'].includes(r) ? `${r}/${a}` : r; };
+function track(type, label) {
+  if (!S || !S.me) return;
+  TQ.push({ type, page: curPage(), label });
+  clearTimeout(tTimer); tTimer = setTimeout(flushTrack, 4000);
+}
+function flushTrack() {
+  if (activeSecs >= 5) { TQ.push({ type: 'time', sec: activeSecs }); activeSecs = 0; }
+  if (!TQ.length || !S || !S.me) return;
+  const body = JSON.stringify({ events: TQ.splice(0) });
+  try { if (!(navigator.sendBeacon && navigator.sendBeacon('/api/track', new Blob([body], { type: 'application/json' })))) fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }); } catch {}
+}
+setInterval(() => { if (document.visibilityState === 'visible') activeSecs += 10; }, 10000);
+setInterval(flushTrack, 120000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); flushTrack(); }
+  else if (hiddenAt && Date.now() - hiddenAt > 30 * 60000) { track('visit'); track('page'); }
+});
+document.addEventListener('click', e => {
+  const el = e.target.closest('button, a, [data-wainfo], [role="button"], .cand, .card[data-e]');
+  if (!el || el.closest('#toast')) return;
+  let label = el.dataset.track || el.getAttribute('aria-label') || el.textContent;
+  label = (label || '').replace(/\s+/g, ' ').trim().slice(0, 50);
+  if (!label && el.getAttribute('href')) label = el.getAttribute('href');
+  if (label) track('click', label);
+}, true);
 const route = () => { const [r, a] = (location.hash.slice(1) || 'home').split('/'); return [r === 'plan' ? 'schedule' : r, a]; };
 const isLive = e => e.status === 'live' && !e.confirmed;
 const votable = () => S.elections.filter(e => isLive(e) && e.candidates.length);
@@ -622,10 +651,11 @@ function privacyPage(signedIn) {
   <div class="card prose" style="margin-top:16px">
     <h2>What we collect</h2>
     <ul><li>From Google sign-in: your name, email address and profile photo.</li>
-    <li>What you enter: registration details (name, gender, branch, mobile, city, attendance, stay, transport, food), your votes, nominees you add, and chat messages.</li></ul>
+    <li>What you enter: registration details (name, gender, branch, mobile, city, attendance, stay, transport, food), your votes, nominees you add, and chat messages.</li>
+    <li>How you use the app: when you visit, which pages you open, which buttons you tap and how long you stay. Only the organising committee can see this.</li></ul>
     <h2>Why</h2><p>Only to organise the reunion: headcounts, food, rooms, transport, elections and chat between batchmates.</p>
     <h2>Who can see it</h2>
-    <ul><li>The organising committee can see registrations, votes and chat messages (for moderation).</li>
+    <ul><li>The organising committee can see registrations, votes, chat messages (for moderation) and app usage.</li>
     <li>Other batchmates only see names of nominees while a poll is live. Everywhere else, including chat, people appear only as counts or as an initial with hidden letters. Your mobile number and email are never shown to other batchmates.</li></ul>
     <h2>Where it is stored</h2><p>On the app's hosting service and database. We never sell or share your data with anyone outside the committee.</p>
     <h2>Your choices</h2><p>You can edit your registration at any time and sign out from the RSVP page. To have your data deleted, ask the organising committee. All data will be deleted after the reunion.</p>
@@ -897,6 +927,7 @@ addEventListener('hashchange', () => {
   nomOpen = null; campOpen = null; draft = ''; showPlans = false; if (route()[0] === 'members') MEM = null;
   if (route()[0] === 'chat') { thread = route()[1] && route()[1] !== 'new' ? null : thread; loadChat(route()[1]); }
   render(); scrollTo(0, 0);
+  track('page');
 });
 document.addEventListener('change', e => {
   if (e.target.id === 'privacyOk') { $('gwrap').classList.toggle('off', !e.target.checked); $('gHint').textContent = e.target.checked ? 'Continue with your Google account.' : 'Tick the box above to continue with Google.'; }
