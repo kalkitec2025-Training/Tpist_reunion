@@ -51,6 +51,14 @@
   .hero .row { display:flex; gap:10px; align-items:center; font-size:14px; }
   .hero .row svg { color:#FDBA8C; flex-shrink:0; }
 
+  .wa { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; margin:0 20px; }
+  .wa-card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px; display:flex; flex-direction:column; }
+  .wa-n { font-size:28px; font-weight:700; line-height:1; color:#15803D; }
+  .wa-l { font-size:13px; color:var(--muted); margin-top:6px; }
+  .wa-sub { margin-top:auto; padding-top:10px; font-size:12px; font-weight:600; color:var(--muted); }
+  .wa-locs { display:flex; flex-wrap:wrap; gap:6px; margin-top:auto; padding-top:10px; }
+  .wa-locs span { font-size:12px; background:#F1F5F2; border-radius:99px; padding:3px 9px; color:#3D4150; }
+  .wa-locs b { color:#15803D; }
   .quick { margin:14px 20px 0; display:flex; gap:10px; align-items:stretch; }
   .q-venue { flex:1; min-width:0; display:flex; gap:10px; align-items:center; background:#fff; border:1px solid var(--line); border-radius:14px; padding:10px 12px; text-decoration:none; }
   .q-venue .ic { width:34px; height:34px; border-radius:10px; background:#FDE7DC; color:#9A3412; display:grid; place-items:center; flex-shrink:0; }
@@ -359,6 +367,23 @@ function resultRow(e, idx) {
   return `<a href="#vote/${esc(e.id)}" style="display:flex;gap:12px;padding:14px 0;${idx ? 'border-top:1px solid var(--line);' : ''}text-decoration:none">
     ${icon(e)}<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;gap:8px;font-size:14px"><span style="font-weight:600">${esc(e.title)}</span><span style="color:var(--muted);white-space:nowrap">${e.total ? e.total + (e.total === 1 ? ' vote' : ' votes') : ''}</span></div>${body}</div></a>`;
 }
+const WA_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>';
+function waSection() {
+  const w = S.settings.whatsapp;
+  if (!w || w.show === false) return '';
+  const locs = (w.locations || []).filter(l => l.count > 0);
+  return `<div class="sec"><h2 class="d" style="display:flex;align-items:center;gap:8px"><span style="color:#16A34A;display:inline-flex">${WA_ICON}</span>WhatsApp Group</h2></div>
+  <div class="wa">
+    <div class="wa-card">
+      <div class="wa-n d">${w.active}</div><div class="wa-l">Active members</div>
+      <div class="wa-sub">${w.left} left</div>
+    </div>
+    <div class="wa-card">
+      <div class="wa-n d">${w.admins}</div><div class="wa-l">Admins</div>
+      ${locs.length ? `<div class="wa-locs">${locs.map(l => `<span>${esc(l.place)} <b>${l.count}</b></span>`).join('')}</div>` : ''}
+    </div>
+  </div>`;
+}
 function homePage() {
   const st = S.settings;
   const venue = S.elections.find(e => e.kind === 'venue');
@@ -389,10 +414,7 @@ function homePage() {
     <div class="stat"><div class="n d">${S.regShown.female}</div><div class="l">Women</div></div>
   </div>
   <p class="fine">Registered batchmates are counted as attending. Anyone in the batch can vote.</p>
-  <div class="card" style="margin-top:12px">
-    <div style="display:flex;justify-content:space-between;align-items:baseline"><b class="d" style="font-size:16px">Registered by pass</b><a href="#passes" style="font-size:13px;font-weight:600;color:var(--accent);text-decoration:none">Compare passes</a></div>
-    <div class="ptiles">${passList().map(p => `<a class="ptile tier-${p.id}" href="#passes"><div class="pn acc">${esc(p.name)}</div><div class="pc d">${S.regShown.passes[p.id]}</div><div class="pl">registered</div></a>`).join('')}</div>
-  </div>
+  ${waSection()}
 
   ${roles.length ? `<div class="sec"><h2 class="d">Your ballot</h2><a href="#vote">All elections</a></div>
   <div class="card cta">

@@ -322,6 +322,14 @@ function settings() {
       <div><label>Benefits (one per line)</label><textarea name="pass_${p.id}_benefits" style="min-height:150px">${esc(p.benefits.join('\n'))}</textarea></div>
       <div><label>Shown registrations: extra</label><input type="number" name="pass_${p.id}_base" value="${(s.passBase || {})[p.id] || 0}"></div>
     </div>`).join('')}</div>
+    <h2 class="mt" style="margin-top:22px">WhatsApp Group (Home)</h2><p class="hint">Numbers shown on the Home page. Locations: one per line, like <code>India: 3</code>.</p>
+    <div class="f3">
+      <div><label>Active members</label><input type="number" name="wa_active" value="${(s.whatsapp || {}).active ?? 0}"></div>
+      <div><label>Left</label><input type="number" name="wa_left" value="${(s.whatsapp || {}).left ?? 0}"></div>
+      <div><label>Admins</label><input type="number" name="wa_admins" value="${(s.whatsapp || {}).admins ?? 0}"></div>
+      <div style="grid-column:1/-1"><label>Admin locations</label><textarea name="wa_locations">${esc(((s.whatsapp || {}).locations || []).map(l => `${l.place}: ${l.count}`).join('\n'))}</textarea></div>
+    </div>
+    <label class="check mt"><input type="checkbox" name="wa_show" ${(s.whatsapp || {}).show !== false ? 'checked' : ''}> Show the WhatsApp Group section on Home</label>
     <div class="row mt" style="gap:20px"><label class="check"><input type="checkbox" name="votingOpen" ${s.votingOpen ? 'checked' : ''}> Voting open</label><label class="check"><input type="checkbox" name="rsvpOpen" ${s.rsvpOpen ? 'checked' : ''}> Registrations open</label></div>
     <div class="row mt"><button class="btn p">Save settings</button></div></form>
   </section>`;
@@ -426,6 +434,9 @@ document.addEventListener('submit', run(async e => {
     d.passes = ids.map(id => ({ id, name:d[`pass_${id}_name`], tagline:d[`pass_${id}_tagline`], price:d[`pass_${id}_price`], benefits:String(d[`pass_${id}_benefits`] || '').split('\n').map(x => x.trim()).filter(Boolean) }));
     d.passBase = Object.fromEntries(ids.map(id => [id, +d[`pass_${id}_base`]]));
     for (const k of Object.keys(d)) if (k.startsWith('pass_')) delete d[k];
+    d.whatsapp = { show: !!d.wa_show, active: +d.wa_active, left: +d.wa_left, admins: +d.wa_admins,
+      locations: String(d.wa_locations || '').split('\n').map(x => x.split(':')).filter(x => x[0] && x[0].trim()).map(([pl, c]) => ({ place: pl.trim(), count: +(c || 0) })) };
+    for (const k of Object.keys(d)) if (k.startsWith('wa_')) delete d[k];
     const json = { ...d, expected:+d.expected, regBaseMale:+d.regBaseMale, regBaseFemale:+d.regBaseFemale, votingOpen:!!d.votingOpen, rsvpOpen:!!d.rsvpOpen,
       branches:d.branches.split(',').map(x => x.trim()).filter(Boolean), pickupPoints:d.pickupPoints.split(',').map(x => x.trim()).filter(Boolean) };
     await api('/settings', { method:'PUT', json }); toast('Settings saved');

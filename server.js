@@ -113,7 +113,8 @@ function defaultDb() {
       branches: ['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'],
       pickupPoints: ['Bobbili', 'Vizianagaram', 'Visakhapatnam Railway Station', 'Visakhapatnam Airport', 'Srikakulam'],
       votingOpen: true,
-      rsvpOpen: true
+      rsvpOpen: true,
+      whatsapp: { show: true, active: 62, left: 1, admins: 5, locations: [{ place: 'India', count: 3 }, { place: 'USA', count: 1 }, { place: 'UK', count: 1 }] }
     },
     auto: {
       on: true,
@@ -835,6 +836,16 @@ A.put('/settings', (req, res) => {
     if (Array.isArray(b[k])) s[k] = b[k].map(x => str(x, 60)).filter(Boolean).slice(0, 30);
   }
   for (const k of ['votingOpen', 'rsvpOpen']) if (typeof b[k] === 'boolean') s[k] = b[k];
+  if (b.whatsapp && typeof b.whatsapp === 'object') {
+    const w = b.whatsapp, cur = s.whatsapp || {};
+    s.whatsapp = {
+      show: typeof w.show === 'boolean' ? w.show : cur.show !== false,
+      active: num(w.active, 0, 100000) ?? cur.active ?? 0,
+      left: num(w.left, 0, 100000) ?? cur.left ?? 0,
+      admins: num(w.admins, 0, 1000) ?? cur.admins ?? 0,
+      locations: Array.isArray(w.locations) ? w.locations.map(x => ({ place: str(x && x.place, 30), count: num(x && x.count, 0, 1000) || 0 })).filter(x => x.place).slice(0, 12) : (cur.locations || [])
+    };
+  }
   if (Array.isArray(b.passes)) {
     s.passes = s.passes.map(p => {
       const n = b.passes.find(x => x && x.id === p.id);
