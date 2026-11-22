@@ -186,6 +186,14 @@
   .me-bar { display:flex; gap:12px; align-items:center; }
   .me-bar img, .me-bar .av { width:40px; height:40px; border-radius:50%; object-fit:cover; }
   .prose h2 { font-size:16px; margin:18px 0 6px; } .prose p, .prose li { font-size:14px; line-height:1.6; color:#3D4150; } .prose ul { padding-left:20px; margin:6px 0; }
+  .ad { position:relative; }
+  .ad .sp { position:absolute; top:12px; right:14px; font-size:10px; font-weight:700; letter-spacing:.08em; color:#8A8FA0; text-transform:uppercase; }
+  .ad .row3 { display:flex; gap:14px; align-items:center; }
+  .ad img { width:72px; height:72px; border-radius:50%; object-fit:cover; flex-shrink:0; background:var(--track); }
+  .ad .at { font-size:19px; font-weight:800; line-height:1.15; padding-right:64px; }
+  .ad .as { font-size:13px; color:var(--muted); margin-top:3px; }
+  .ad .ax { font-size:14px; color:#3D4150; line-height:1.5; margin-top:12px; }
+  .ad .ab { margin-top:14px; width:100%; height:46px; border-radius:99px; background:#0F0F0F; color:#fff; font-weight:700; font-size:15px; display:flex; align-items:center; justify-content:center; text-decoration:none; }
   .rules ol { margin:10px 0 0; padding-left:20px; display:flex; flex-direction:column; gap:8px; font-size:14px; line-height:1.5; }
   .agree { display:flex; gap:10px; align-items:flex-start; font-size:14px; margin:16px 0; line-height:1.45; }
   .agree input { width:20px; height:20px; accent-color:var(--accent); flex-shrink:0; margin-top:1px; }
@@ -352,6 +360,15 @@ function resultRow(e, idx) {
   return `<a href="#vote/${esc(e.id)}" style="display:flex;gap:12px;padding:14px 0;${idx ? 'border-top:1px solid var(--line);' : ''}text-decoration:none">
     ${icon(e)}<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;gap:8px;font-size:14px"><span style="font-weight:600">${esc(e.title)}</span><span style="color:var(--muted);white-space:nowrap">${e.total ? e.total + (e.total === 1 ? ' vote' : ' votes') : ''}</span></div>${body}</div></a>`;
 }
+function adCards(place) {
+  return (S.ads || []).filter(a => a.placement === place).map(a => {
+    try { const k = 'adv_' + a.id; if (!sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); navigator.sendBeacon && navigator.sendBeacon('/api/ads/' + encodeURIComponent(a.id) + '/view'); } } catch {}
+    return `<section class="card ad" aria-label="Sponsored: ${esc(a.title)}" style="margin-top:12px"><span class="sp">Sponsored</span>
+      <div class="row3">${a.image ? `<img src="${esc(a.image)}" alt="">` : ''}<div style="min-width:0"><div class="at d">${esc(a.title)}</div>${a.subtitle ? `<div class="as">${esc(a.subtitle)}</div>` : ''}</div></div>
+      ${a.text ? `<div class="ax">${esc(a.text)}</div>` : ''}
+      <a class="ab" href="/go/${encodeURIComponent(a.id)}" target="_blank" rel="noopener sponsored">${esc(a.cta || 'Visit')}</a></section>`;
+  }).join('');
+}
 function homePage() {
   const st = S.settings;
   const venue = S.elections.find(e => e.kind === 'venue');
@@ -371,6 +388,7 @@ function homePage() {
       <div class="row">${svg(P.pin, 18)}<span>Visakhapatnam · venue ${esc((st.venueStatus || 'not yet confirmed').toLowerCase())}</span></div>
     </div>
   </section>
+  ${adCards('home-top')}
   <div class="stats">
     <a class="stat" href="#members" style="text-decoration:none;display:block"><div class="n d">${S.regShown.total}</div><div class="l" style="display:flex;justify-content:space-between;align-items:center">Registered ${svg(P.chevR, 14)}</div></a>
     <div class="stat"><div class="n d">${S.regShown.male}</div><div class="l">Men</div></div>
@@ -385,6 +403,7 @@ function homePage() {
   <a class="card ecard" href="#vote/venue" style="margin-top:12px"><div class="main" style="align-items:center">${venue ? icon(venue) : ''}
     <div style="flex:1;min-width:0"><div class="t">Venue: ${esc(st.venueStatus || 'Not yet confirmed')}</div><div class="x">${vLead ? `${esc(vLead.name)} is leading the poll. ` : ''}The Overall Event Coordinator will confirm the final venue after voting closes.</div></div>${svg(P.chevR, 18, 'chev-r')}</div></a>
 
+  ${adCards('home-middle')}
   <div class="sec"><h2 class="d">${me ? 'Your registration' : 'Are you coming?'}</h2></div>
   <div class="card cta ${me ? 'ok-card' : ''}">
     ${me ? `<div class="t">You're in, ${esc(first(me.name))}!</div>
@@ -403,6 +422,7 @@ function homePage() {
 
   <div class="sec"><h2 class="d">Live polls</h2><a href="#vote">All elections</a></div>
   <div class="card" style="padding:2px 16px">${live.map(resultRow).join('') || '<div class="empty">No polls are running right now.<br>New polls will appear here as soon as they start.</div>'}</div>
+  ${adCards('home-bottom')}
   ${footer()}`;
 }
 

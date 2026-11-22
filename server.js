@@ -31,6 +31,11 @@ const role = (id, title, desc, extra = {}) => ({
 });
 const cand = (name, note = '', by = 'admin') => ({ id: newId(), name, note, by, offset: 0 });
 
+const SEED_AD = () => ({
+  id: 'meetho', active: true, placement: 'home-middle', title: 'Meetho Mohan', subtitle: '@MeethoMohan · YouTube',
+  text: 'Analysis that goes beyond "time pass". Sharp takes, explained simply in Telugu.',
+  cta: 'Subscribe', url: 'https://www.youtube.com/@MeethoMohan', image: '/ads/meetho-mohan.jpg', views: 0, clicks: 0, createdAt: Date.now()
+});
 function defaultDb() {
   const envStart = Date.parse(process.env.STORY_START || '');
   const women = role('women', 'Women\u2019s Coordinator',
@@ -67,7 +72,7 @@ function defaultDb() {
   const T = (electionId, title, status = 'todo') => ({ id: newId(), electionId, title, status });
 
   return {
-    v: 7,
+    v: 8,
     settings: {
       eventTitle: 'Silver Jubilee Reunion',
       collegeName: 'TPIST',
@@ -128,6 +133,7 @@ function defaultDb() {
     nominations: {}, // electionId -> { voterId: count }
     chat: { users: {}, messages: [] }, // keyed by account id
     users: {},       // Google accounts: id -> { sub, name, email, picture, privacyAt }
+    ads: [SEED_AD()],
     secret: crypto.randomBytes(32).toString('hex'),
     schedule: [
       S(1, '8:00 AM', 'Red-carpet arrivals', 'Platinum guests walk the red carpet with a personal announcement and photo wall', 'Platinum'),
@@ -212,7 +218,8 @@ async function loadDb() {
     // v7: Google accounts; chat moves from registrations to accounts (old chat data is cleared)
     data = { ...data, v: 7, users: {}, secret: data.secret || d.secret, chat: { users: {}, messages: [] } };
   }
-  if (!data || data.v !== 7) return d;
+  if (data && data.v === 7) data = { ...data, v: 8, ads: d.ads };
+  if (!data || data.v !== 8) return d;
   return { ...d, ...data, chat: data.chat || d.chat, settings: { ...d.settings, ...data.settings }, auto: { ...d.auto, ...data.auto } };
 }
 
@@ -432,6 +439,7 @@ function publicState(voterId) {
     me: acct ? { name: acct.name, email: acct.email, picture: acct.picture } : null,
     chatUnread: uid ? db.chat.messages.filter(m => m.to === uid && !m.read).length : 0,
     settings: db.settings,
+    ads: (db.ads || []).filter(a => a.active).map(({ id, placement, title, subtitle, text, cta, image }) => ({ id, placement, title, subtitle, text, cta, image })),
     updatedAt: db.auto.startAt + slot * interval,
     elections: db.elections.map(e => electionView(e, voterId, slot)),
     schedule: db.schedule,
@@ -451,7 +459,7 @@ function publicState(voterId) {
 
 // ======================================================================= app
 const app = express();
-app.use(express.json({ limit: '200kb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.set('trust proxy', 1);
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
@@ -493,6 +501,13 @@ function linkDevice(vid, key) {
   for (const box of Object.values(db.votes)) if (box[vid] && !box[key]) { box[key] = box[vid]; delete box[vid]; }
   for (const box of Object.values(db.nominations || {})) if (box[vid]) { box[key] = (box[key] || 0) + box[vid]; delete box[vid]; }
 }
+// ---- ads: clicks go through /go/:id so they can be counted
+app.get('/go/:id', (req, res) => {
+  const ad = (db.ads || []).find(a => a.id === req.params.id && a.active);
+  if (!ad || !/^https:\/\//.test(ad.url)) return res.redirect('/');
+  ad.clicks = (ad.clicks || 0) + 1; saveDb();
+  res.redirect(302, ad.url);
+});
 app.get('/api/config', (req, res) => res.json({ auth: AUTH, googleClientId: GOOGLE_CLIENT_ID, testAuth: TEST_AUTH }));
 app.post('/api/auth/google', async (req, res) => {
   if (!AUTH) return res.status(400).json({ error: 'Sign-in is not set up' });
@@ -531,6 +546,11 @@ const findElection = id => db.elections.find(e => e.id === id);
 
 app.get('/api/state', (req, res) => res.json(publicState(voterIdOf(req, res))));
 
+app.post('/api/ads/:id/view', (req, res) => {
+  const ad = (db.ads || []).find(a => a.id === req.params.id);
+  if (ad) { ad.views = (ad.views || 0) + 1; saveDb(); }
+  res.json({ ok: true });
+});
 app.get('/api/members', (req, res) => {
   const key = voterIdOf(req, res);
   const list = Object.values(db.rsvps).sort((a, b) => (b.voterId === key) - (a.voterId === key) || b.createdAt - a.createdAt)
@@ -813,6 +833,7 @@ A.get('/state', (req, res) => {
     elections, schedule: db.schedule, tasks: db.tasks,
     rsvps: Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(({ voterId, ...r }) => ({ ...r, email: voterId && voterId.startsWith('u:') && db.users[voterId.slice(2)] ? db.users[voterId.slice(2)].email : '' })),
     accounts: Object.keys(db.users).length,
+    ads: db.ads || [],
     chat: {
       plans: PLANS,
       users: Object.entries(db.chat.users).filter(([id]) => db.users[id]).map(([id, u]) => ({ ...profileOf(id, true), email: db.users[id].email, ...u, id, flags: (db.chat.flags || []).filter(f => f.uid === id).length }))
@@ -1049,6 +1070,41 @@ A.put('/chat/blocked', (req, res) => {
 });
 A.delete('/chat/messages/:id', (req, res) => {
   db.chat.messages = db.chat.messages.filter(m => m.id !== req.params.id);
+  saveDb(); res.json({ ok: true });
+});
+
+// ads
+function cleanAd(b, ad) {
+  const out = {};
+  if (typeof b.title === 'string') out.title = str(b.title, 60);
+  if (typeof b.subtitle === 'string') out.subtitle = str(b.subtitle, 80);
+  if (typeof b.text === 'string') out.text = str(b.text, 200);
+  if (typeof b.cta === 'string') out.cta = str(b.cta, 24) || 'Visit';
+  if (typeof b.url === 'string') { const u = str(b.url, 500); if (!/^https:\/\/[^\s]+$/.test(u)) throw new Error('Link must start with https://'); out.url = u; }
+  if (typeof b.image === 'string') {
+    if (b.image === '' || /^\/ads\/[\w.-]+$/.test(b.image)) out.image = b.image;
+    else if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b.image) && b.image.length < 400000) out.image = b.image;
+    else throw new Error('Image must be a JPG, PNG or WebP under 300 KB');
+  }
+  if (['home-top', 'home-middle', 'home-bottom'].includes(b.placement)) out.placement = b.placement;
+  if (typeof b.active === 'boolean') out.active = b.active;
+  return out;
+}
+A.post('/ads', (req, res) => {
+  let a; try { a = cleanAd(req.body); } catch (e) { return res.status(400).json({ error: e.message }); }
+  if (!a.title || !a.url) return res.status(400).json({ error: 'Title and link are required' });
+  (db.ads ||= []).push({ id: newId(), active: true, placement: 'home-middle', subtitle: '', text: '', cta: 'Visit', image: '', views: 0, clicks: 0, createdAt: Date.now(), ...a });
+  saveDb(); res.json({ ok: true });
+});
+A.put('/ads/:id', (req, res) => {
+  const ad = (db.ads || []).find(x => x.id === req.params.id);
+  if (!ad) return res.status(404).json({ error: 'Not found' });
+  try { Object.assign(ad, cleanAd(req.body, ad)); } catch (e) { return res.status(400).json({ error: e.message }); }
+  if (req.body.resetStats) { ad.views = 0; ad.clicks = 0; }
+  saveDb(); res.json({ ok: true });
+});
+A.delete('/ads/:id', (req, res) => {
+  db.ads = (db.ads || []).filter(x => x.id !== req.params.id);
   saveDb(); res.json({ ok: true });
 });
 

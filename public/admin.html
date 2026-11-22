@@ -71,7 +71,7 @@
       <div class="row"><a href="/" target="_blank"><button class="btn">Open app ↗</button></a></div></div>
     <nav id="tabs">
       <button data-t="overview" class="on">Overview</button><button data-t="elections">Elections</button>
-      <button data-t="rsvps">Registrations</button><button data-t="plan">Plan & tasks</button><button data-t="chat">Chat</button><button data-t="settings">Settings</button>
+      <button data-t="rsvps">Registrations</button><button data-t="plan">Plan & tasks</button><button data-t="chat">Chat</button><button data-t="ads">Ads</button><button data-t="settings">Settings</button>
     </nav>
   </div></header>
   <main id="main"></main>
@@ -114,7 +114,7 @@ function render() {
   const st = S.settings;
   $('hTitle').textContent = `${st.eventTitle} · Admin`;
   $('hSub').textContent = `${S.rsvps.length} registered of ${st.expected} expected · ${S.accounts} signed-in accounts · storage: ${S.storage === 'postgres' ? 'database (permanent)' : 'file (resets on restart)'}`;
-  $('main').innerHTML = ({ overview, elections, rsvps, plan, settings, chat })[tab]();
+  $('main').innerHTML = ({ overview, elections, rsvps, plan, settings, chat, ads })[tab]();
 }
 
 // ------------------------------------------------------------ overview
@@ -294,6 +294,50 @@ function chat() {
   </section></div>`;
 }
 
+// ------------------------------------------------------------ ads
+const PLACE = { 'home-top': 'Home, top (above the counts)', 'home-middle': 'Home, middle (after the venue card)', 'home-bottom': 'Home, bottom (after live polls)' };
+function adForm(ad) {
+  const id = ad ? ad.id : 'new';
+  return `<form class="adForm" data-ad="${id}"><div class="f2">
+    <div><label>Title</label><input type="text" name="title" value="${esc(ad ? ad.title : '')}" placeholder="e.g. Meetho Mohan" required></div>
+    <div><label>Subtitle</label><input type="text" name="subtitle" value="${esc(ad ? ad.subtitle : '')}" placeholder="e.g. @handle · YouTube"></div>
+    <div style="grid-column:1/-1"><label>Short text (1–2 lines)</label><input type="text" name="text" value="${esc(ad ? ad.text : '')}"></div>
+    <div><label>Button text</label><input type="text" name="cta" value="${esc(ad ? ad.cta : 'Visit')}"></div>
+    <div><label>Link (https://…)</label><input type="text" name="url" value="${esc(ad ? ad.url : '')}" placeholder="https://" required></div>
+    <div><label>Where it shows</label><select name="placement">${Object.entries(PLACE).map(([k, v]) => `<option value="${k}" ${(ad ? ad.placement : 'home-middle') === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+    <div><label>Image (round, JPG/PNG)</label><input type="file" accept="image/*" data-adimg="${id}"><input type="hidden" name="image" value="${esc(ad ? ad.image : '')}"></div>
+  </div>
+  <div class="row mt"><label class="check"><input type="checkbox" name="active" ${!ad || ad.active ? 'checked' : ''}> Showing in the app</label>
+    <button class="btn p">${ad ? 'Save ad' : 'Add ad'}</button>
+    ${ad ? `<button type="button" class="btn" data-adreset="${id}">Reset stats</button><button type="button" class="btn r" data-addel="${id}">Delete</button>` : ''}</div></form>`;
+}
+function adPreview(ad) {
+  return `<div style="border:1px solid #E3E5EB;border-radius:14px;padding:14px;max-width:340px;position:relative;background:#fff">
+    <span style="position:absolute;top:10px;right:12px;font-size:10px;font-weight:700;letter-spacing:.08em;color:#8A8FA0">SPONSORED</span>
+    <div style="display:flex;gap:12px;align-items:center">${ad.image ? `<img src="${esc(ad.image)}" alt="" style="width:56px;height:56px;border-radius:50%;object-fit:cover">` : ''}<div><b style="font-size:16px">${esc(ad.title)}</b><div class="sub">${esc(ad.subtitle || '')}</div></div></div>
+    ${ad.text ? `<div style="font-size:13px;margin-top:8px;color:#3D4150">${esc(ad.text)}</div>` : ''}
+    <div style="margin-top:10px;background:#0F0F0F;color:#fff;border-radius:99px;text-align:center;padding:9px;font-weight:700;font-size:13px">${esc(ad.cta || 'Visit')}</div></div>`;
+}
+function ads() {
+  const list = S.ads || [];
+  return `<div class="grid" style="grid-template-columns:minmax(0,1fr)">
+  ${list.map(ad => `<section class="card"><div class="hrow"><h2>${esc(ad.title)} <span class="pill ${ad.active ? 'g' : ''}">${ad.active ? 'Showing' : 'Off'}</span></h2>
+      <div class="row"><span class="pill b">${ad.views || 0} views</span><span class="pill b">${ad.clicks || 0} clicks</span><span class="pill">${ad.views ? Math.round((ad.clicks || 0) / ad.views * 1000) / 10 : 0}% click rate</span></div></div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;margin-top:12px" class="adgrid">${adForm(ad)}${adPreview(ad)}</div></section>`).join('')}
+  <section class="card"><h2>Add a new ad</h2><p class="hint">Ads appear on the Home page with a "Sponsored" label. Clicks open the link in a new tab and are counted.</p>${adForm(null)}</section>
+  </div><style>@media (max-width:860px){.adgrid{grid-template-columns:minmax(0,1fr)!important}}</style>`;
+}
+function resizeImage(file) {
+  return new Promise((ok, bad) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => { const n = 256, c = document.createElement('canvas'); const s = Math.min(img.width, img.height);
+      c.width = n; c.height = n; c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, n, n);
+      URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.85)); };
+    img.onerror = () => bad(new Error('Could not read that image'));
+    img.src = url;
+  });
+}
+
 // ------------------------------------------------------------ settings
 function settings() {
   const s = S.settings;
@@ -378,6 +422,8 @@ document.addEventListener('click', run(async e => {
   const vr = t.closest('[data-vremove]'); if (vr) { await api(`/elections/${selE}/candidates/${vr.dataset.vremove}/video`, { method:'POST', json:{ action:'remove' } }); toast('Video removed'); return load(); }
   const va2 = t.closest('[data-vapprove2]'); if (va2) { const [x, c] = va2.dataset.vapprove2.split('|'); await api(`/elections/${x}/candidates/${c}/video`, { method:'POST', json:{ action:'approve' } }); toast('Video approved'); return load(); }
   const vr2 = t.closest('[data-vremove2]'); if (vr2) { const [x, c] = vr2.dataset.vremove2.split('|'); await api(`/elections/${x}/candidates/${c}/video`, { method:'POST', json:{ action:'remove' } }); toast('Video rejected'); return load(); }
+  const adr = t.closest('[data-adreset]'); if (adr) { await api(`/ads/${adr.dataset.adreset}`, { method:'PUT', json:{ resetStats:true } }); toast('Stats reset'); return load(); }
+  const add = t.closest('[data-addel]'); if (add) { if (!confirm('Delete this ad?')) return; await api(`/ads/${add.dataset.addel}`, { method:'DELETE' }); toast('Ad deleted'); return load(); }
   const cre = t.closest('[data-crestore]'); if (cre) { await api(`/chat/${cre.dataset.crestore}`, { method:'POST', json:{ action:'restore' } }); toast('Access restored'); return load(); }
   const cw = t.closest('[data-cwarn]');
   if (cw) {
@@ -393,6 +439,7 @@ document.addEventListener('change', run(async e => {
   const t = e.target;
   if (t.dataset.cname) { await api(`/elections/${selE}/candidates/${t.dataset.cname}`, { method:'PUT', json:{ name:t.value } }); toast('Name saved'); return load(); }
   if (t.dataset.cnote !== undefined && t.dataset.cnote) { await api(`/elections/${selE}/candidates/${t.dataset.cnote}`, { method:'PUT', json:{ note:t.value } }); toast('Note saved'); return; }
+  if (t.dataset.adimg) { if (!t.files[0]) return; const data = await resizeImage(t.files[0]); t.closest('form').elements.image.value = data; toast('Image ready. Save the ad to apply it.'); return; }
   if (t.dataset.rpass) { await api(`/rsvps/${t.dataset.rpass}`, { method:'PUT', json:{ pass:t.value } }); toast('Pass updated'); return load(); }
   if (t.dataset.rstat) { await api(`/rsvps/${t.dataset.rstat}`, { method:'PUT', json:{ callStatus:t.value } }); toast('Status saved'); return load(); }
   if (t.dataset.rnote) { await api(`/rsvps/${t.dataset.rnote}`, { method:'PUT', json:{ note:t.value } }); toast('Note saved'); return; }
@@ -412,6 +459,11 @@ document.addEventListener('input', e => { if (e.target.id === 'q') { q = e.targe
 document.addEventListener('submit', run(async e => {
   e.preventDefault();
   const f = e.target, d = Object.fromEntries(new FormData(f));
+  if (f.classList.contains('adForm')) {
+    const json = { title:d.title, subtitle:d.subtitle, text:d.text, cta:d.cta, url:d.url, placement:d.placement, image:d.image, active:!!d.active };
+    if (f.dataset.ad === 'new') { await api('/ads', { method:'POST', json }); toast('Ad added'); } else { await api(`/ads/${f.dataset.ad}`, { method:'PUT', json }); toast('Ad saved'); }
+    return load();
+  }
   if (f.id === 'newE') { const r = await api('/elections', { method:'POST', json:d }); selE = r.id; toast('Election added'); }
   else if (f.id === 'eForm') {
     for (const k of ['cap','dipEvery','rateMin','rateMax','startTotal']) if (k in d) d[k] = +d[k];
