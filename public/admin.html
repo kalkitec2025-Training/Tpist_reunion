@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Reunion Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#F4F5F8; --ink:#14161C; --muted:#5D6270; --line:#E3E5EB; --blue:#2B4ACB; --ok:#1F7A4D; --red:#B42318; --acc:#C2410C; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 Inter, system-ui, sans-serif; }
+  button, input, select, textarea { font:inherit; color:inherit; }
+  header { background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+  .hin { max-width:1180px; margin:0 auto; padding:12px 20px 0; }
+  .hrow { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .ttl { font-weight:700; font-size:16px; } .sub { color:var(--muted); font-size:13px; }
+  nav { display:flex; gap:4px; overflow-x:auto; margin-top:10px; }
+  nav button { border:0; background:none; padding:10px 14px; font-weight:600; color:var(--muted); border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; }
+  nav button.on { color:var(--ink); border-bottom-color:var(--acc); }
+  main { max-width:1180px; margin:0 auto; padding:20px; }
+  .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); align-items:start; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; }
+  h2 { margin:0 0 4px; font-size:15px; } .hint { color:var(--muted); font-size:13px; margin:0 0 12px; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  input[type=text], input[type=number], input[type=password], input[type=tel], input[type=search], select, textarea { width:100%; min-height:40px; border:1px solid #D5D8E0; border-radius:8px; padding:8px 10px; background:#fff; }
+  textarea { min-height:70px; resize:vertical; }
+  .f2 { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+  .f3 { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; }
+  @media (max-width:640px) { .f2, .f3 { grid-template-columns:minmax(0,1fr); } }
+  .check { display:flex; align-items:center; gap:8px; font-weight:600; color:var(--ink); font-size:14px; margin:0; }
+  .check input { width:18px; height:18px; accent-color:var(--blue); }
+  .btn { height:38px; padding:0 14px; border-radius:8px; border:1px solid #D5D8E0; background:#fff; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap; }
+  .btn.p { background:var(--blue); border-color:var(--blue); color:#fff; } .btn.d { background:var(--ink); border-color:var(--ink); color:#fff; }
+  .btn.r { color:var(--red); border-color:#F3C7C3; } .btn.s { height:32px; padding:0 10px; font-size:12px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .mt { margin-top:14px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; }
+  .kpi { background:var(--bg); border-radius:10px; padding:12px; } .kpi b { display:block; font-size:22px; } .kpi span { font-size:12px; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; } th, td { text-align:left; padding:9px 8px; border-top:1px solid #EEF0F4; vertical-align:middle; } th { font-size:12px; color:var(--muted); font-weight:600; border-top:0; }
+  .tw { overflow-x:auto; }
+  .pill { display:inline-block; font-size:11px; font-weight:600; padding:3px 8px; border-radius:99px; background:#EEF0F4; color:var(--muted); margin:2px 4px 2px 0; }
+  .pill.g { background:#E5F5EC; color:var(--ok); } .pill.o { background:#FFF1E6; color:var(--acc); } .pill.b { background:#EAEEFC; color:var(--blue); } .pill.r { background:#FDECEC; color:var(--red); }
+  .split { display:grid; grid-template-columns:280px minmax(0,1fr); gap:16px; align-items:start; }
+  @media (max-width:860px) { .split { grid-template-columns:minmax(0,1fr); } }
+  .elist button { display:block; width:100%; text-align:left; border:0; background:none; padding:10px 12px; border-radius:10px; cursor:pointer; }
+  .elist button.on { background:#EEF1FC; } .elist button small { display:block; color:var(--muted); font-size:12px; }
+  .crow { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 80px auto; gap:8px; align-items:center; padding:10px 0; border-top:1px solid #EEF0F4; }
+  @media (max-width:760px) { .crow { grid-template-columns:minmax(0,1fr) 80px; } .crow .acts { grid-column:1 / -1; } }
+  .votes { font-size:20px; font-weight:700; } .votes small { display:block; font-size:11px; color:var(--muted); font-weight:500; }
+  .rs { border-top:1px solid #EEF0F4; padding:12px 0; display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1.6fr) minmax(0,1fr); gap:12px; align-items:start; }
+  @media (max-width:760px) { .rs { grid-template-columns:minmax(0,1fr); } }
+  .hist { font-size:12px; color:var(--muted); line-height:1.7; }
+  #login { max-width:360px; margin:80px auto; }
+  .hidden { display:none !important; }
+  .toast { position:fixed; top:14px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 16px; border-radius:99px; font-size:13px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:50; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div class="card" id="login">
+  <h2>Admin login</h2>
+  <p class="hint">Enter the admin password set on the server.</p>
+  <label for="pw">Password</label><input type="password" id="pw" autocomplete="current-password">
+  <div class="row mt"><button class="btn p" id="loginBtn">Log in</button></div>
+</div>
+
+<div id="app" class="hidden">
+  <header><div class="hin">
+    <div class="hrow"><div><div class="ttl" id="hTitle">Reunion Admin</div><div class="sub" id="hSub"></div></div>
+      <div class="row"><a href="/" target="_blank"><button class="btn">Open app ↗</button></a></div></div>
+    <nav id="tabs">
+      <button data-t="overview" class="on">Overview</button><button data-t="elections">Elections</button>
+      <button data-t="rsvps">Registrations</button><button data-t="plan">Plan & tasks</button><button data-t="chat">Chat</button><button data-t="settings">Settings</button>
+    </nav>
+  </div></header>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let qPass = '';
+let PW = sessionStorage.getItem('pw') || '', S = null, tab = 'overview', selE = null, q = '', qStatus = '', sched = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const when = t => t ? new Date(t).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' }) : '—';
+const passNm = id => ((S && S.settings.passes || []).find(p => p.id === id) || { name: 'No pass yet' }).name;
+const STATUS = { new:'Not called', confirmed:'Confirmed', not_reachable:'Not reachable', declined:'Not coming' };
+function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
+
+async function api(url, opts = {}) {
+  opts.headers = { ...(opts.headers || {}), 'x-admin-password': PW };
+  if (opts.json !== undefined) { opts.body = JSON.stringify(opts.json); opts.headers['Content-Type'] = 'application/json'; delete opts.json; }
+  const r = await fetch('/api/admin' + url, opts);
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401) { sessionStorage.removeItem('pw'); $('app').classList.add('hidden'); $('login').classList.remove('hidden'); throw new Error('Wrong password'); }
+  if (!r.ok) throw new Error(d.error || 'Request failed');
+  return d;
+}
+const run = fn => async (...a) => { try { await fn(...a); } catch (e) { toast(e.message); } };
+
+async function login() {
+  PW = $('pw').value;
+  try { await api('/login', { method:'POST' }); sessionStorage.setItem('pw', PW); start(); } catch (e) { toast(e.message); }
+}
+$('loginBtn').onclick = login;
+$('pw').addEventListener('keydown', e => e.key === 'Enter' && login());
+function start() { $('login').classList.add('hidden'); $('app').classList.remove('hidden'); load(); }
+async function load() { S = await api('/state'); if (!selE || !S.elections.some(e => e.id === selE)) selE = S.elections[0]?.id; render(); }
+
+$('tabs').onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; tab = b.dataset.t; document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b)); sched = null; render(); };
+
+function render() {
+  const st = S.settings;
+  $('hTitle').textContent = `${st.eventTitle} · Admin`;
+  $('hSub').textContent = `${S.rsvps.length} registered of ${st.expected} expected · ${S.accounts} signed-in accounts · storage: ${S.storage === 'postgres' ? 'database (permanent)' : 'file (resets on restart)'}`;
+  $('main').innerHTML = ({ overview, elections, rsvps, plan, settings, chat })[tab]();
+}
+
+// ------------------------------------------------------------ overview
+function overview() {
+  const R = S.rsvps, n = f => R.filter(f).length;
+  const pick = {}; R.forEach(r => { const k = r.pickup || 'Own transport'; pick[k] = (pick[k] || 0) + 1; });
+  const a = S.auto;
+  return `<div class="grid">
+    <section class="card" style="grid-column:1/-1"><h2>Registrations</h2><p class="hint">Live counts for food, stay and transport planning.</p>
+      <div class="kpis">
+        <div class="kpi"><b>${R.length}</b><span>Registered</span></div>
+        <div class="kpi"><b>${n(r => r.pass === 'platinum')} / ${n(r => r.pass === 'gold')} / ${n(r => r.pass === 'silver')}</b><span>Platinum / Gold / Silver (real)</span></div>
+        <div class="kpi"><b>${n(r => !r.pass)}</b><span>Pass not assigned yet</span></div>
+        <div class="kpi"><b>${n(r => r.gender === 'male')} / ${n(r => r.gender === 'female')}</b><span>Men / Women (real)</span></div>
+        <div class="kpi"><b>${n(r => r.attend === 'both')}</b><span>Both days</span></div>
+        <div class="kpi"><b>${n(r => r.attend === 'day1')}</b><span>Day 1 only</span></div>
+        <div class="kpi"><b>${n(r => r.overnight)}</b><span>Staying overnight</span></div>
+        <div class="kpi"><b>${n(r => r.food === 'veg')}</b><span>Veg</span></div>
+        <div class="kpi"><b>${n(r => r.food !== 'veg')}</b><span>Non-veg</span></div>
+        <div class="kpi"><b>${n(r => r.pickup)}</b><span>Need pickup</span></div>
+        <div class="kpi"><b>${n(r => r.callStatus === 'confirmed')}</b><span>Confirmed by call</span></div>
+      </div>
+      <div class="row mt">${Object.entries(pick).map(([k, v]) => `<span class="pill b">${esc(k)}: ${v}</span>`).join('')}</div>
+    </section>
+    <section class="card"><h2>Elections</h2><p class="hint">Current leader in each.</p>
+      <div class="tw"><table><tr><th>Election</th><th>Leader</th><th>Votes</th></tr>
+      ${S.elections.map(e => `<tr><td>${esc(e.title)} <span class="pill ${e.status === 'live' ? 'g' : e.status === 'closed' ? '' : 'o'}">${e.status}</span>${e.mode === 'scripted' ? '<span class="pill">scripted</span>' : ''}</td><td>${e.total ? esc(e.candidates[0].name) : '—'}</td><td>${e.total}</td></tr>`).join('')}
+      </table></div>
+    </section>
+    <section class="card"><h2>Scripted results clock</h2><p class="hint">Moves every scripted election (Women's Coordinator, venue) once per interval. Live elections are not affected.</p>
+      <div class="f2">
+        <div><label>Status</label><label class="check" style="height:40px"><input type="checkbox" id="aOn" ${a.on ? 'checked' : ''}> Running</label></div>
+        <div><label for="aInt">Update every (minutes)</label><input type="number" id="aInt" min="1" value="${a.intervalMin}"></div>
+      </div>
+      <p class="hint mt" style="margin-bottom:0">Last update: <b>${when(S.updatedAt)}</b><br>Next update: <b>${a.on ? when(S.nextUpdateAt) : 'paused'}</b></p>
+      <div class="row mt"><button class="btn p" data-a="saveAuto">Save</button><button class="btn" data-a="step">Run next update now</button><button class="btn r" data-a="restart">Restart story</button></div>
+    </section>
+  </div>`;
+}
+
+// ------------------------------------------------------------ elections
+function elections() {
+  const e = S.elections.find(x => x.id === selE);
+  const pend = S.elections.flatMap(x => x.candidates.filter(c => c.videoInfo && c.videoInfo.status === 'pending').map(c => ({ e: x, c })));
+  return `${pend.length ? `<section class="card" style="margin-bottom:16px;border-color:#F5C79C"><h2>Campaign videos waiting for approval (${pend.length})</h2>
+    ${pend.map(({ e: x, c }) => `<div class="row" style="padding:8px 0;border-top:1px solid #EEF0F4"><b>${esc(c.name)}</b><span class="sub">${esc(x.title)}</span><a href="${esc(c.videoInfo.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Watch ↗</a><button class="btn s p" data-vapprove2="${x.id}|${c.id}">Approve</button><button class="btn s r" data-vremove2="${x.id}|${c.id}">Reject</button></div>`).join('')}</section>` : ''}
+  <div class="split">
+    <section class="card elist" style="padding:8px">
+      ${S.elections.map(x => `<button data-sel="${x.id}" class="${x.id === selE ? 'on' : ''}"><b>${esc(x.title)}</b><small><span class="pill ${x.status === 'live' ? 'g' : x.status === 'closed' ? '' : 'o'}">${x.status}</span> ${x.candidates.length} candidates · ${x.total} votes · ${x.mode}</small></button>`).join('')}
+      <form id="newE" style="padding:12px;border-top:1px solid #EEF0F4;margin-top:6px"><label>New election</label><input type="text" name="title" placeholder="e.g. Cultural Programme" required><div class="row mt"><button class="btn d s">Add election</button></div></form>
+    </section>
+    ${e ? electionEditor(e) : '<section class="card">Select an election.</section>'}
+  </div>`;
+}
+function electionEditor(e) {
+  const sc = e.mode === 'scripted';
+  return `<div style="display:flex;flex-direction:column;gap:16px">
+  <section class="card">
+    <div class="hrow"><h2>${esc(e.title)}</h2><div class="row"><button class="btn s" data-a="up">↑</button><button class="btn s" data-a="down">↓</button></div></div>
+    <form id="eForm" class="mt">
+      <div class="f2"><div><label>Title</label><input type="text" name="title" value="${esc(e.title)}"></div>
+      <div><label>How results are counted</label><select name="mode"><option value="live" ${!sc ? 'selected' : ''}>Live: real votes only</option><option value="scripted" ${sc ? 'selected' : ''}>Scripted: numbers follow the script</option></select></div></div>
+      <div class="f2 mt"><div><label>Status</label><select name="status"><option value="upcoming" ${e.status === 'upcoming' ? 'selected' : ''}>Upcoming (not on Home, no voting yet)</option><option value="live" ${e.status === 'live' ? 'selected' : ''}>Live (shown on Home, voting open)</option><option value="closed" ${e.status === 'closed' ? 'selected' : ''}>Closed (results only)</option></select></div>
+      <div><label>&nbsp;</label><div class="row">${e.status !== 'live' ? `<button type="button" class="btn p" data-a="startE">Start voting now</button>` : `<button type="button" class="btn r" data-a="closeE">Close voting</button>`}</div></div></div>
+      <div class="mt"><label>Description shown to voters</label><textarea name="desc">${esc(e.desc)}</textarea></div>
+      <div class="f2 mt"><div><label>Confirmed coordinator (highlighted in the app, closes voting)</label><select name="confirmedId"><option value="">Not confirmed yet</option>${e.candidates.map(c => `<option value="${c.id}" ${c.id === e.confirmedId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+      <div><label>Nominations</label><label class="check" style="height:40px"><input type="checkbox" name="openNominations" ${e.openNominationsSetting ? 'checked' : ''}> Anyone can add nominees from the app</label></div></div>
+      ${sc ? `<div class="f3 mt">
+        <div><label>Always ends on top</label><select name="favoriteId"><option value="">Nobody (natural spread)</option>${e.candidates.map(c => `<option value="${c.id}" ${c.id === e.favoriteId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+        <div><label>Target total votes</label><input type="number" name="cap" value="${e.cap}"></div>
+        <div><label>Favourite dips to 2nd every … updates (0 = never)</label><input type="number" name="dipEvery" value="${e.dipEvery}"></div>
+        <div><label>New votes per update (min)</label><input type="number" name="rateMin" value="${e.rateMin}"></div>
+        <div><label>New votes per update (max)</label><input type="number" name="rateMax" value="${e.rateMax}"></div>
+        <div><label>Votes at the start</label><input type="number" name="startTotal" value="${e.startTotal}"></div>
+        <div><label>After reaching the target</label><select name="afterCap"><option value="shuffle" ${e.afterCap === 'shuffle' ? 'selected' : ''}>Keep shifting</option><option value="hold" ${e.afterCap === 'hold' ? 'selected' : ''}>Freeze</option></select></div>
+      </div>
+      <p class="hint mt">Changing script settings recalculates the whole history, so public numbers can jump.</p>` : '<p class="hint mt">Every vote from the app counts. Manual ± below adds on top.</p>'}
+      <div class="row mt"><button class="btn p">Save election</button><button type="button" class="btn r" data-a="resetVotes">Reset votes</button><button type="button" class="btn r" data-a="delE">Delete election</button></div>
+    </form>
+  </section>
+  <section class="card"><h2>Candidates</h2><p class="hint">${e.realVoters} real voter${e.realVoters === 1 ? '' : 's'} so far. Shown total = ${sc ? 'script' : 'real votes'} + manual change.</p>
+    ${e.candidates.length ? e.candidates.map(c => `<div class="crow">
+      <input type="text" value="${esc(c.name)}" data-cname="${c.id}" aria-label="Name">
+      <input type="text" value="${esc(c.note)}" data-cnote="${c.id}" placeholder="Note (optional)" aria-label="Note">
+      ${''}<div class="votes">${c.votes}<small>${c.real} real${c.offset ? ` · ${c.offset > 0 ? '+' : ''}${c.offset} manual` : ''}${c.by === 'public' ? ' · added in app' : ''}</small></div>
+      <div class="row acts"><button class="btn s" data-adj="${c.id}|-10">−10</button><button class="btn s" data-adj="${c.id}|-1">−1</button><button class="btn s" data-adj="${c.id}|1">+1</button><button class="btn s" data-adj="${c.id}|10">+10</button>${c.offset ? `<button class="btn s" data-clr="${c.id}">Clear</button>` : ''}<button class="btn s r" data-delc="${c.id}">Remove</button></div>
+      <div style="grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">
+        ${c.videoInfo ? `<span class="pill ${c.videoInfo.status === 'approved' ? 'g' : 'o'}">Video ${c.videoInfo.status === 'approved' ? 'live' : 'waiting for approval'}</span><a href="${esc(c.videoInfo.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Open video ↗</a>
+          ${c.videoInfo.status !== 'approved' ? `<button class="btn s p" data-vapprove="${c.id}">Approve</button>` : ''}<button class="btn s r" data-vremove="${c.id}">Remove video</button>`
+        : `<input type="text" placeholder="Campaign video link (YouTube or Google Drive)" data-vset="${c.id}" style="max-width:380px"><span class="sub">press Enter to add</span>`}
+      </div>
+    </div>`).join('') : '<p class="hint">No candidates yet. The app shows "Nominations open".</p>'}
+    <form id="newC" class="f3 mt" style="align-items:end"><div><label>Candidate name</label><input type="text" name="name" required></div><div><label>Note (optional)</label><input type="text" name="note" placeholder="e.g. ECE, Hyderabad"></div><div><button class="btn d">Add candidate</button></div></form>
+  </section>
+  ${e.history ? `<section class="card"><h2>Script history</h2><div class="hist">${e.history.map(h => `<div><b>${when(h.at)}</b> · ${esc(h.line)}</div>`).join('')}</div></section>` : ''}
+  </div>`;
+}
+
+// ------------------------------------------------------------ registrations
+function rsvps() {
+  const st = S.settings;
+  const list = S.rsvps.filter(r => (!qPass || (qPass === 'none' ? !r.pass : r.pass === qPass)) && (!qStatus || r.callStatus === qStatus) && (!q || `${r.name} ${r.phone} ${r.city} ${r.branch}`.toLowerCase().includes(q.toLowerCase())));
+  return `<section class="card">
+    <div class="hrow"><h2>Registrations (${S.rsvps.length}${S.rsvps.some(r => r.source === 'test') ? `, ${S.rsvps.filter(r => r.source === 'test').length} test` : ''})</h2>
+      <div class="row"><button class="btn" data-a="addTest">Add 54 test registrations</button>${S.rsvps.some(r => r.source === 'test') ? '<button class="btn r" data-a="delTest">Delete all test registrations</button>' : ''}<button class="btn" data-a="csv">Export CSV</button></div></div>
+    <div class="f3 mt"><div><label for="q">Search</label><input type="search" id="q" value="${esc(q)}" placeholder="Name, phone, city"></div>
+      <div><label for="qp">Pass</label><select id="qp"><option value="">All</option><option value="none" ${qPass === 'none' ? 'selected' : ''}>Not assigned</option>${st.passes.map(p => `<option value="${p.id}" ${qPass === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
+      <div><label for="qs">Call status</label><select id="qs"><option value="">All</option>${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${qStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div></div>
+    <details class="mt"><summary style="cursor:pointer;color:var(--blue);font-weight:600">+ Add a registration from a phone call</summary>
+      <form id="newR" class="mt"><div class="f3">
+        <div><label>Full name</label><input type="text" name="name" required></div>
+        <div><label>Mobile</label><input type="tel" name="phone" required></div>
+        <div><label>Pass</label><select name="pass"><option value="">Not assigned</option>${st.passes.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>
+        <div><label>Gender</label><select name="gender"><option value="male">Male</option><option value="female">Female</option></select></div>
+        <div><label>Branch</label><select name="branch"><option value=""></option>${st.branches.map(b => `<option>${esc(b)}</option>`).join('')}</select></div>
+        <div><label>City</label><input type="text" name="city"></div>
+        <div><label>Attending</label><select name="attend"><option value="both">Both days</option><option value="day1">Day 1 only</option></select></div>
+        <div><label>Overnight stay</label><select name="overnight"><option value="false">No</option><option value="true">Yes</option></select></div>
+        <div><label>Transport</label><select name="pickup"><option value="">Own transport</option>${st.pickupPoints.map(p => `<option>${esc(p)}</option>`).join('')}</select></div>
+        <div><label>Food</label><select name="food"><option value="nonveg">Non-veg</option><option value="veg">Veg</option></select></div>
+        <div><label>Note</label><input type="text" name="note"></div>
+      </div><div class="row mt"><button class="btn d">Add registration</button></div></form>
+    </details>
+    <div class="mt">${list.map(r => `<div class="rs">
+      <div><b>${esc(r.name)}</b> <span class="sub">${esc(r.branch)}</span><br>${r.phone ? `<a href="tel:${esc(r.phone)}" style="color:var(--blue)">${esc(r.phone)}</a>` : '<span class="sub">no phone</span>'} · ${esc(r.city || '—')}${r.email ? `<div class="sub">${esc(r.email)}</div>` : ''}<div class="sub">${when(r.createdAt)} · ${r.source === 'test' ? '<span class="pill o">Test</span>' : r.source === 'call' ? 'added by caller' : 'self-registered'}</div></div>
+      <div><span class="pill ${r.pass === 'platinum' ? 'd' : r.pass === 'gold' ? 'o' : ''}" style="${r.pass === 'platinum' ? 'background:#1C1D24;color:#fff' : ''}">${esc(passNm(r.pass))}</span>${r.gender ? `<span class="pill">${r.gender === 'female' ? 'Female' : 'Male'}</span>` : ''}<span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>
+        <input type="text" class="mt" data-rnote="${r.id}" value="${esc(r.note)}" placeholder="Caller note" style="margin-top:8px"></div>
+      <div class="row" style="align-items:stretch"><select data-rpass="${r.id}" style="flex:1" aria-label="Pass"><option value="" ${!r.pass ? 'selected' : ''}>Pass: not assigned</option>${S.settings.passes.map(p => `<option value="${p.id}" ${r.pass === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><select data-rstat="${r.id}" style="flex:1">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${r.callStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn s r" data-delr="${r.id}" style="height:40px">Delete</button></div>
+    </div>`).join('') || '<p class="hint">No registrations match.</p>'}</div>
+  </section>`;
+}
+
+// ------------------------------------------------------------ plan
+function plan() {
+  if (!sched) sched = S.schedule.map(x => ({ ...x }));
+  const teams = S.elections.filter(e => e.kind === 'role');
+  return `<div class="grid" style="grid-template-columns:minmax(0,1fr)">
+  <section class="card"><h2>Weekend schedule</h2><p class="hint">Shown on the Plan tab. Edit, then save.</p>
+    <div class="tw"><table><tr><th style="width:90px">Day</th><th style="width:120px">Time</th><th>Title</th><th>Note</th><th style="width:150px">For</th><th></th></tr>
+    ${sched.map((s, i) => `<tr><td><select data-s="${i}|day"><option value="1" ${s.day == 1 ? 'selected' : ''}>Day 1</option><option value="2" ${s.day == 2 ? 'selected' : ''}>Day 2</option></select></td>
+      <td><input type="text" data-s="${i}|time" value="${esc(s.time)}"></td><td><input type="text" data-s="${i}|title" value="${esc(s.title)}"></td><td><input type="text" data-s="${i}|note" value="${esc(s.note)}"></td><td><input type="text" data-s="${i}|tag" value="${esc(s.tag || '')}" placeholder="e.g. Platinum"></td>
+      <td><button class="btn s r" data-sdel="${i}">✕</button></td></tr>`).join('')}
+    </table></div>
+    <div class="row mt"><button class="btn" data-a="sadd">+ Add item</button><button class="btn p" data-a="ssave">Save schedule</button></div>
+  </section>
+  <section class="card"><h2>Team tasks</h2><p class="hint">Progress shows on each team in the app.</p>
+    ${teams.map(t => { const ts = S.tasks.filter(x => x.electionId === t.id); return `<div class="mt"><b>${esc(t.title)}</b> <span class="sub">${ts.filter(x => x.status === 'done').length}/${ts.length} done</span>
+      ${ts.map(x => `<div class="row" style="margin-top:6px"><select data-tstat="${x.id}" style="width:130px"><option value="todo" ${x.status === 'todo' ? 'selected' : ''}>To do</option><option value="doing" ${x.status === 'doing' ? 'selected' : ''}>In progress</option><option value="done" ${x.status === 'done' ? 'selected' : ''}>Done</option></select><span style="flex:1;min-width:160px">${esc(x.title)}</span><button class="btn s r" data-tdel="${x.id}">✕</button></div>`).join('')}</div>`; }).join('')}
+    <form id="newT" class="f3 mt" style="align-items:end;border-top:1px solid #EEF0F4;padding-top:14px"><div><label>Team</label><select name="electionId">${teams.map(t => `<option value="${t.id}">${esc(t.title)}</option>`).join('')}</select></div><div><label>Task</label><input type="text" name="title" required></div><div><button class="btn d">Add task</button></div></form>
+  </section></div>`;
+}
+
+// ------------------------------------------------------------ chat
+function chat() {
+  const C = S.chat, P = Object.fromEntries(C.plans.map(p => [p.id, p]));
+  const pend = C.users.filter(u => u.requested && u.status !== 'revoked');
+  const subs = C.users.filter(u => u.status === 'active' || u.status === 'revoked');
+  const ST = { none:'No plan', pending:'Requested', active:'Active', declined:'Declined', revoked:'Removed' };
+  const planSel = (u, def) => `<select data-cplan="${u.id}" style="width:150px">${C.plans.map(p => `<option value="${p.id}" ${p.id === def ? 'selected' : ''}>${esc(p.name)} · ₹${p.price}</option>`).join('')}</select>`;
+  return `<div class="grid" style="grid-template-columns:minmax(0,1fr)">
+  <section class="card"><h2>Chat members (${C.users.length})</h2><p class="hint">Everyone who accepted the chat rules.</p>
+    <div class="tw"><table><tr><th>Name</th><th>Status</th><th>Messages sent</th><th></th></tr>
+    ${C.users.map(u => `<tr><td><b>${esc(u.name)}</b></td><td><span class="pill ${u.status === 'revoked' ? 'r' : 'g'}">${u.status === 'revoked' ? 'Removed' : 'Active'}</span></td>
+      <td>${u.used || 0}</td>
+      <td><div class="row"><button class="btn s" data-cwarn="${u.id}">Message</button>${u.status !== 'revoked' ? `<button class="btn r s" data-crevoke="${u.id}">Remove access</button>` : `<button class="btn s" data-crestore="${u.id}">Restore access</button>`}</div>${u.flags ? `<div class="sub" style="color:var(--red)">${u.flags} blocked</div>` : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="hint">Nobody has joined chat yet.</td></tr>'}
+    </table></div>
+  </section>
+  <section class="card"><h2>Blocked messages (${C.flags.length})</h2><p class="hint">Messages stopped by the filter (phone numbers, contact requests, blocked words, spam). The sender gets an automatic warning; send another if needed.</p>
+    ${C.flags.map(f => `<div class="rs" style="grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto"><div><b>${esc(f.name)}</b> → ${esc(f.toName)}<div class="sub">${when(f.t)}</div></div><div><div style="white-space:pre-wrap">${esc(f.text)}</div><div class="sub" style="color:var(--red)">${esc(f.reason)}</div></div><div><button class="btn s" data-cwarn="${f.uid}">Send warning</button></div></div>`).join('') || '<p class="hint">Nothing blocked yet.</p>'}
+  </section>
+  <section class="card"><h2>Blocked words</h2><p class="hint">Messages containing any of these words or phrases are not delivered. One per line. Phone numbers, emails and requests for contact details are always blocked.</p>
+    <textarea id="blockedWords" style="min-height:120px">${esc(C.blocked.join('\n'))}</textarea>
+    <div class="row mt"><button class="btn p" data-a="saveBlocked">Save blocked words</button></div>
+  </section>
+  <section class="card"><h2>Messages (latest ${C.messages.length})</h2><p class="hint">For moderation only. Delete anything that breaks the chat rules.</p>
+    ${C.messages.map(m => `<div class="rs" style="grid-template-columns:minmax(0,1fr) minmax(0,2.4fr) auto"><div><b>${esc(m.fromName)}</b> → ${esc(m.toName)}<div class="sub">${when(m.t)}</div></div><div style="white-space:pre-wrap">${esc(m.text)}</div><div><button class="btn r s" data-cdel="${m.id}">Delete</button></div></div>`).join('') || '<p class="hint">No messages yet.</p>'}
+  </section></div>`;
+}
+
+// ------------------------------------------------------------ settings
+function settings() {
+  const s = S.settings;
+  return `<section class="card" style="max-width:820px"><h2>Event details</h2><p class="hint">Shown across the app.</p>
+    <form id="sForm"><div class="f2">
+      <div><label>Event name</label><input type="text" name="eventTitle" value="${esc(s.eventTitle)}"></div>
+      <div><label>Years since graduation</label><input type="text" name="years" value="${esc(s.years)}"></div>
+      <div><label>College short name</label><input type="text" name="collegeName" value="${esc(s.collegeName)}"></div>
+      <div><label>College full name</label><input type="text" name="collegeFull" value="${esc(s.collegeFull)}"></div>
+      <div><label>College location</label><input type="text" name="location" value="${esc(s.location)}"></div>
+      <div><label>Reunion date (text)</label><input type="text" name="eventDate" value="${esc(s.eventDate)}"></div>
+      <div><label>Expected attendees (admin only)</label><input type="number" name="expected" value="${s.expected}"></div>
+      <div><label>Venue status (e.g. "Not yet confirmed" or "Confirmed: Radisson Blu")</label><input type="text" name="venueStatus" value="${esc(s.venueStatus || '')}"></div>
+      <div><label>Shown registrations: extra men</label><input type="number" name="regBaseMale" value="${s.regBaseMale}"></div>
+      <div><label>Shown registrations: extra women</label><input type="number" name="regBaseFemale" value="${s.regBaseFemale}"></div>
+    </div>
+    <p class="hint mt">Home shows Registered / Men / Women as these extra counts plus real registrations. Set both to 0 to show only real numbers.</p>
+    <div class="mt"><label>Announcement banner (leave empty to hide)</label><textarea name="announcement">${esc(s.announcement)}</textarea></div>
+    <div class="f2 mt"><div><label>Branches (comma separated)</label><input type="text" name="branches" value="${esc(s.branches.join(', '))}"></div>
+      <div><label>Pickup points (comma separated)</label><input type="text" name="pickupPoints" value="${esc(s.pickupPoints.join(', '))}"></div></div>
+    <h2 class="mt" style="margin-top:22px">Passes</h2><p class="hint">Benefits are shown on the Passes page, one per line. Leave the price empty to hide it. Extra counts are added to real registrations; keep their total equal to men + women above.</p>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit, minmax(240px, 1fr))">${s.passes.map(p => `<div class="kpi" style="display:flex;flex-direction:column;gap:8px">
+      <div><label>Name</label><input type="text" name="pass_${p.id}_name" value="${esc(p.name)}"></div>
+      <div><label>Tagline</label><input type="text" name="pass_${p.id}_tagline" value="${esc(p.tagline || '')}"></div>
+      <div><label>Price (optional)</label><input type="text" name="pass_${p.id}_price" value="${esc(p.price || '')}" placeholder="e.g. ₹5,000"></div>
+      <div><label>Benefits (one per line)</label><textarea name="pass_${p.id}_benefits" style="min-height:150px">${esc(p.benefits.join('\n'))}</textarea></div>
+      <div><label>Shown registrations: extra</label><input type="number" name="pass_${p.id}_base" value="${(s.passBase || {})[p.id] || 0}"></div>
+    </div>`).join('')}</div>
+    <div class="row mt" style="gap:20px"><label class="check"><input type="checkbox" name="votingOpen" ${s.votingOpen ? 'checked' : ''}> Voting open</label><label class="check"><input type="checkbox" name="rsvpOpen" ${s.rsvpOpen ? 'checked' : ''}> Registrations open</label></div>
+    <div class="row mt"><button class="btn p">Save settings</button></div></form>
+  </section>`;
+}
+
+// ------------------------------------------------------------ actions
+const E = () => S.elections.find(x => x.id === selE);
+const actions = {
+  saveAuto: async () => { await api('/auto', { method:'PUT', json:{ on:$('aOn').checked, intervalMin:+$('aInt').value } }); toast('Saved'); },
+  step: async () => { await api('/auto/step', { method:'POST' }); toast('Moved to the next update'); },
+  restart: async () => { if (!confirm('Restart the scripted story from now? Scripted numbers go back to their starting values.')) return false; await api('/auto/restart', { method:'POST' }); toast('Restarted'); },
+  startE: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ status:'live' } }); toast('Voting started. It now shows on Home.'); },
+  closeE: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ status:'closed' } }); toast('Voting closed'); },
+  saveBlocked: async () => { await api('/chat/blocked', { method:'PUT', json:{ words:$('blockedWords').value.split('\n').map(x => x.trim()).filter(Boolean) } }); toast('Blocked words saved'); },
+  addTest: async () => {
+    if (!confirm('Add 54 test registrations? They are marked "Test", have no phone numbers, and replace the extra counts in Settings so Home shows 54.')) return false;
+    const r = await api('/rsvps/test', { method:'POST', json:{ count:54 } }); toast(`${r.added} test registrations added`);
+  },
+  delTest: async () => {
+    if (!confirm('Delete all test registrations? Real registrations are not affected.')) return false;
+    const r = await api('/rsvps/test', { method:'DELETE' }); toast(`${r.removed} test registrations deleted`);
+  },
+  up: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ move:'up' } }); },
+  down: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ move:'down' } }); },
+  resetVotes: async () => { if (!confirm(`Reset all votes in "${E().title}"? Real votes and manual changes are removed.`)) return false; await api(`/elections/${selE}/reset-votes`, { method:'POST' }); toast('Votes reset'); },
+  delE: async () => { if (!confirm(`Delete the election "${E().title}" and its tasks?`)) return false; await api(`/elections/${selE}`, { method:'DELETE' }); selE = null; toast('Deleted'); },
+  sadd: async () => { sched.push({ day:1, time:'', title:'', note:'', tag:'' }); render(); return false; },
+  ssave: async () => { await api('/schedule', { method:'PUT', json:{ items:sched } }); sched = null; toast('Schedule saved'); },
+  csv: async () => {
+    const cols = ['name','email','pass','gender','branch','phone','city','attend','overnight','pickup','food','callStatus','note','source','createdAt'];
+    const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [cols.join(',')].concat(S.rsvps.map(r => cols.map(c => cell(c === 'createdAt' ? new Date(r[c]).toISOString() : r[c])).join(',')));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + rows.join('\n')], { type:'text/csv' }));
+    a.download = 'reunion-registrations.csv'; a.click();
+    return false;
+  }
+};
+
+document.addEventListener('click', run(async e => {
+  const t = e.target;
+  const a = t.closest('[data-a]'); if (a) { e.preventDefault(); if ((await actions[a.dataset.a]()) !== false) await load(); return; }
+  const s = t.closest('[data-sel]'); if (s) { selE = s.dataset.sel; render(); return; }
+  const adj = t.closest('[data-adj]'); if (adj) { const [cid, d] = adj.dataset.adj.split('|'); await api(`/elections/${selE}/candidates/${cid}`, { method:'PUT', json:{ delta:+d } }); return load(); }
+  const clr = t.closest('[data-clr]'); if (clr) { await api(`/elections/${selE}/candidates/${clr.dataset.clr}`, { method:'PUT', json:{ clear:true } }); return load(); }
+  const dc = t.closest('[data-delc]'); if (dc) { if (!confirm('Remove this candidate and their votes?')) return; await api(`/elections/${selE}/candidates/${dc.dataset.delc}`, { method:'DELETE' }); return load(); }
+  const dr = t.closest('[data-delr]'); if (dr) { if (!confirm('Delete this registration?')) return; await api(`/rsvps/${dr.dataset.delr}`, { method:'DELETE' }); return load(); }
+  const sd = t.closest('[data-sdel]'); if (sd) { sched.splice(+sd.dataset.sdel, 1); render(); return; }
+  const ca = t.closest('[data-capprove]');
+  if (ca) { const sel = ca.closest('tr') && ca.closest('tr').querySelector('select'); await api(`/chat/${ca.dataset.capprove}`, { method:'POST', json:{ action:'approve', plan: sel ? sel.value : undefined } }); toast('Plan activated'); return load(); }
+  const cd = t.closest('[data-cdecline]'); if (cd) { await api(`/chat/${cd.dataset.cdecline}`, { method:'POST', json:{ action:'decline' } }); toast('Request declined'); return load(); }
+  const cr = t.closest('[data-crevoke]'); if (cr) { if (!confirm('Remove this person\'s chat access?')) return; await api(`/chat/${cr.dataset.crevoke}`, { method:'POST', json:{ action:'revoke' } }); toast('Access removed'); return load(); }
+  const va = t.closest('[data-vapprove]'); if (va) { await api(`/elections/${selE}/candidates/${va.dataset.vapprove}/video`, { method:'POST', json:{ action:'approve' } }); toast('Video approved'); return load(); }
+  const vr = t.closest('[data-vremove]'); if (vr) { await api(`/elections/${selE}/candidates/${vr.dataset.vremove}/video`, { method:'POST', json:{ action:'remove' } }); toast('Video removed'); return load(); }
+  const va2 = t.closest('[data-vapprove2]'); if (va2) { const [x, c] = va2.dataset.vapprove2.split('|'); await api(`/elections/${x}/candidates/${c}/video`, { method:'POST', json:{ action:'approve' } }); toast('Video approved'); return load(); }
+  const vr2 = t.closest('[data-vremove2]'); if (vr2) { const [x, c] = vr2.dataset.vremove2.split('|'); await api(`/elections/${x}/candidates/${c}/video`, { method:'POST', json:{ action:'remove' } }); toast('Video rejected'); return load(); }
+  const cre = t.closest('[data-crestore]'); if (cre) { await api(`/chat/${cre.dataset.crestore}`, { method:'POST', json:{ action:'restore' } }); toast('Access restored'); return load(); }
+  const cw = t.closest('[data-cwarn]');
+  if (cw) {
+    const text = prompt('Message from the Organising Committee:', 'Please stop asking batchmates for phone numbers or personal details in chat. Keep messages respectful and professional, or your chat access will be removed.');
+    if (!text) return;
+    await api(`/chat/${cw.dataset.cwarn}/message`, { method:'POST', json:{ text } }); toast('Message sent'); return load();
+  }
+  const cm = t.closest('[data-cdel]'); if (cm) { if (!confirm('Delete this message?')) return; await api(`/chat/messages/${cm.dataset.cdel}`, { method:'DELETE' }); toast('Message deleted'); return load(); }
+  const td = t.closest('[data-tdel]'); if (td) { await api(`/tasks/${td.dataset.tdel}`, { method:'DELETE' }); return load(); }
+}));
+
+document.addEventListener('change', run(async e => {
+  const t = e.target;
+  if (t.dataset.cname) { await api(`/elections/${selE}/candidates/${t.dataset.cname}`, { method:'PUT', json:{ name:t.value } }); toast('Name saved'); return load(); }
+  if (t.dataset.cnote !== undefined && t.dataset.cnote) { await api(`/elections/${selE}/candidates/${t.dataset.cnote}`, { method:'PUT', json:{ note:t.value } }); toast('Note saved'); return; }
+  if (t.dataset.rpass) { await api(`/rsvps/${t.dataset.rpass}`, { method:'PUT', json:{ pass:t.value } }); toast('Pass updated'); return load(); }
+  if (t.dataset.rstat) { await api(`/rsvps/${t.dataset.rstat}`, { method:'PUT', json:{ callStatus:t.value } }); toast('Status saved'); return load(); }
+  if (t.dataset.rnote) { await api(`/rsvps/${t.dataset.rnote}`, { method:'PUT', json:{ note:t.value } }); toast('Note saved'); return; }
+  if (t.dataset.tstat) { await api(`/tasks/${t.dataset.tstat}`, { method:'PUT', json:{ status:t.value } }); return load(); }
+  if (t.dataset.s) { const [i, k] = t.dataset.s.split('|'); sched[+i][k] = k === 'day' ? +t.value : t.value; return; }
+  if (t.id === 'qs') { qStatus = t.value; render(); }
+  if (t.id === 'qp') { qPass = t.value; render(); }
+}));
+document.addEventListener('keydown', run(async e => {
+  if (e.key === 'Enter' && e.target.dataset && e.target.dataset.vset) {
+    e.preventDefault();
+    await api(`/elections/${selE}/candidates/${e.target.dataset.vset}/video`, { method:'POST', json:{ action:'set', url:e.target.value } }); toast('Video added'); return load();
+  }
+}));
+document.addEventListener('input', e => { if (e.target.id === 'q') { q = e.target.value; const pos = e.target.selectionStart; render(); const n = $('q'); n.focus(); n.setSelectionRange(pos, pos); } });
+
+document.addEventListener('submit', run(async e => {
+  e.preventDefault();
+  const f = e.target, d = Object.fromEntries(new FormData(f));
+  if (f.id === 'newE') { const r = await api('/elections', { method:'POST', json:d }); selE = r.id; toast('Election added'); }
+  else if (f.id === 'eForm') {
+    for (const k of ['cap','dipEvery','rateMin','rateMax','startTotal']) if (k in d) d[k] = +d[k];
+    d.openNominations = !!d.openNominations;
+    await api(`/elections/${selE}`, { method:'PUT', json:d }); toast('Election saved');
+  }
+  else if (f.id === 'newC') { await api(`/elections/${selE}/candidates`, { method:'POST', json:d }); toast('Candidate added'); }
+  else if (f.id === 'newR') { d.overnight = d.overnight === 'true'; await api('/rsvps', { method:'POST', json:d }); toast('Registration added'); }
+  else if (f.id === 'newT') { await api('/tasks', { method:'POST', json:d }); toast('Task added'); }
+  else if (f.id === 'sForm') {
+    const ids = S.settings.passes.map(p => p.id);
+    d.passes = ids.map(id => ({ id, name:d[`pass_${id}_name`], tagline:d[`pass_${id}_tagline`], price:d[`pass_${id}_price`], benefits:String(d[`pass_${id}_benefits`] || '').split('\n').map(x => x.trim()).filter(Boolean) }));
+    d.passBase = Object.fromEntries(ids.map(id => [id, +d[`pass_${id}_base`]]));
+    for (const k of Object.keys(d)) if (k.startsWith('pass_')) delete d[k];
+    const json = { ...d, expected:+d.expected, regBaseMale:+d.regBaseMale, regBaseFemale:+d.regBaseFemale, votingOpen:!!d.votingOpen, rsvpOpen:!!d.rsvpOpen,
+      branches:d.branches.split(',').map(x => x.trim()).filter(Boolean), pickupPoints:d.pickupPoints.split(',').map(x => x.trim()).filter(Boolean) };
+    await api('/settings', { method:'PUT', json }); toast('Settings saved');
+  }
+  await load();
+}));
+
+if (PW) api('/login', { method:'POST' }).then(start).catch(() => {});
+</script>
+</body>
+</html>
