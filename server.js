@@ -13,6 +13,8 @@ const newId = () => crypto.randomBytes(6).toString('hex');
 // privacy: outside live polls, people are shown as an initial plus stars
 const mask = name => (String(name || '?').trim().charAt(0).toUpperCase() || '?') + '*'.repeat(10);
 // registration list format: first initial + 6 stars + second initial + 5 stars, e.g. Ravi Kumar -> R******K*****
+// real names in the registered list and chat when the admin allows it
+const shownName = (name, key) => (db.settings.showNames ? String(name || 'Batchmate').trim() : maskFull(name, key));
 function maskFull(name, key = '') {
   const w = String(name || '').trim().split(/\s+/).filter(Boolean);
   if (!w.length) return '?************';
@@ -72,7 +74,7 @@ function defaultDb() {
   const T = (electionId, title, status = 'todo') => ({ id: newId(), electionId, title, status });
 
   return {
-    v: 9,
+    v: 10,
     settings: {
       eventTitle: 'Silver Jubilee Reunion',
       collegeName: 'TPIST',
@@ -118,7 +120,8 @@ function defaultDb() {
       branches: ['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT'],
       pickupPoints: ['Bobbili', 'Vizianagaram', 'Visakhapatnam Railway Station', 'Visakhapatnam Airport', 'Srikakulam'],
       votingOpen: true,
-      rsvpOpen: true
+      rsvpOpen: true,
+      showNames: true
     },
     auto: {
       on: true,
@@ -223,7 +226,8 @@ async function loadDb() {
     // v9: ad likes, badge, video preview; move the first ad to the top of Home
     data = { ...data, v: 9, ads: (data.ads || []).map(a => ({ badge: a.id === 'meetho' ? 'Featured' : '', video: null, likes: {}, ...a, placement: a.id === 'meetho' && a.placement === 'home-middle' ? 'home-top' : a.placement })) };
   }
-  if (!data || data.v !== 9) return d;
+  if (data && data.v === 9) data = { ...data, v: 10, settings: { ...data.settings, showNames: true } };
+  if (!data || data.v !== 10) return d;
   return { ...d, ...data, chat: data.chat || d.chat, settings: { ...d.settings, ...data.settings }, auto: { ...d.auto, ...data.auto } };
 }
 
@@ -569,7 +573,7 @@ app.post('/api/ads/:id/view', (req, res) => {
 app.get('/api/members', (req, res) => {
   const key = voterIdOf(req, res);
   const list = Object.values(db.rsvps).sort((a, b) => (b.voterId === key) - (a.voterId === key) || b.createdAt - a.createdAt)
-    .map(r => ({ name: maskFull(r.name, r.id), you: r.voterId === key }));
+    .map(r => ({ name: shownName(r.name, r.id), you: r.voterId === key }));
   res.json({ total: list.length, members: list });
 });
 
@@ -646,7 +650,7 @@ const maskKey = uid => (rsvpOfUser(uid) || {}).id || uid;
 function profileOf(uid, full = false) {
   if (uid === COMMITTEE) return { id: COMMITTEE, name: 'Organising Committee', branch: '', city: '', committee: true };
   const r = rsvpOfUser(uid);
-  if (!full) return { id: uid, name: maskFull(displayName(uid), maskKey(uid)), branch: '', city: '' };
+  if (!full) return { id: uid, name: shownName(displayName(uid), maskKey(uid)), branch: '', city: '' };
   return { id: uid, name: displayName(uid), branch: r ? r.branch : '', city: r ? r.city : '' };
 }
 const DEFAULT_BLOCKED = ['idiot', 'stupid', 'bloody', 'bastard', 'fuck', 'shit', 'sexy', 'sex', 'dating', 'date with me', 'nude', 'pervert'];
@@ -730,11 +734,11 @@ app.get('/api/chat/people', (req, res) => {
   for (const r of Object.values(db.rsvps)) {
     const uid = r.voterId && r.voterId.startsWith('u:') ? r.voterId.slice(2) : null;
     if (uid) seen.add(uid);
-    list.push({ id: uid === my ? null : (chatOk(uid) ? uid : null), name: maskFull(r.name, r.id), canChat: uid !== my && chatOk(uid), you: uid === my, t: r.createdAt });
+    list.push({ id: uid === my ? null : (chatOk(uid) ? uid : null), name: shownName(r.name, r.id), canChat: uid !== my && chatOk(uid), you: uid === my, t: r.createdAt });
   }
   for (const uid of Object.keys(db.chat.users)) {
     if (seen.has(uid) || !db.users[uid]) continue;
-    list.push({ id: uid === my ? null : (chatOk(uid) ? uid : null), name: maskFull(displayName(uid), uid), canChat: uid !== my && chatOk(uid), you: uid === my, t: db.users[uid].createdAt });
+    list.push({ id: uid === my ? null : (chatOk(uid) ? uid : null), name: shownName(displayName(uid), uid), canChat: uid !== my && chatOk(uid), you: uid === my, t: db.users[uid].createdAt });
   }
   list.sort((a, b) => (b.you - a.you) || (b.canChat - a.canChat) || (b.t - a.t));
   res.json(list.map(({ t, ...x }) => x));
@@ -870,7 +874,7 @@ A.put('/settings', (req, res) => {
   for (const k of ['branches', 'pickupPoints']) {
     if (Array.isArray(b[k])) s[k] = b[k].map(x => str(x, 60)).filter(Boolean).slice(0, 30);
   }
-  for (const k of ['votingOpen', 'rsvpOpen']) if (typeof b[k] === 'boolean') s[k] = b[k];
+  for (const k of ['votingOpen', 'rsvpOpen', 'showNames']) if (typeof b[k] === 'boolean') s[k] = b[k];
   if (Array.isArray(b.passes)) {
     s.passes = s.passes.map(p => {
       const n = b.passes.find(x => x && x.id === p.id);

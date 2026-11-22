@@ -291,7 +291,7 @@ const P = {
   play: '<polygon points="7 4 20 12 7 20" fill="currentColor" stroke="none"/>',
   video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/>'
 };
-const masked = n => `<span style="font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em">${esc(n)}</span>`;
+const masked = n => S && S.settings.showNames ? `<span style="font-weight:600">${esc(n)}</span>` : `<span style="font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em">${esc(n)}</span>`;
 const youTag = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--ok);background:var(--ok-soft);padding:5px 10px;border-radius:99px">${'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/></svg>'}You</span>`;
 const lockNote = (t = 'Names are visible to the admin only.') => `<div class="note-bar" style="background:var(--track);border-color:var(--line);color:var(--muted)">${svg(P.lock, 18)}<span>${t}</span></div>`;
 const ICONS = {
@@ -526,10 +526,10 @@ let MEM = null;
 function membersPage() {
   if (!MEM) { api2('/api/members').then(d => { MEM = d; if (route()[0] === 'members') render(); }).catch(e => toast(e.message)); return '<div class="loading">Loading…</div>'; }
   const rows = MEM.members.map(m => `<div class="conv" style="${m.you ? 'background:var(--ok-soft);border-radius:12px;padding:12px;margin:0 -6px;border-top:0' : ''}">${avatar(m.name)}<div class="m"><div class="n">${masked(m.name)}</div></div>
-    ${m.you ? youTag : `<span style="color:#A3A8BA" aria-label="Locked">${svg(P.lock, 18)}</span>`}</div>`).join('');
+    ${m.you ? youTag : S.settings.showNames ? '' : `<span style="color:#A3A8BA" aria-label="Locked">${svg(P.lock, 18)}</span>`}</div>`).join('');
   return `<a class="back" href="#home">‹ Home</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">Registered batchmates</h1>
-    <p class="sub">${MEM.total} registered so far. Names are hidden for privacy.</p></div>
-    ${lockNote('Full names are visible to the organising committee only.')}
+    <p class="sub">${MEM.total} registered so far.${S.settings.showNames ? '' : ' Names are hidden for privacy.'}</p></div>
+    ${S.settings.showNames ? '' : lockNote('Full names are visible to the organising committee only.')}
     <div class="card" style="margin-top:14px">${rows || '<div class="empty">No registrations yet.</div>'}</div>${footer()}`;
 }
 function passesPage() {
@@ -634,7 +634,7 @@ function privacyPage(signedIn) {
     <h2>Why</h2><p>Only to organise the reunion: headcounts, food, rooms, transport, elections and chat between batchmates.</p>
     <h2>Who can see it</h2>
     <ul><li>The organising committee can see registrations, votes and chat messages (for moderation).</li>
-    <li>Other batchmates only see names of nominees while a poll is live. Everywhere else, including chat, people appear only as counts or as an initial with hidden letters. Your mobile number and email are never shown to other batchmates.</li></ul>
+    <li>Other batchmates can see the names of registered batchmates (in the Registered list and in Chat) and of nominees in live polls. Your mobile number, email and other registration details are never shown to other batchmates.</li></ul>
     <h2>Where it is stored</h2><p>On the app's hosting service and database. We never sell or share your data with anyone outside the committee.</p>
     <h2>Your choices</h2><p>You can edit your registration at any time and sign out from the RSVP page. To have your data deleted, ask the organising committee. All data will be deleted after the reunion.</p>
   </div>${footer()}`;
@@ -761,16 +761,17 @@ function paintInbox(v) {
   const convs = C.conversations.map(c => `<a class="conv ${c.unread ? 'unread' : ''}" href="#chat/${esc(c.id)}">${c.committee ? `<div class="av" style="background:var(--accent);color:#fff">${svg(P.info, 20)}</div>` : avatar(c.name)}
     <div class="m"><div class="n"><span>${esc(c.name)}</span><small>${ago(c.t)}</small></div><div class="l">${c.mine ? 'You: ' : ''}${esc(c.last)}</div></div>
     ${c.unread ? `<span class="ub">${c.unread}</span>` : ''}</a>`).join('');
-  v.innerHTML = `<div class="pad"><h1 class="h1 d">Chat</h1><p class="sub">Private messages with your batchmates. ${C.members} batchmate${C.members === 1 ? '' : 's'} in chat. Names are partly hidden for privacy.</p></div>
+  v.innerHTML = `<div class="pad"><h1 class="h1 d">Chat</h1><p class="sub">Private messages with your batchmates. ${C.members} batchmate${C.members === 1 ? '' : 's'} in chat.${S.settings.showNames ? '' : ' Names are partly hidden for privacy.'}</p></div>
     <div style="height:14px"></div>${status}
     <div class="sec"><h2 class="d">Messages</h2>${C.status === 'active' ? '<a href="#chat/new">New</a>' : ''}</div>
     <div class="card">${convs || '<div class="empty">No messages yet.</div>'}</div>${footer()}`;
 }
 function paintPeople(v) {
-  const list = (people || []).filter(p => !peopleQ || p.name.toLowerCase().startsWith(peopleQ.trim().toLowerCase().charAt(0)));
+  const q = peopleQ.trim().toLowerCase();
+  const list = (people || []).filter(p => !q || (S.settings.showNames ? p.name.toLowerCase().includes(q) : p.name.toLowerCase().startsWith(q.charAt(0))));
   const open = (people || []).filter(p => p.canChat).length;
-  v.innerHTML = `<a class="back" href="#chat">‹ Chat</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">New message</h1><p class="sub">${(people || []).length} registered · ${open} available to chat. Names are hidden for privacy.</p></div>
-    <div class="search"><input type="search" id="pq" placeholder="Search by first letter" value="${esc(peopleQ)}" aria-label="Search batchmates"></div>
+  v.innerHTML = `<a class="back" href="#chat">‹ Chat</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">New message</h1><p class="sub">${(people || []).length} registered · ${open} available to chat.${S.settings.showNames ? ' Batchmates with a chat icon have joined chat.' : ' Names are hidden for privacy.'}</p></div>
+    <div class="search"><input type="search" id="pq" placeholder="${S.settings.showNames ? 'Search by name' : 'Search by first letter'}" value="${esc(peopleQ)}" aria-label="Search batchmates"></div>
     <div class="card">${list.map(p => p.canChat
       ? `<a class="conv" href="#chat/${esc(p.id)}">${avatar(p.name)}<div class="m"><div class="n">${masked(p.name)}</div><div class="l">Tap to chat</div></div><span style="color:var(--accent)">${svg(P.chat, 20)}</span></a>`
       : `<div class="conv" aria-disabled="true" style="${p.you ? 'background:var(--ok-soft);border-radius:12px;padding:12px;margin:0 -6px;border-top:0' : 'opacity:.75'}">${avatar(p.name)}<div class="m"><div class="n">${masked(p.name)}</div></div>${p.you ? youTag : `<span style="color:#A3A8BA" aria-label="Locked">${svg(P.lock, 18)}</span>`}</div>`).join('')

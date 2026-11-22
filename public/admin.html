@@ -369,7 +369,7 @@ function settings() {
       <div><label>Benefits (one per line)</label><textarea name="pass_${p.id}_benefits" style="min-height:150px">${esc(p.benefits.join('\n'))}</textarea></div>
       <div><label>Shown registrations: extra</label><input type="number" name="pass_${p.id}_base" value="${(s.passBase || {})[p.id] || 0}"></div>
     </div>`).join('')}</div>
-    <div class="row mt" style="gap:20px"><label class="check"><input type="checkbox" name="votingOpen" ${s.votingOpen ? 'checked' : ''}> Voting open</label><label class="check"><input type="checkbox" name="rsvpOpen" ${s.rsvpOpen ? 'checked' : ''}> Registrations open</label></div>
+    <div class="row mt" style="gap:20px"><label class="check"><input type="checkbox" name="votingOpen" ${s.votingOpen ? 'checked' : ''}> Voting open</label><label class="check"><input type="checkbox" name="rsvpOpen" ${s.rsvpOpen ? 'checked' : ''}> Registrations open</label><label class="check"><input type="checkbox" name="showNames" ${s.showNames ? 'checked' : ''}> Show real names in the Registered list and Chat</label></div>
     <div class="row mt"><button class="btn p">Save settings</button></div></form>
   </section>`;
 }
@@ -482,7 +482,7 @@ document.addEventListener('submit', run(async e => {
     d.passes = ids.map(id => ({ id, name:d[`pass_${id}_name`], tagline:d[`pass_${id}_tagline`], price:d[`pass_${id}_price`], benefits:String(d[`pass_${id}_benefits`] || '').split('\n').map(x => x.trim()).filter(Boolean) }));
     d.passBase = Object.fromEntries(ids.map(id => [id, +d[`pass_${id}_base`]]));
     for (const k of Object.keys(d)) if (k.startsWith('pass_')) delete d[k];
-    const json = { ...d, expected:+d.expected, regBaseMale:+d.regBaseMale, regBaseFemale:+d.regBaseFemale, votingOpen:!!d.votingOpen, rsvpOpen:!!d.rsvpOpen,
+    const json = { ...d, expected:+d.expected, regBaseMale:+d.regBaseMale, regBaseFemale:+d.regBaseFemale, votingOpen:!!d.votingOpen, rsvpOpen:!!d.rsvpOpen, showNames:!!d.showNames,
       branches:d.branches.split(',').map(x => x.trim()).filter(Boolean), pickupPoints:d.pickupPoints.split(',').map(x => x.trim()).filter(Boolean) };
     await api('/settings', { method:'PUT', json }); toast('Settings saved');
   }
