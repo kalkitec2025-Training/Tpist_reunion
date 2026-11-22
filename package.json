@@ -1,12 +1,11 @@
 {
-  "name": "tpist-reunion",
-  "version": "2.0.0",
-  "description": "TPIST Silver Jubilee Reunion: elections, RSVPs and event plan",
+  "name": "meetho-mohan",
+  "version": "3.0.0",
+  "description": "Single page for the Meetho Mohan YouTube channel",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
   "engines": { "node": ">=18" },
   "dependencies": {
-    "cookie-parser": "^1.4.6",
     "express": "^4.19.2",
     "pg": "^8.12.0"
   }
