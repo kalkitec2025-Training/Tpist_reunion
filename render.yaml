@@ -9,3 +9,5 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false          # only used once, to delete the old reunion data
+      - key: YOUTUBE_API_KEY
+        sync: false          # optional: lists every video with exact totals
