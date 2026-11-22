@@ -49,6 +49,8 @@
   @media (max-width:760px) { .crow { grid-template-columns:minmax(0,1fr) 80px; } .crow .acts { grid-column:1 / -1; } }
   .votes { font-size:20px; font-weight:700; } .votes small { display:block; font-size:11px; color:var(--muted); font-weight:500; }
   .rs { border-top:1px solid #EEF0F4; padding:12px 0; display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1.6fr) minmax(0,1fr); gap:12px; align-items:start; }
+  .acc { border-top:1px solid #EEF0F4; padding:10px 0; display:grid; grid-template-columns:40px minmax(0,1fr) auto; gap:10px; align-items:center; }
+  .acc img, .acc .av { width:40px; height:40px; border-radius:50%; object-fit:cover; background:#E8EEF9; color:#2563EB; display:grid; place-items:center; font-weight:700; }
   @media (max-width:760px) { .rs { grid-template-columns:minmax(0,1fr); } }
   .hist { font-size:12px; color:var(--muted); line-height:1.7; }
   #login { max-width:360px; margin:80px auto; }
@@ -217,7 +219,7 @@ function electionEditor(e) {
 function rsvps() {
   const st = S.settings;
   const list = S.rsvps.filter(r => (!qPass || (qPass === 'none' ? !r.pass : r.pass === qPass)) && (!qStatus || r.callStatus === qStatus) && (!q || `${r.name} ${r.phone} ${r.city} ${r.branch}`.toLowerCase().includes(q.toLowerCase())));
-  return `<section class="card">
+  return accountsCard() + `<section class="card">
     <div class="hrow"><h2>Registrations (${S.rsvps.length}${S.rsvps.some(r => r.source === 'test') ? `, ${S.rsvps.filter(r => r.source === 'test').length} test` : ''})</h2>
       <div class="row"><button class="btn" data-a="addTest">Add 54 test registrations</button>${S.rsvps.some(r => r.source === 'test') ? '<button class="btn r" data-a="delTest">Delete all test registrations</button>' : ''}<button class="btn" data-a="csv">Export CSV</button></div></div>
     <div class="f3 mt"><div><label for="q">Search</label><input type="search" id="q" value="${esc(q)}" placeholder="Name, phone, city"></div>
@@ -245,6 +247,20 @@ function rsvps() {
       <div class="row" style="align-items:stretch"><select data-rpass="${r.id}" style="flex:1" aria-label="Pass"><option value="" ${!r.pass ? 'selected' : ''}>Pass: not assigned</option>${S.settings.passes.map(p => `<option value="${p.id}" ${r.pass === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><select data-rstat="${r.id}" style="flex:1">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${r.callStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn s r" data-delr="${r.id}" style="height:40px">Delete</button></div>
     </div>`).join('') || '<p class="hint">No registrations match.</p>'}</div>
   </section>`;
+}
+
+// ------------------------------------------------------------ signed-in accounts
+function accountsCard() {
+  const A = S.accountList || [], reg = A.filter(a => a.registered).length;
+  return `<section class="card" style="margin-bottom:16px">
+    <div class="hrow"><h2>Signed-in accounts (${A.length})</h2><span class="sub">${reg} registered · ${A.length - reg} not registered yet</span></div>
+    <details class="mt" ${A.length && A.length <= 15 ? 'open' : ''}><summary style="cursor:pointer;color:var(--blue);font-weight:600">${A.length ? 'Show Gmail accounts' : 'No one has signed in yet'}</summary>
+    <div class="mt">${A.map(a => `<div class="acc">
+      ${a.picture ? `<img src="${esc(a.picture)}" alt="" referrerpolicy="no-referrer">` : `<span class="av">${esc((a.name || a.email || '?')[0].toUpperCase())}</span>`}
+      <div style="min-width:0"><b>${esc(a.name || '—')}</b><div class="sub" style="overflow:hidden;text-overflow:ellipsis">${esc(a.email)}</div>
+        <div class="sub">First sign-in ${when(a.createdAt)}${a.lastSeen && a.lastSeen !== a.createdAt ? ` · last ${when(a.lastSeen)}` : ''}</div></div>
+      <div style="text-align:right">${a.registered ? `<span class="pill g">Registered</span>${a.rsvpName && a.rsvpName !== a.name ? `<div class="sub">as ${esc(a.rsvpName)}</div>` : ''}` : '<span class="pill o">Not registered</span>'}${a.chat ? '<div class="sub">Chat on</div>' : ''}</div>
+    </div>`).join('')}</div></details></section>`;
 }
 
 // ------------------------------------------------------------ plan

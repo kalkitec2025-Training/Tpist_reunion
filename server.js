@@ -814,6 +814,10 @@ A.get('/state', (req, res) => {
     elections, schedule: db.schedule, tasks: db.tasks,
     rsvps: Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(({ voterId, ...r }) => ({ ...r, email: voterId && voterId.startsWith('u:') && db.users[voterId.slice(2)] ? db.users[voterId.slice(2)].email : '' })),
     accounts: Object.keys(db.users).length,
+    accountList: Object.values(db.users).map(u => {
+      const r = Object.values(db.rsvps).find(x => x.voterId === 'u:' + u.id);
+      return { name: u.name || '', email: u.email || '', picture: u.picture || '', createdAt: u.createdAt, lastSeen: u.lastSeen || u.createdAt, registered: !!r, rsvpName: r ? r.name : '', chat: !!(db.chat.users[u.id] && db.chat.users[u.id].consentAt) };
+    }).sort((a, b) => b.createdAt - a.createdAt),
     chat: {
       plans: PLANS,
       users: Object.entries(db.chat.users).filter(([id]) => db.users[id]).map(([id, u]) => ({ ...profileOf(id, true), email: db.users[id].email, ...u, id, flags: (db.chat.flags || []).filter(f => f.uid === id).length }))
