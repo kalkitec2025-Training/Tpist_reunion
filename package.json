@@ -1,12 +1,37 @@
 {
-  "name": "meetho-mohan",
-  "version": "3.0.0",
-  "description": "Single page for the Meetho Mohan YouTube channel",
-  "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=18" },
+  "name": "back2campus",
+  "private": true,
+  "version": "0.1.0",
+  "description": "BACK2CAMPUS — multi-tenant reunion planning platform by KALKITEC (front end)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "start": "node server/index.js",
+    "typecheck": "tsc -b"
+  },
   "dependencies": {
-    "express": "^4.19.2",
-    "pg": "^8.12.0"
+    "compression": "^1.8.0",
+    "express": "^4.21.2",
+    "lucide-react": "^0.477.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "~5.8.0",
+    "vite": "^6.3.0",
+    "vite-plugin-pwa": "^1.0.0"
   }
 }

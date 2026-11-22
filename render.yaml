@@ -1,13 +1,18 @@
+# BACK2CAMPUS on Render.
+# Create this as a NEW web service (Blueprint or "New Web Service" on this branch).
+# Do not point the existing "reunion-vote" service at this branch unless you want
+# this app to replace the page it serves today.
 services:
   - type: web
-    name: reunion-vote
+    name: back2campus
     runtime: node
     plan: free
-    buildCommand: npm install
+    branch: back2campus-frontend
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /healthz
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: DATABASE_URL
-        sync: false          # only used once, to delete the old reunion data
-      - key: YOUTUBE_API_KEY
-        sync: false          # optional: lists every video with exact totals
+        sync: false   # paste the existing Postgres connection string; used from the backend phase on
