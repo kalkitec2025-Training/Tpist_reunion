@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
-import { AppShell, RequireAuth, WorkspaceLayout } from '@/components/layouts';
+import { AppShell, RequireAuth, Toast, WorkspaceLayout } from '@/components/layouts';
 import Landing from '@/pages/Landing';
 import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
@@ -33,6 +33,7 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
+      <Toast />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/auth" element={<Auth />} />

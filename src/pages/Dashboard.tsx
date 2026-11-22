@@ -45,7 +45,7 @@ function ReunionCard({ r }: { r: Reunion }) {
 }
 
 export default function Dashboard() {
-  const { user, reunions, invitations, declineInvitation } = useStore();
+  const { user, reunions, invitations, declineInvitation, pending } = useStore();
   const organised = reunions.filter((r) => r.myRole !== 'participant');
   const joined = reunions.filter((r) => r.myRole === 'participant');
   const pendingPolls = reunions.filter((r) => r.dates.length > 0 && !r.finalDateId && Object.keys(r.myDateVotes).length < r.dates.length).length;
@@ -66,6 +66,18 @@ export default function Dashboard() {
           <div className="rounded-2xl bg-navy-2 p-3"><strong className="font-display text-2xl">{invitations.length}</strong><p className="text-xs text-soft">Invitations</p></div>
         </div>
       </section>
+
+      {pending.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xl font-bold">Waiting for approval</h2>
+          {pending.map((p) => (
+            <Card key={p.id} className="flex items-center gap-4 p-4">
+              <Img id={p.coverPhotoId} w={200} h={140} className="aspect-[10/7] w-24 rounded-xl" />
+              <div className="flex-1"><strong>{p.name}</strong><p className="text-sm text-muted">The organizer will review your request.</p></div>
+            </Card>
+          ))}
+        </section>
+      )}
 
       {invitations.length > 0 && (
         <section className="flex flex-col gap-3">

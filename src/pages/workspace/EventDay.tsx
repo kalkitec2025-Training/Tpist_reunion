@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useStore } from '@/lib/store';
 import { Link } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { Navigation, Phone, ScanLine } from 'lucide-react';
@@ -14,7 +15,9 @@ const schedule = [
 ];
 
 export default function EventDay() {
-  const { reunion: r, update, base, isOrganizer } = useWorkspace();
+  const { reunion: r, actions, base, isOrganizer, mode } = useWorkspace();
+  const { user } = useStore();
+  const [scanning, setScanning] = useState(false);
   const date = r.dates.find((d) => d.id === r.finalDateId);
   const venue = r.venues.find((v) => v.id === r.finalVenueId);
   const confirmed = r.people.filter((p) => p.attendance === 'yes').length + (r.myAttendance === 'yes' ? 1 : 0);
@@ -22,8 +25,8 @@ export default function EventDay() {
   const contacts = r.people.filter((p) => p.role !== 'participant');
 
   useEffect(() => {
-    QRCode.toDataURL(`B2C-CHECKIN:${r.code}:${r.inviteToken}`, { width: 360, margin: 1, color: { dark: '#14213D', light: '#FFFFFF' } }).then(setPass).catch(() => setPass(''));
-  }, [r.code, r.inviteToken]);
+    QRCode.toDataURL(`B2C-CHECKIN:${r.id}:${user?.id ?? ''}`, { width: 360, margin: 1, color: { dark: '#14213D', light: '#FFFFFF' } }).then(setPass).catch(() => setPass(''));
+  }, [r.id, user?.id]);
 
   const mapsUrl = venue ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venue.area}, ${r.city}`)}` : '';
 
@@ -47,12 +50,25 @@ export default function EventDay() {
         {isOrganizer ? (
           <section className="flex items-center gap-4 rounded-3xl bg-navy p-5 text-white">
             <div className="flex-1"><p className="text-xs text-soft">Checked in</p><strong className="font-display text-4xl font-extrabold">{r.checkedIn} <span className="text-lg text-soft">/ {Math.max(confirmed, r.checkedIn)}</span></strong></div>
-            <Button variant="accent" onClick={() => update((x) => ({ ...x, checkedIn: x.checkedIn + 1 }))}><ScanLine size={18} /> Scan QR</Button>
+            <Button variant="accent" onClick={() => (mode === 'demo' ? actions.checkIn('me') : setScanning((v) => !v))}><ScanLine size={18} /> {mode === 'demo' ? 'Scan QR' : 'Check in'}</Button>
           </section>
         ) : (
           <Card className="flex items-center gap-4 p-5">
             {pass && <img src={pass} alt="Your entry pass QR code" width={120} height={120} className="rounded-xl" />}
             <div><strong>Your entry pass</strong><p className="text-sm text-muted">Show this at the entrance to check in.</p></div>
+          </Card>
+        )}
+
+        {scanning && isOrganizer && (
+          <Card className="flex flex-col gap-2 p-5 lg:col-span-2">
+            <h2 className="font-sans text-base font-bold">Check in members</h2>
+            <p className="text-xs text-muted">Camera QR scanning arrives with the event-day release. Until then, tick people off as they arrive.</p>
+            {[{ id: user?.id ?? 'me', name: 'You', checkedIn: false }, ...r.people.filter((p) => p.status === 'active')].map((p) => (
+              <div key={p.id} className="flex items-center gap-3 border-t border-line py-2">
+                <span className="flex-1 text-sm">{p.name}</span>
+                {p.checkedIn ? <span className="text-xs font-bold text-ok">Checked in</span> : <Button size="sm" variant="ghost" onClick={() => actions.checkIn(p.id)}>Check in</Button>}
+              </div>
+            ))}
           </Card>
         )}
 

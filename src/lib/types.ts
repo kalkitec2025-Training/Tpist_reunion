@@ -24,6 +24,7 @@ export interface Person {
   attendance: Availability | null;
   status: 'active' | 'pending';
   note?: string;
+  checkedIn?: boolean;
 }
 
 export interface DateOption {

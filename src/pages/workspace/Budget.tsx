@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useWorkspace } from '@/components/layouts';
-import { Card, PageHeader } from '@/components/ui';
+import { Card, CommitInput, PageHeader } from '@/components/ui';
 import type { BudgetKey } from '@/lib/types';
 import { inr } from '@/lib/format';
 
@@ -16,13 +16,13 @@ const rows: { key: BudgetKey; label: string; color: string }[] = [
 ];
 
 export default function Budget() {
-  const { reunion: r, update, base, isOrganizer } = useWorkspace();
+  const { reunion: r, actions, base, isOrganizer } = useWorkspace();
   const total = rows.reduce((n, x) => n + (r.budget[x.key] || 0), 0);
   const perPerson = r.payers > 0 ? total / r.payers : 0;
   const collected = r.payments.filter((p) => p.status === 'verified').reduce((n, p) => n + p.amount, 0) + (r.myPaymentStatus === 'paid' ? r.contribution : 0);
   const variance = total - r.spent;
 
-  const setItem = (k: BudgetKey, v: string) => update((x) => ({ ...x, budget: { ...x.budget, [k]: Math.max(0, Number(v) || 0) } }));
+  const num = (v: string) => Math.max(0, Math.round(Number(v) || 0));
 
   return (
     <div className="flex flex-col gap-5 pb-4">
@@ -35,7 +35,7 @@ export default function Budget() {
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-2xl bg-navy-2 p-3"><p className="text-xs text-soft">Total estimated</p><strong className="text-lg">{inr(total)}</strong></div>
             <label className="rounded-2xl bg-navy-2 p-3 text-xs text-soft">Confirmed paying
-              <input type="number" min={1} value={r.payers} disabled={!isOrganizer} onChange={(e) => update((x) => ({ ...x, payers: Math.max(0, Number(e.target.value) || 0) }))}
+              <CommitInput type="number" min={1} value={r.payers} disabled={!isOrganizer} onCommit={(v) => actions.setSettings({ payers: num(v) })}
                 className="block w-full bg-transparent text-lg font-bold text-white outline-none disabled:opacity-100" />
             </label>
           </div>
@@ -51,7 +51,7 @@ export default function Budget() {
             <label key={x.key} className="flex items-center justify-between gap-3 border-t border-line py-2.5 text-sm">
               <span className="flex items-center gap-2.5"><span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: x.color }} />{x.label}</span>
               {isOrganizer
-                ? <input type="number" min={0} inputMode="numeric" value={r.budget[x.key] || ''} placeholder="0" onChange={(e) => setItem(x.key, e.target.value)}
+                ? <CommitInput type="number" min={0} inputMode="numeric" value={r.budget[x.key] || ''} placeholder="0" onCommit={(v) => actions.setBudget(x.key as BudgetKey, num(v))}
                     className="h-11 w-32 rounded-xl border-[1.5px] border-line px-3 text-right outline-none focus:border-navy" />
                 : <span className="font-semibold">{inr(r.budget[x.key])}</span>}
             </label>
@@ -67,7 +67,7 @@ export default function Budget() {
         <div><p className="text-xs text-muted">Budget variance</p><strong className={variance >= 0 ? 'text-lg text-ok' : 'text-lg text-orange-ink'}>{variance >= 0 ? `${inr(variance)} left` : `${inr(-variance)} over`}</strong></div>
         {isOrganizer && (
           <label className="flex flex-col gap-1 text-xs text-muted md:col-span-2">Record actual spend so far (₹)
-            <input type="number" min={0} value={r.spent || ''} onChange={(e) => update((x) => ({ ...x, spent: Math.max(0, Number(e.target.value) || 0) }))}
+            <CommitInput type="number" min={0} value={r.spent || ''} onCommit={(v) => actions.setSettings({ spent: num(v) })}
               className="h-11 rounded-xl border-[1.5px] border-line px-3 text-sm text-navy outline-none focus:border-navy" />
           </label>
         )}

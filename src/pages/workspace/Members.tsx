@@ -2,19 +2,17 @@ import { useState } from 'react';
 import { Download, Search } from 'lucide-react';
 import { useWorkspace } from '@/components/layouts';
 import { Avatar, Badge, Button, ButtonLink, Card, Empty, PageHeader, Segmented } from '@/components/ui';
-import type { Person } from '@/lib/types';
 
 const att = { yes: 'Attending', maybe: 'Maybe', no: 'Not attending' } as const;
 
 export default function Members() {
-  const { reunion: r, update, base, isOrganizer } = useWorkspace();
+  const { reunion: r, actions, base, isOrganizer } = useWorkspace();
+  const isOwner = r.myRole === 'organizer';
   const [tab, setTab] = useState<'members' | 'requests'>('members');
   const [q, setQ] = useState('');
   const active = r.people.filter((p) => p.status === 'active' && (!q || p.name.toLowerCase().includes(q.toLowerCase())));
   const pending = r.people.filter((p) => p.status === 'pending');
 
-  const setPerson = (id: string, patch: Partial<Person> | null) =>
-    update((x) => ({ ...x, people: patch ? x.people.map((p) => (p.id === id ? { ...p, ...patch } : p)) : x.people.filter((p) => p.id !== id) }));
 
   function exportCsv() {
     const rows = [['Name', 'City', 'Role', 'Attendance'], ...r.people.filter((p) => p.status === 'active').map((p) => [p.name, p.city, p.role, p.attendance ?? ''])];
@@ -51,12 +49,12 @@ export default function Members() {
               <Avatar name={p.name} size={44} i={i + 1} />
               <div className="min-w-0 flex-1"><strong className="text-[15px]">{p.name}</strong><p className="text-xs text-muted">{p.city} · {p.attendance ? att[p.attendance] : 'No response yet'}</p></div>
               {p.role !== 'participant' && <Badge tone={p.role === 'organizer' ? 'navy' : 'peach'}>{p.role === 'organizer' ? 'Organizer' : 'Co-organizer'}</Badge>}
-              {isOrganizer && p.role !== 'organizer' && (
+              {isOwner && p.role !== 'organizer' && (
                 <div className="flex w-full gap-1.5 pl-14 sm:w-auto sm:pl-0">
-                  <Button size="sm" variant="ghost" onClick={() => setPerson(p.id, { role: p.role === 'co_organizer' ? 'participant' : 'co_organizer' })}>
+                  <Button size="sm" variant="ghost" onClick={() => actions.setMemberRole(p.id, p.role === 'co_organizer' ? 'participant' : 'co_organizer')}>
                     {p.role === 'co_organizer' ? 'Remove co-org' : 'Make co-org'}
                   </Button>
-                  <Button size="sm" variant="ghost" aria-label={`Remove ${p.name}`} onClick={() => setPerson(p.id, null)}>Remove</Button>
+                  <Button size="sm" variant="ghost" aria-label={`Remove ${p.name}`} onClick={() => { if (window.confirm(`Remove ${p.name} from this reunion?`)) actions.removeMember(p.id); }}>Remove</Button>
                 </div>
               )}
             </div>
@@ -70,8 +68,8 @@ export default function Members() {
             <Card key={p.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
               <div className="flex-1"><strong>{p.name}</strong><p className="text-xs text-muted">{p.note ? `“${p.note}” · ` : ''}{p.city}</p></div>
               <div className="flex gap-2">
-                <Button className="flex-1" onClick={() => setPerson(p.id, { status: 'active' })}>Approve</Button>
-                <Button className="flex-1" variant="ghost" onClick={() => setPerson(p.id, null)}>Reject</Button>
+                <Button className="flex-1" onClick={() => actions.approveMember(p.id)}>Approve</Button>
+                <Button className="flex-1" variant="ghost" onClick={() => actions.removeMember(p.id)}>Reject</Button>
               </div>
             </Card>
           ))}

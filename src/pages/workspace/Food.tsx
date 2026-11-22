@@ -1,5 +1,5 @@
 import { useWorkspace } from '@/components/layouts';
-import { Card, DemoBadge, Field, Img, PageHeader } from '@/components/ui';
+import { Card, CommitInput, DemoBadge, Img, PageHeader } from '@/components/ui';
 import type { FoodPref } from '@/lib/types';
 import { cls } from '@/lib/format';
 
@@ -11,7 +11,7 @@ const prefs: { v: FoodPref; color: string }[] = [
 ];
 
 export default function Food() {
-  const { reunion: r, update, base } = useWorkspace();
+  const { reunion: r, actions, base } = useWorkspace();
   const counts = Object.fromEntries(prefs.map((p) => [p.v, r.foodCounts[p.v] + (r.myFood === p.v ? 1 : 0)])) as Record<FoodPref, number>;
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
@@ -24,11 +24,15 @@ export default function Food() {
             <h2 className="font-sans text-base font-bold">Your preference</h2>
             <div className="grid grid-cols-2 gap-2">
               {prefs.map((p) => (
-                <button key={p.v} type="button" aria-pressed={r.myFood === p.v} onClick={() => update((x) => ({ ...x, myFood: p.v }))}
+                <button key={p.v} type="button" aria-pressed={r.myFood === p.v} onClick={() => actions.setFood(p.v)}
                   className={cls('h-12 rounded-xl text-sm', r.myFood === p.v ? 'bg-navy font-bold text-white' : 'border-[1.5px] border-line')}>{p.v}</button>
               ))}
             </div>
-            <Field label="Special dietary needs" value={r.myDiet} onChange={(e) => update((x) => ({ ...x, myDiet: e.target.value }))} placeholder="e.g. no peanuts, diabetic-friendly" />
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold">Special dietary needs
+              <CommitInput value={r.myDiet} onCommit={(v) => actions.setDiet(v.trim())} maxLength={300} placeholder="e.g. no peanuts, diabetic-friendly"
+                className="h-12 rounded-xl border-[1.5px] border-line bg-white px-3.5 text-[15px] font-normal outline-none focus:border-navy" />
+              <span className="text-xs font-normal text-muted">Saved when you leave the field.</span>
+            </label>
           </Card>
           <Card className="flex flex-col gap-4 p-5">
             <h2 className="font-sans text-base font-bold">Group summary</h2>

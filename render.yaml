@@ -1,5 +1,5 @@
 # BACK2CAMPUS on Render.
-# Create this as a NEW web service (Blueprint or "New Web Service" on this branch).
+# Create this as a NEW web service (Blueprint, or "New Web Service" on this branch).
 # Do not point the existing "reunion-vote" service at this branch unless you want
 # this app to replace the page it serves today.
 services:
@@ -9,10 +9,14 @@ services:
     plan: free
     branch: back2campus-frontend
     buildCommand: npm ci --include=dev && npm run build
-    startCommand: npm start
+    startCommand: npm start          # runs database migrations, then starts the server
     healthCheckPath: /healthz
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: NODE_ENV
+        value: production
       - key: DATABASE_URL
-        sync: false   # paste the existing Postgres connection string; used from the backend phase on
+        sync: false   # paste your existing Postgres connection string
+      - key: GOOGLE_CLIENT_ID
+        sync: false   # optional: enables "Continue with Google"

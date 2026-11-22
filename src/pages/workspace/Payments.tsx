@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useWorkspace } from '@/components/layouts';
 import { Badge, Button, Card, PageHeader, Progress } from '@/components/ui';
 import { fmtDate, inr } from '@/lib/format';
@@ -6,25 +6,25 @@ import { fmtDate, inr } from '@/lib/format';
 const statusTone = { verified: ['Verified', 'text-ok'], awaiting: ['Awaiting webhook', 'text-orange-ink'], refunded: ['Refunded', 'text-muted'] } as const;
 
 export default function Payments() {
-  const { reunion: r, update, base, isOrganizer } = useWorkspace();
-  const timer = useRef<number>(0);
-  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const { reunion: r, base, isOrganizer, mode } = useWorkspace();
+  const [demoStatus, setDemoStatus] = useState<'due' | 'verifying' | 'paid'>(r.myPaymentStatus);
+  const status = mode === 'demo' ? demoStatus : r.myPaymentStatus;
 
   const paidByOthers = r.payments.filter((p) => p.status === 'verified').length;
   // Demo: assume roughly two-thirds of payers settled before the listed recent transactions.
-  const earlier = r.payments.length ? Math.max(0, Math.round(r.payers * 0.65) - paidByOthers) : 0;
-  const paid = paidByOthers + earlier + (r.myPaymentStatus === 'paid' ? 1 : 0);
+  const earlier = mode === 'demo' && r.payments.length ? Math.max(0, Math.round(r.payers * 0.65) - paidByOthers) : 0;
+  const paid = paidByOthers + earlier + (mode === 'demo' && status === 'paid' ? 1 : 0);
   const target = Math.max(r.payers, paid);
   const collected = paid * r.contribution;
 
   function pay() {
-    // In production: create a Razorpay order on the server, open Checkout, and
-    // mark it paid ONLY after the server verifies the signature / webhook.
-    update((x) => ({ ...x, myPaymentStatus: 'verifying' }));
-    timer.current = window.setTimeout(() => update((x) => ({ ...x, myPaymentStatus: 'paid' })), 1800);
+    // Phase 3: create a Razorpay order on the server, open Checkout, and mark it
+    // paid ONLY after the server verifies the signature and the webhook arrives.
+    setDemoStatus('verifying');
+    window.setTimeout(() => setDemoStatus('paid'), 1800);
   }
 
-  const badge = { due: <Badge tone="orange">PENDING</Badge>, verifying: <Badge tone="white">VERIFYING</Badge>, paid: <Badge tone="green">PAID · VERIFIED</Badge> }[r.myPaymentStatus];
+  const badge = { due: <Badge tone="orange">PENDING</Badge>, verifying: <Badge tone="white">VERIFYING</Badge>, paid: <Badge tone="green">PAID · VERIFIED</Badge> }[status];
 
   return (
     <div className="flex flex-col gap-5 pb-4">
@@ -34,10 +34,12 @@ export default function Payments() {
           <div className="flex items-center justify-between"><span className="text-sm text-soft">Your contribution</span>{badge}</div>
           <strong className="font-display text-5xl font-extrabold">{inr(r.contribution)}</strong>
           <span className="text-sm text-soft">Requested by the organizer</span>
-          {r.myPaymentStatus === 'due' && <Button variant="accent" size="lg" onClick={pay}>Pay with UPI / card (Razorpay)</Button>}
-          {r.myPaymentStatus === 'verifying' && <div role="status" className="flex h-14 items-center justify-center rounded-2xl bg-navy-2 text-sm text-soft">Confirming with Razorpay…</div>}
-          {r.myPaymentStatus === 'paid' && <Button variant="light" size="lg" onClick={() => window.print()}>Print receipt</Button>}
-          <p className="text-xs text-soft">Demo: no money moves. Razorpay keys are configured on the server in the payments phase.</p>
+          {status === 'due' && (mode === 'demo'
+            ? <Button variant="accent" size="lg" onClick={pay}>Pay with UPI / card (Razorpay)</Button>
+            : <div className="rounded-2xl bg-navy-2 p-4 text-sm text-soft">Online payment with Razorpay opens in the next release. Until then, pay the organizer directly.</div>)}
+          {status === 'verifying' && <div role="status" className="flex h-14 items-center justify-center rounded-2xl bg-navy-2 text-sm text-soft">Confirming with Razorpay…</div>}
+          {status === 'paid' && <Button variant="light" size="lg" onClick={() => window.print()}>Print receipt</Button>}
+          {mode === 'demo' && <p className="text-xs text-soft">Demo: no money moves. Razorpay keys are configured on the server in the payments phase.</p>}
         </section>
 
         <div className="flex flex-col gap-5">

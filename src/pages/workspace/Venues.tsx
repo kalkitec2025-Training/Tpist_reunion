@@ -9,7 +9,7 @@ const kinds = ['All', 'Resort', 'Hotel', 'Restaurant', 'Banquet hall', 'Beachsid
 const verifyTone = { 'Verified vendor': 'green', 'Google Places': 'white', Unverified: 'grey' } as const;
 
 export default function Venues() {
-  const { reunion: r, update, base, isOrganizer } = useWorkspace();
+  const { reunion: r, actions, base, isOrganizer } = useWorkspace();
   const [kind, setKind] = useState<(typeof kinds)[number]>('All');
   const [q, setQ] = useState('');
   const [compare, setCompare] = useState<string[]>([]);
@@ -32,7 +32,7 @@ export default function Venues() {
 
   function suggest() {
     if (sv.name.trim().length < 3) return;
-    update((x) => ({ ...x, venues: [...x.venues, { id: 'v' + Date.now(), name: sv.name.trim(), kind: sv.kind, area: sv.area.trim() || x.city, capacity: Number(sv.capacity) || 0, tags: ['Suggested by a member'], photoId: 'beachRoad', verification: 'Unverified', othersVotes: 0, suggestedBy: 'You' }] }));
+    actions.suggestVenue({ name: sv.name.trim(), kind: sv.kind, area: sv.area.trim(), capacity: Math.max(0, Math.round(Number(sv.capacity) || 0)) });
     setSv({ name: '', area: '', capacity: '', kind: 'Banquet hall' });
     setSuggesting(false);
   }
@@ -45,7 +45,7 @@ export default function Venues() {
         <Card className="flex items-center gap-4 border-2 border-orange p-4">
           <Lock className="text-orange" />
           <div className="flex-1"><p className="text-xs font-bold tracking-wide text-orange-ink">VENUE FINALISED</p><strong>{final.name}</strong></div>
-          {isOrganizer && <Button size="sm" variant="ghost" onClick={() => update((x) => ({ ...x, finalVenueId: null }))}>Reopen</Button>}
+          {isOrganizer && <Button size="sm" variant="ghost" onClick={() => actions.finalizeVenue(null)}>Reopen</Button>}
         </Card>
       )}
 
@@ -91,11 +91,11 @@ export default function Venues() {
                 </div>
                 <div className="mt-auto flex gap-2">
                   <Button className="flex-1" variant={mine ? 'accent' : 'outline'} disabled={Boolean(r.finalVenueId)}
-                    onClick={() => update((x) => ({ ...x, myVenueVote: mine ? null : v.id }))}>{mine ? 'Your vote' : 'Vote for this'}</Button>
+                    onClick={() => actions.voteVenue(mine ? null : v.id)}>{mine ? 'Your vote' : 'Vote for this'}</Button>
                   <Button variant={compare.includes(v.id) ? 'primary' : 'ghost'} aria-pressed={compare.includes(v.id)} onClick={() => toggleCompare(v.id)}>Compare</Button>
                 </div>
                 {isOrganizer && !r.finalVenueId && (
-                  <button type="button" onClick={() => update((x) => ({ ...x, finalVenueId: v.id }))} className="self-start text-sm font-semibold text-orange-ink hover:underline">Finalise this venue</button>
+                  <button type="button" onClick={() => actions.finalizeVenue(v.id)} className="self-start text-sm font-semibold text-orange-ink hover:underline">Finalise this venue</button>
                 )}
               </div>
             </Card>

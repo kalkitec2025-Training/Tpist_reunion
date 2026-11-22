@@ -7,7 +7,7 @@ import type { Availability } from '@/lib/types';
 import { cls, daysUntil, fmtDate, inr } from '@/lib/format';
 
 export default function Overview() {
-  const { reunion: r, update, base, isOrganizer } = useWorkspace();
+  const { reunion: r, actions, base, isOrganizer } = useWorkspace();
   const [draft, setDraft] = useState({ title: '', body: '' });
   const [posting, setPosting] = useState(false);
 
@@ -21,7 +21,7 @@ export default function Overview() {
 
   const steps = [
     { to: 'dates', title: 'Pick the date', done: Boolean(finalDate), sub: finalDate ? fmtDate(finalDate.iso) : r.dates.length ? `Voting · closes in ${Math.max(0, daysUntil(r.votingDeadline))} days` : 'Add date options' },
-    { to: 'venues', title: 'Choose the venue', done: Boolean(finalVenue), sub: finalVenue ? finalVenue.name : `${r.venues.length} suggestions` },
+    { to: 'venues', title: 'Choose the venue', done: Boolean(finalVenue), sub: finalVenue ? finalVenue.name : `${r.venues.length} ${r.venues.length === 1 ? "suggestion" : "suggestions"}` },
     { to: 'budget', title: 'Set the budget', done: total > 0, sub: total > 0 ? `${inr(total / Math.max(1, r.payers))} per person` : 'Not started' },
     { to: 'food', title: 'Food preferences', done: foodDone, sub: foodDone ? `You chose ${r.myFood}` : 'Tell us what you eat' },
     { to: 'tasks', title: 'Assign responsibilities', done: r.tasks.length > 0 && r.tasks.every((t) => t.assignee), sub: `${r.tasks.filter((t) => t.status === 'Completed').length} of ${r.tasks.length} done` },
@@ -29,9 +29,9 @@ export default function Overview() {
   ];
   const decided = steps.filter((s) => s.done).length;
 
-  function post() {
+  async function post() {
     if (!draft.title.trim()) return;
-    update((x) => ({ ...x, announcements: [{ id: String(Date.now()), author: 'You', at: new Date().toISOString(), title: draft.title.trim(), body: draft.body.trim() }, ...x.announcements] }));
+    await actions.postAnnouncement(draft.title.trim(), draft.body.trim());
     setDraft({ title: '', body: '' });
     setPosting(false);
   }
@@ -82,7 +82,7 @@ export default function Overview() {
           <Card className="flex flex-col gap-3 p-4">
             <h2 className="font-sans text-base font-bold">Will you attend?</h2>
             <Segmented<Availability> label="Your attendance" value={r.myAttendance ?? ('' as Availability)}
-              onChange={(v) => update((x) => ({ ...x, myAttendance: v }))}
+              onChange={(v) => actions.setAttendance(v)}
               options={[{ value: 'yes', label: 'Yes' }, { value: 'maybe', label: 'Maybe' }, { value: 'no', label: "Can't" }]} />
           </Card>
 

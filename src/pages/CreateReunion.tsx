@@ -14,7 +14,8 @@ const subs = ['Give your reunion a name everyone recognises.', 'Helps old friend
 export default function CreateReunion() {
   const nav = useNavigate();
   const [params] = useSearchParams();
-  const { createReunion, reunions, updateReunion } = useStore();
+  const { createReunion, reunions } = useStore();
+  const [busy, setBusy] = useState(false);
   const source = reunions.find((r) => r.id === params.get('from'));
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
@@ -46,20 +47,23 @@ export default function CreateReunion() {
     return '';
   }
 
-  function next() {
+  async function next() {
     const e = validate();
     setError(e);
     if (e) return;
     if (step < 3) return setStep(step + 1);
-    const r = createReunion({
-      name: f.name.trim(), category: f.category, institution: f.institution.trim(), batch: f.batch.trim(), city: f.city.trim(),
-      description: f.description.trim(), expected: Number(f.expected), dateFrom: f.dateFrom, dateTo: f.dateTo,
-      budgetPerPerson: Number(f.budget), coverPhotoId: f.cover
-    });
-    if (reuse && source) {
-      updateReunion(r.id, (x) => ({ ...x, people: source.people.map((p) => ({ ...p, attendance: null, status: 'active' as const })) }));
+    setBusy(true);
+    try {
+      const r = await createReunion({
+        name: f.name.trim(), category: f.category, institution: f.institution.trim(), batch: f.batch.trim(), city: f.city.trim(),
+        description: f.description.trim(), expected: Number(f.expected), dateFrom: f.dateFrom, dateTo: f.dateTo,
+        budgetPerPerson: Number(f.budget), coverPhotoId: f.cover, fromReunionId: reuse && source ? source.id : undefined
+      });
+      nav(`/r/${r.id}/invite?new=1`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create the reunion.');
+      setBusy(false);
     }
-    nav(`/r/${r.id}/invite?new=1`);
   }
 
   return (
@@ -145,7 +149,7 @@ export default function CreateReunion() {
 
       <div className="flex gap-3">
         {step > 0 && <Button variant="ghost" size="lg" onClick={() => { setError(''); setStep(step - 1); }}>Back</Button>}
-        <Button size="lg" variant={step === 3 ? 'accent' : 'primary'} className="flex-1" onClick={next}>{step === 3 ? 'Create reunion' : 'Continue'}</Button>
+        <Button size="lg" variant={step === 3 ? 'accent' : 'primary'} className="flex-1" disabled={busy} onClick={next}>{step === 3 ? 'Create reunion' : 'Continue'}</Button>
       </div>
     </div>
   );

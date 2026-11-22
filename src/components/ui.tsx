@@ -160,3 +160,21 @@ export function Empty({ title, body, action }: { title: string; body: string; ac
     </Card>
   );
 }
+
+/**
+ * Input that keeps its own draft and saves on blur or Enter — so typing does
+ * not send a request per keystroke. `value` re-syncs when the saved value changes.
+ */
+export function CommitInput({ value, onCommit, type = 'text', className, ...p }: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & { value: string | number; onCommit: (v: string) => void }) {
+  const [draft, setDraft] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+  const shown = focused ? draft : String(value);
+  const commit = () => { setFocused(false); if (draft !== String(value)) onCommit(draft); };
+  return (
+    <input {...p} type={type} value={shown} className={className}
+      onFocus={() => { setDraft(String(value)); setFocused(true); }}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
+  );
+}

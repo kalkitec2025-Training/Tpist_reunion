@@ -12,7 +12,7 @@ const choices: { v: Availability; label: string; on: string }[] = [
 ];
 
 export default function Dates() {
-  const { reunion: r, update, base, isOrganizer } = useWorkspace();
+  const { reunion: r, actions, base, isOrganizer } = useWorkspace();
   const [adding, setAdding] = useState(false);
   const [nd, setNd] = useState({ iso: '', slot: 'Evening' });
 
@@ -31,16 +31,12 @@ export default function Dates() {
 
   function vote(id: string, v: Availability) {
     if (r.finalDateId) return;
-    update((x) => {
-      const votes = { ...x.myDateVotes };
-      if (votes[id] === v) delete votes[id]; else votes[id] = v;
-      return { ...x, myDateVotes: votes };
-    });
+    actions.voteDate(id, r.myDateVotes[id] === v ? null : v);
   }
 
   function addDate() {
     if (!nd.iso) return;
-    update((x) => ({ ...x, dates: [...x.dates, { id: 'd' + Date.now(), iso: nd.iso, slot: nd.slot || 'Evening', others: { yes: 0, maybe: 0, no: 0 } }] }));
+    actions.addDate(nd.iso, nd.slot.trim() || 'Evening');
     setNd({ iso: '', slot: 'Evening' });
     setAdding(false);
   }
@@ -53,7 +49,7 @@ export default function Dates() {
         <Card className="flex items-center gap-4 border-2 border-orange p-5">
           <Lock className="text-orange" />
           <div className="flex-1"><p className="text-xs font-bold tracking-wide text-orange-ink">DATE FINALISED</p><strong className="text-lg">{fmtDay(final.iso)} · {final.slot}</strong></div>
-          {isOrganizer && <Button size="sm" variant="ghost" onClick={() => update((x) => ({ ...x, finalDateId: null }))}>Reopen</Button>}
+          {isOrganizer && <Button size="sm" variant="ghost" onClick={() => actions.finalizeDate(null)}>Reopen</Button>}
         </Card>
       ) : (
         <section className="grid grid-cols-3 gap-2 rounded-3xl bg-navy p-4 text-white">
@@ -87,7 +83,7 @@ export default function Dates() {
                 ))}
               </div>
               {isOrganizer && !r.finalDateId && (
-                <button type="button" onClick={() => update((x) => ({ ...x, finalDateId: d.id }))} className="self-start text-sm font-semibold text-orange-ink underline-offset-4 hover:underline">
+                <button type="button" onClick={() => actions.finalizeDate(d.id)} className="self-start text-sm font-semibold text-orange-ink underline-offset-4 hover:underline">
                   Finalise this date
                 </button>
               )}

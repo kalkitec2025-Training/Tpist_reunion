@@ -4,10 +4,9 @@ import QRCode from 'qrcode';
 import { Check, Copy, Download, MessageCircle, RefreshCw } from 'lucide-react';
 import { useWorkspace } from '@/components/layouts';
 import { Button, ButtonLink, Card, PageHeader } from '@/components/ui';
-import { token } from '@/lib/demo-data';
 
 export default function Invite() {
-  const { reunion: r, update, base, isOrganizer } = useWorkspace();
+  const { reunion: r, actions, base, isOrganizer } = useWorkspace();
   const [params] = useSearchParams();
   const isNew = params.get('new') === '1';
   const link = `${window.location.origin}/join/${r.inviteToken}`;
@@ -56,11 +55,11 @@ export default function Invite() {
             <Card className="flex flex-col gap-4 p-5">
               <label className="flex items-center justify-between gap-4">
                 <span><strong className="text-sm">Approve join requests</strong><span className="block text-xs text-muted">Review each person before they can see the workspace</span></span>
-                <input type="checkbox" checked={r.requireApproval} onChange={(e) => update((x) => ({ ...x, requireApproval: e.target.checked }))} className="h-6 w-6 accent-orange" />
+                <input type="checkbox" checked={r.requireApproval} onChange={(e) => actions.setSettings({ requireApproval: e.target.checked })} className="h-6 w-6 accent-orange" />
               </label>
               <div className="flex items-center justify-between gap-4 border-t border-line pt-4">
                 <span><strong className="text-sm">Reset the link</strong><span className="block text-xs text-muted">The old link and QR stop working immediately</span></span>
-                <Button size="sm" variant="ghost" onClick={() => update((x) => ({ ...x, inviteToken: token() }))}><RefreshCw size={16} /> Reset</Button>
+                <Button size="sm" variant="ghost" onClick={() => actions.resetInvite()}><RefreshCw size={16} /> Reset</Button>
               </div>
             </Card>
           )}

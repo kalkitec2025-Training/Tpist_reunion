@@ -2,26 +2,27 @@ import { useState } from 'react';
 import { Plus, MessageSquare } from 'lucide-react';
 import { useWorkspace } from '@/components/layouts';
 import { Avatar, Button, Card, Chip, Empty, Field, PageHeader, TextArea } from '@/components/ui';
-import type { Task, TaskStatus } from '@/lib/types';
+import type { TaskStatus } from '@/lib/types';
+import { useStore } from '@/lib/store';
 import { cls, fmtShort } from '@/lib/format';
 
 const statuses: TaskStatus[] = ['Not Started', 'In Progress', 'Completed'];
 const pill: Record<TaskStatus, string> = { 'Not Started': 'bg-[#E9ECF2] text-navy', 'In Progress': 'bg-peach text-peach-ink', Completed: 'bg-ok-bg text-ok' };
 
 export default function Tasks() {
-  const { reunion: r, update, base, isOrganizer } = useWorkspace();
+  const { reunion: r, actions, base, isOrganizer } = useWorkspace();
+  const { user } = useStore();
   const [filter, setFilter] = useState<'All' | TaskStatus>('All');
   const [adding, setAdding] = useState(false);
   const [nt, setNt] = useState({ title: '', desc: '', assignee: '', due: '' });
-  const names = ['You', ...r.people.filter((p) => p.status === 'active').map((p) => p.name)];
-
-  const setTask = (id: string, patch: Partial<Task>) => update((x) => ({ ...x, tasks: x.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)) }));
+  const people = [{ id: user?.id ?? 'me', name: 'You' }, ...r.people.filter((p) => p.status === 'active').map((p) => ({ id: p.id, name: p.name }))];
   const open = r.tasks.filter((t) => !t.assignee);
   const list = r.tasks.filter((t) => t.assignee && (filter === 'All' || t.status === filter));
 
   function add() {
     if (nt.title.trim().length < 3) return;
-    update((x) => ({ ...x, tasks: [...x.tasks, { id: 't' + Date.now(), title: nt.title.trim(), desc: nt.desc.trim(), assignee: nt.assignee || null, due: nt.due, status: 'Not Started', comments: 0 }] }));
+    const who = people.find((p) => p.id === nt.assignee);
+    actions.addTask({ title: nt.title.trim(), desc: nt.desc.trim(), assigneeId: who?.id ?? null, assigneeName: who?.name ?? null, due: nt.due });
     setNt({ title: '', desc: '', assignee: '', due: '' });
     setAdding(false);
   }
@@ -38,7 +39,7 @@ export default function Tasks() {
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold">Assign to
               <select value={nt.assignee} onChange={(e) => setNt({ ...nt, assignee: e.target.value })} className="h-12 rounded-xl border-[1.5px] border-line bg-white px-3 text-[15px] font-normal">
-                <option value="">Open for volunteers</option>{names.map((n) => <option key={n}>{n}</option>)}
+                <option value="">Open for volunteers</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </label>
             <Field label="Due date" type="date" value={nt.due} onChange={(e) => setNt({ ...nt, due: e.target.value })} />
@@ -52,7 +53,7 @@ export default function Tasks() {
           <span className="text-xs font-bold tracking-wide text-peach-ink">NEEDS A VOLUNTEER</span>
           <strong className="text-base">{t.title}</strong>
           <p className="text-sm text-[#4A2A12]">{t.desc}</p>
-          <Button variant="accent" className="mt-1 self-start" onClick={() => setTask(t.id, { assignee: 'You' })}>I'll take this</Button>
+          <Button variant="accent" className="mt-1 self-start" onClick={() => actions.volunteer(t.id)}>I'll take this</Button>
         </section>
       ))}
 
@@ -69,7 +70,7 @@ export default function Tasks() {
               <div className="flex items-start justify-between gap-2">
                 <strong className="text-[15px]">{t.title}</strong>
                 {canEdit ? (
-                  <select aria-label={`Status of ${t.title}`} value={t.status} onChange={(e) => setTask(t.id, { status: e.target.value as TaskStatus })}
+                  <select aria-label={`Status of ${t.title}`} value={t.status} onChange={(e) => actions.setTaskStatus(t.id, e.target.value as TaskStatus)}
                     className={cls('h-8 rounded-lg border-0 px-2 text-[11px] font-bold', pill[t.status])}>
                     {statuses.map((s) => <option key={s}>{s}</option>)}
                   </select>

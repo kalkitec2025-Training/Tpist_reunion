@@ -12,16 +12,25 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "start": "node server/index.js",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "migrate": "node server/migrate.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "compression": "^1.8.0",
+    "cookie-parser": "^1.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.7.5",
+    "helmet": "^8.3.0",
+    "jose": "^6.2.18",
     "lucide-react": "^0.477.0",
+    "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.0"
+    "react-router-dom": "^7.6.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",

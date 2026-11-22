@@ -22,7 +22,7 @@ const features = [
 const kinds = ['School', 'College', 'Corporate', 'Friends', 'Family', 'Alumni'];
 
 export default function Landing() {
-  const { user } = useStore();
+  const { user, mode } = useStore();
   const start = user ? '/app/new' : '/auth?next=/app/new';
   return (
     <div className="bg-white">
@@ -51,7 +51,9 @@ export default function Landing() {
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <ButtonLink to={start} variant="accent" size="lg">Create a reunion</ButtonLink>
-            <ButtonLink to="/join/OfficeGang15" variant="outline" size="lg">I have an invite link</ButtonLink>
+            {mode === 'demo'
+              ? <ButtonLink to="/join/OfficeGang15" variant="outline" size="lg">See an invitation (demo)</ButtonLink>
+              : <ButtonLink to={user ? '/app' : '/auth?mode=register'} variant="outline" size="lg">{user ? 'My reunions' : 'Create an account'}</ButtonLink>}
           </div>
           <p className="flex items-center gap-2 text-sm text-muted"><ShieldCheck size={16} className="text-ok" /> Private to members. Nobody outside your reunion sees your data.</p>
         </div>

@@ -3,13 +3,14 @@ import {
   Home, Plus, User as UserIcon, CalendarDays, MapPin, Utensils, Wallet, CreditCard, ListChecks, Users, QrCode, Images, LayoutGrid, Share2, ChevronLeft
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { isDemo, useReunion, useStore } from '@/lib/store';
+import { useReunion, useStore, type Mode, type ReunionActions } from '@/lib/store';
 import type { Reunion } from '@/lib/types';
 import { cls } from '@/lib/format';
 import { Avatar, Badge, Empty, ButtonLink, Logo } from './ui';
 
 export function DemoStrip() {
-  if (!isDemo) return null;
+  const { mode } = useStore();
+  if (mode !== 'demo') return null;
   return (
     <div className="bg-peach px-4 py-1.5 text-center text-xs text-peach-ink">
       Demo mode — sample data is saved only in this browser. <Link to="/credits" className="font-semibold underline">Photo credits</Link>
@@ -17,9 +18,18 @@ export function DemoStrip() {
   );
 }
 
+export function Loading() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center" role="status" aria-label="Loading">
+      <span className="h-10 w-10 animate-spin rounded-full border-4 border-line border-t-orange" />
+    </div>
+  );
+}
+
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { user } = useStore();
+  const { user, mode } = useStore();
   const loc = useLocation();
+  if (mode === 'loading') return <Loading />;
   if (!user) return <Navigate to={`/auth?next=${encodeURIComponent(loc.pathname)}`} replace />;
   return <>{children}</>;
 }
@@ -35,6 +45,17 @@ function BottomNav({ items }: { items: { to: string; label: string; icon: ReactN
         </NavLink>
       ))}
     </nav>
+  );
+}
+
+export function Toast() {
+  const { error, clearError } = useStore();
+  if (!error) return null;
+  return (
+    <div role="alert" className="fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-navy px-4 py-3 text-sm text-white shadow-xl md:bottom-6">
+      <span className="flex-1">{error}</span>
+      <button type="button" onClick={clearError} className="h-9 rounded-lg px-3 font-semibold text-orange">Dismiss</button>
+    </div>
   );
 }
 
@@ -80,15 +101,16 @@ export const modules = [
   { path: 'memories', label: 'Memories', icon: Images }
 ] as const;
 
-export type WorkspaceCtx = { reunion: Reunion; update: (fn: (r: Reunion) => Reunion) => void; base: string; isOrganizer: boolean };
+export type WorkspaceCtx = { reunion: Reunion; actions: ReunionActions; base: string; isOrganizer: boolean; mode: Mode };
 export const useWorkspace = () => useOutletContext<WorkspaceCtx>();
 
 const roleLabel = { organizer: 'ORGANIZER', co_organizer: 'CO-ORGANIZER', participant: 'PARTICIPANT' } as const;
 
 export function WorkspaceLayout() {
   const { id } = useParams();
-  const { reunion, update } = useReunion(id);
-  if (!reunion) {
+  const { mode } = useStore();
+  const { reunion, actions } = useReunion(id);
+  if (!reunion || !actions) {
     return (
       <div className="mx-auto max-w-md px-4 py-16">
         <Empty title="Reunion not found" body="This reunion doesn't exist, or you are not a member of it." action={<ButtonLink to="/app">Back to my reunions</ButtonLink>} />
@@ -97,7 +119,7 @@ export function WorkspaceLayout() {
   }
   const base = `/r/${reunion.id}`;
   const isOrganizer = reunion.myRole !== 'participant';
-  const ctx: WorkspaceCtx = { reunion, update, base, isOrganizer };
+  const ctx: WorkspaceCtx = { reunion, actions, base, isOrganizer, mode };
 
   return (
     <div className="min-h-dvh pb-24 md:pb-10">
