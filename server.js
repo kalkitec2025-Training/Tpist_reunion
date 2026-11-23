@@ -826,8 +826,10 @@ app.post('/api/rsvp', (req, res) => {
   let data;
   try { data = cleanRsvp(req.body); } catch (e) { return res.status(400).json({ error: e.message }); }
   delete data.pass;
-  const existing = Object.values(db.rsvps).find(r => r.voterId === vid);
-  if (existing) Object.assign(existing, data, { updatedAt: Date.now() });
+  let existing = Object.values(db.rsvps).find(r => r.voterId === vid);
+  // someone imported earlier (e.g. from the WhatsApp group) registers with the same number: take over that entry
+  if (!existing) existing = Object.values(db.rsvps).find(r => !(r.voterId || '').startsWith('u:') && r.phone && r.phone.slice(-10) === data.phone.slice(-10));
+  if (existing) Object.assign(existing, data, { voterId: vid, updatedAt: Date.now() });
   else {
     const id = newId();
     db.rsvps[id] = { id, voterId: vid, ...data, pass: '', source: 'self', callStatus: 'new', note: '', createdAt: Date.now(), updatedAt: Date.now() };
@@ -1051,6 +1053,23 @@ A.delete('/elections/:id/candidates/:cid', (req, res) => {
 });
 
 // RSVPs
+A.get('/ping', (req, res) => res.json({ ok: true }));
+A.post('/import', (req, res) => {
+  const rows = Array.isArray(req.body.rows) ? req.body.rows.slice(0, 3000) : [];
+  const have = new Set(Object.values(db.rsvps).map(r => String(r.phone || '').slice(-10)).filter(Boolean));
+  let added = 0, skipped = 0;
+  for (const x of rows) {
+    let phone = String((x && x.phone) || '').replace(/\D/g, '');
+    if (phone.length === 12 && phone.startsWith('91')) phone = phone.slice(2);
+    if (phone.length < 8 || phone.length > 15 || have.has(phone.slice(-10))) { skipped++; continue; }
+    have.add(phone.slice(-10));
+    const id = newId(), now = Date.now();
+    db.rsvps[id] = { id, voterId: null, name: str(x.name, 80) || 'WhatsApp member', gender: '', branch: '', phone, city: '', attend: 'both', pass: '', overnight: false, pickup: '', food: 'nonveg',
+      source: 'import', callStatus: 'new', note: 'Imported from WhatsApp contacts', createdAt: now, updatedAt: now };
+    added++;
+  }
+  saveDb(); res.json({ ok: true, added, skipped });
+});
 A.post('/rsvps', (req, res) => {
   let data;
   try { data = cleanRsvp(req.body); } catch (e) { return res.status(400).json({ error: e.message }); }
