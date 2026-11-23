@@ -286,9 +286,32 @@ function nudge(c, ids, fav, r) {
   }
   return false;
 }
+// Options added later (joinSlot) start at 0 and pick up a few votes over time; the earlier options' history is untouched.
 function simulate(e, upto) {
+  const late = e.candidates.filter(c => c.joinSlot > 0);
+  const base = simulateBase(e, upto, e.candidates.filter(c => !(c.joinSlot > 0)).map(c => c.id));
+  if (!late.length) return base;
+  const A = db.auto, interval = A.intervalMin * 60 * 1000;
+  const out = base.map(x => ({ ...x }));
+  for (const L of late) {
+    const r0 = rng(hash(hash(A.seed, strHash(e.id)), strHash(L.id)));
+    const target = 10 + Math.floor(r0() * 30);
+    let n = 0;
+    for (let k = 0; k <= upto; k++) {
+      if (k >= L.joinSlot && n < target) {
+        const r = rng(hash(hash(A.seed, strHash(L.id)), k));
+        const h = new Date(A.startAt + k * interval + 5.5 * HOUR).getUTCHours();
+        const p = h >= 7 && h < 23 ? 0.55 : 0.12;
+        if (r() < p) n += 1 + (r() < 0.25 ? 1 : 0);
+        n = Math.min(n, target);
+      }
+      if (out[k]) out[k][L.id] = n;
+    }
+  }
+  return out;
+}
+function simulateBase(e, upto, ids) {
   const A = db.auto;
-  const ids = e.candidates.map(c => c.id);
   if (!ids.length) return [];
   const key = JSON.stringify([A.seed, A.startAt, A.intervalMin, e.favoriteId, e.cap, e.dipEvery, e.rateMin, e.rateMax, e.startTotal, e.afterCap, ids]);
   let cache = simCaches.get(e.id);
@@ -417,7 +440,7 @@ function electionView(e, voterId, slot, admin = false) {
   const realCounts = {};
   if (admin) for (const v of Object.values(real)) realCounts[v.c] = (realCounts[v.c] || 0) + 1;
   const candidates = e.candidates.map((c, i) => ({
-    id: c.id, name: c.name, note: c.note || '',
+    id: c.id, name: c.name, note: c.note || '', info: c.info || null, isNew: c.joinSlot > 0,
     votes: Math.max(0, counts[c.id] + (c.offset || 0)),
     lastHour: last[c.id], i,
     ...(admin ? { offset: c.offset || 0, real: realCounts[c.id] || 0, by: c.by || 'admin' } : {})
@@ -990,6 +1013,7 @@ A.put('/elections/:id/candidates/:cid', (req, res) => {
   if (!c) return res.status(404).json({ error: 'Not found' });
   if (str(req.body.name, 60)) c.name = str(req.body.name, 60);
   if (typeof req.body.note === 'string') c.note = str(req.body.note, 80);
+  if (typeof req.body.photo === 'string') { c.info = { ...(c.info || {}), photo: str(req.body.photo, 400), credit: str(req.body.credit || '', 80) }; }
   if (req.body.clear) c.offset = 0;
   else if (Number.isFinite(req.body.delta)) c.offset = (c.offset || 0) + Math.round(req.body.delta);
   saveDb(); res.json({ ok: true });
@@ -1135,8 +1159,37 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'adm
 app.get('/healthz', (req, res) => res.send('ok'));
 app.use((err, req, res, next) => res.status(400).json({ error: err.message || 'Something went wrong' }));
 
+// Venue options researched from venue and hotel listings (Nov 2026). Prices and capacities are indicative; confirm with each venue.
+const VENUES_2026 = [
+  { name: 'Radisson Blu Resort', area: 'Rushikonda · Beach Road', type: 'Beachfront 5-star resort', capacity: '100 – 2,000 guests', plate: 'from ~₹2,000 / plate', stay: 'Rooms on site', why: 'Ocean-view outdoor lawns and indoor halls; pool and bar.', link: 'https://www.radissonhotels.com/en-us/hotels/radisson-blu-resort-visakhapatnam/meeting-events', photo: 'Aerial_view_of_Rushikonda_beach.jpg', credit: 'Rushikonda beach · iMahesh' },
+  { name: 'The Bheemli Resort (Accor)', area: 'Bheemili Beach', type: 'Beach resort', capacity: 'Lawns 500 – 2,000 seated', plate: 'On request', stay: 'Rooms on site', why: 'Quiet beachfront away from the city, with four lawns and two halls.', link: 'https://weddingz.in/visakhapatnam/the-bheemli-resort-beach-road/', photo: 'Novotel_beach_resort_at_Bheemunipatnam.jpg', credit: 'Beach resort at Bheemunipatnam' },
+  { name: 'Sai Priya Beach Resort', area: 'Rushikonda Beach', type: 'Beach resort', capacity: 'Halls up to ~600 guests', plate: '~₹950 veg · ~₹1,100 non-veg', stay: 'Rooms on site', why: 'Right on Rushikonda beach, with a pool, two restaurants and a bar.', link: 'https://www.wedmegood.com/wedding-venues/Sai-Priya-Beach-Resort-741500', photo: 'Rushikonda_beach_view_001.jpg', credit: 'Rushikonda beach · Amit Chattopadhyay' },
+  { name: 'Sunray Village Resort', area: 'Savaravilli, near Bheemili', type: 'Village-style resort', capacity: 'Lawns 150 – 2,000 guests', plate: '~₹1,750 / plate', stay: 'Cottages from ~₹3,500 / night', why: 'Green, rustic setting that suits an overnight stay.', link: 'https://weddingwire.in/wedding-lawns-farmhouses/sunray-village-resort--e326267', photo: 'Bheemili22092018.jpg', credit: 'Bheemili beach road' },
+  { name: 'Palm Beach Hotel', area: 'Beach Road', type: 'Beachside hotel', capacity: 'Hall 70 – 350 · beach 500 – 1,000', plate: '~₹950 / plate', stay: 'Rooms on site', why: 'In the city, with a private beach area for a night party.', link: 'https://venuelook.com/wedding-venues-in-visakhapatnam/venuetype/resorts', photo: '(Bay_of_Bengal)_Beach_View_from_Tenneti_Park_07.JPG', credit: 'Beach Road, Tenneti Park · Adityamadhav83' },
+  { name: 'Gateway Beach Road (Taj)', area: 'Beach Road', type: 'City beachfront hotel', capacity: 'Open-air venue up to 500', plate: 'On request', stay: 'Rooms on site', why: 'Central location, easy for families coming in for the day.', link: 'https://www.tajhotels.com/en-in/gateway/beach-road-visakhapatnam/meetings-and-events/', photo: 'Vizag_View_from_Kailasagiri.jpg', credit: 'Beach Road from Kailasagiri' },
+  { name: 'Senora Beach Resort', area: 'Bheemili', type: 'Beach resort', capacity: 'Lawns 500+ guests', plate: 'On request', stay: 'Rooms on site', why: 'Family-friendly resort close to Bheemili beach.', link: 'https://spalba.com/properties/senora-beach-resort-5603/-19581', photo: 'Noon_time_view_at_Bheemunipatnam_beach_04.jpg', credit: 'Bheemili beach · Adityamadhav83' },
+  { name: 'Hayagreeva Resorts', area: 'Visakhapatnam', type: 'Resort with lawns', capacity: 'Lawns 250 – 1,300 guests', plate: '~₹295 – 472 / plate', stay: 'Rooms on site', why: 'Budget-friendly, with big lawns and parking for 500 cars.', link: 'https://www.weddingbazaar.com/wedding-venues/visakhapatnam/hayagreeva-resorts', photo: 'Dolphins_nose_hill_at_Vizag.jpg', credit: 'Visakhapatnam coast, Dolphin\'s Nose' }
+];
+function applyVenueList() {
+  if (db.venueList === 2) return;
+  const v = db.elections.find(e => e.id === 'venue');
+  if (v) {
+    // keep every existing venue and all votes; add the new options and attach details where the name matches
+    const norm = x => x.toLowerCase().replace(/[^a-z]/g, '');
+    const join = currentSlot() + 1;
+    for (const x of VENUES_2026) {
+      const info = { area: x.area, type: x.type, capacity: x.capacity, plate: x.plate, stay: x.stay, why: x.why, link: x.link, photo: x.photo || '', credit: x.credit || '' };
+      const have = v.candidates.find(c => norm(c.name).startsWith(norm(x.name).slice(0, 10)));
+      if (have) { if (!have.info) have.info = info; }
+      else v.candidates.push({ ...cand(x.name, x.area), info, joinSlot: join });
+    }
+  }
+  db.venueList = 2;
+}
+
 async function main() {
   db = await loadDb();
+  applyVenueList();
   await flush();
   app.listen(PORT, () => {
     console.log(`Running on http://localhost:${PORT}  (admin: /admin)  storage: ${pool ? 'postgres' : 'file'}`);
@@ -1147,4 +1200,4 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, async () => { try { if (db) await flush(); } finally { process.exit(0); } });
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { simulate, init: async () => (db = await loadDb()), getDb: () => db };
+module.exports = { simulate, init: async () => { db = await loadDb(); applyVenueList(); return db; }, getDb: () => db };

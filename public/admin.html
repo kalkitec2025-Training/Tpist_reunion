@@ -212,6 +212,7 @@ function electionEditor(e) {
       <input type="text" value="${esc(c.note)}" data-cnote="${c.id}" placeholder="Note (optional)" aria-label="Note">
       ${''}<div class="votes">${c.votes}<small>${c.real} real${c.offset ? ` · ${c.offset > 0 ? '+' : ''}${c.offset} manual` : ''}${c.by === 'public' ? ' · added in app' : ''}</small></div>
       <div class="row acts"><button class="btn s" data-adj="${c.id}|-10">−10</button><button class="btn s" data-adj="${c.id}|-1">−1</button><button class="btn s" data-adj="${c.id}|1">+1</button><button class="btn s" data-adj="${c.id}|10">+10</button>${c.offset ? `<button class="btn s" data-clr="${c.id}">Clear</button>` : ''}<button class="btn s r" data-delc="${c.id}">Remove</button></div>
+      ${e.kind === 'venue' ? `<div style="grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px"><input type="text" value="${esc((c.info && c.info.photo) || '')}" placeholder="Photo link (https://…) for this venue" data-cphoto="${c.id}" style="max-width:420px"><span class="sub">press Enter to save · use only photos you own or have permission for</span></div>` : ''}
       <div style="grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">
         ${c.videoInfo ? `<span class="pill ${c.videoInfo.status === 'approved' ? 'g' : 'o'}">Video ${c.videoInfo.status === 'approved' ? 'live' : 'waiting for approval'}</span><a href="${esc(c.videoInfo.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Open video ↗</a>
           ${c.videoInfo.status !== 'approved' ? `<button class="btn s p" data-vapprove="${c.id}">Approve</button>` : ''}<button class="btn s r" data-vremove="${c.id}">Remove video</button>`
@@ -454,6 +455,7 @@ document.addEventListener('click', run(async e => {
 
 document.addEventListener('change', run(async e => {
   const t = e.target;
+  if (t.dataset.cphoto) { await api(`/elections/${selE}/candidates/${t.dataset.cphoto}`, { method:'PUT', json:{ photo:t.value.trim(), credit: t.value.trim() ? 'Photo added by admin' : '' } }); toast('Photo saved'); return load(); }
   if (t.dataset.cname) { await api(`/elections/${selE}/candidates/${t.dataset.cname}`, { method:'PUT', json:{ name:t.value } }); toast('Name saved'); return load(); }
   if (t.dataset.cnote !== undefined && t.dataset.cnote) { await api(`/elections/${selE}/candidates/${t.dataset.cnote}`, { method:'PUT', json:{ note:t.value } }); toast('Note saved'); return; }
   if (t.dataset.rpass) { await api(`/rsvps/${t.dataset.rpass}`, { method:'PUT', json:{ pass:t.value } }); toast('Pass updated'); return load(); }

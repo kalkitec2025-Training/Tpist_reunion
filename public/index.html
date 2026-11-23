@@ -109,9 +109,29 @@
   .cand .l1 span:first-child { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cand .l1 span:last-child { font-weight:700; }
   .cand .nt { font-size:12px; color:var(--muted); margin-top:1px; }
+  .vc { padding:16px 0; border-top:1px solid var(--line); }
+  .vc:first-child { border-top:0; padding-top:2px; }
+  .vc.win { background:var(--ok-soft); border-radius:12px; padding:12px; margin:0 -6px; border-top:0; }
+  .vc .ph { position:relative; margin:0 0 12px; border-radius:14px; overflow:hidden; aspect-ratio:16/8; background:var(--track); }
+  .vc .ph img { width:100%; height:100%; object-fit:cover; display:block; }
+  .vc .ph a { position:absolute; right:8px; bottom:8px; font-size:10px; color:#fff; background:rgba(0,0,0,.5); padding:3px 7px; border-radius:6px; text-decoration:none; max-width:80%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .vc .ph .nw { position:absolute; left:8px; top:8px; font-size:11px; font-weight:700; color:#fff; background:var(--live); padding:3px 8px; border-radius:6px; }
+  .vc .h { display:flex; gap:12px; align-items:flex-start; }
+  .vc .ic { width:40px; height:40px; border-radius:12px; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; flex-shrink:0; }
+  .vc.lead .ic { background:var(--live-soft); color:var(--live-dark); }
+  .vc .nm { font-weight:700; font-size:15px; line-height:1.3; }
+  .vc .ar { font-size:12px; color:var(--muted); margin-top:1px; }
+  .vc .pc { margin-left:auto; font-weight:800; font-size:16px; }
+  .vc .facts { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0 52px; }
+  .vc .facts span { font-size:11.5px; background:var(--track); border-radius:8px; padding:4px 8px; color:var(--ink); }
+  .vc .facts b { font-weight:600; color:var(--muted); margin-right:3px; }
+  .vc .why { font-size:13px; color:var(--muted); line-height:1.45; margin:8px 0 0 52px; }
+  .vc .bar, .vc .l3 { margin-left:52px; }
+  .vc .l3 { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px; font-size:12.5px; color:var(--muted); }
+  .vc .lk { color:var(--accent); font-weight:600; text-decoration:none; margin-right:10px; white-space:nowrap; }
   .bar { height:7px; background:var(--track); border-radius:99px; margin-top:7px; overflow:hidden; }
   .bar div { height:7px; border-radius:99px; background:#A3A8BA; transition:width .7s ease; }
-  .cand.lead .bar div { background:var(--live); } .cand.win .bar div { background:var(--ok); }
+  .cand.lead .bar div, .vc.lead .bar div { background:var(--live); } .cand.win .bar div { background:var(--ok); }
   .cand .l3 { display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:12px; color:var(--muted); gap:8px; }
   .up { color:var(--live-dark); font-weight:600; } .dn { color:#6B7080; font-weight:600; }
   .vbtn { height:36px; padding:0 14px; border-radius:10px; border:0; background:var(--ink); color:#fff; font-size:13px; font-weight:600; cursor:pointer; }
@@ -500,6 +520,18 @@ function electionPage(id) {
     const vbtn = c.video ? `<button type="button" class="vbtn" style="background:var(--accent-soft);color:var(--accent);display:inline-flex;align-items:center;gap:5px;margin-right:6px" data-watch="${esc(e.id)}|${esc(c.id)}" aria-label="Watch ${esc(c.name)}'s video">${svg(P.play, 12)}Watch</button>` : '';
     const btn = vbtn + (win ? '<span class="chip ok">✓ Confirmed</span>' : e.myVote === c.id ? ''
       : canVote ? `<button type="button" class="vbtn" data-vote="${esc(e.id)}|${esc(c.id)}">Vote</button>` : '');
+    if (c.info) { const f = c.info;
+      const ext = /^https?:\/\//.test(f.photo || '');
+      const src = !f.photo ? '' : ext ? f.photo : `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(f.photo)}?width=800`;
+      const credit = f.photo && !ext ? `<a href="https://commons.wikimedia.org/wiki/File:${encodeURIComponent(f.photo)}" target="_blank" rel="noopener">Area photo · ${esc(f.credit || 'Wikimedia Commons')} · CC BY-SA</a>` : f.credit ? `<a>${esc(f.credit)}</a>` : '';
+      return `<div class="vc ${win ? 'win' : i === 0 && e.total ? 'lead' : ''}">
+        ${src ? `<div class="ph"><img src="${esc(src)}" alt="${esc(c.name)} area" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()">${c.isNew ? '<span class="nw">New option</span>' : ''}${credit}</div>` : ''}
+        <div class="h"><div class="ic">${svg(ICONS.venue || P.pin, 20)}</div><div style="min-width:0"><div class="nm">${esc(c.name)}</div><div class="ar">${esc([f.area, f.type].filter(Boolean).join(' · '))}</div></div><div class="pc">${p}%</div></div>
+        <div class="facts">${f.capacity ? `<span><b>Guests</b>${esc(f.capacity)}</span>` : ''}${f.plate ? `<span><b>Food</b>${esc(f.plate)}</span>` : ''}${f.stay ? `<span><b>Stay</b>${esc(f.stay)}</span>` : ''}</div>
+        ${f.why ? `<div class="why">${esc(f.why)}</div>` : ''}
+        <div class="bar"><div style="width:${p}%"></div></div>
+        <div class="l3"><span>${c.votes} vote${c.votes === 1 ? '' : 's'}${ch ? ' · ' + ch : ''}</span><span style="display:flex;align-items:center">${f.link ? `<a class="lk" href="${esc(f.link)}" target="_blank" rel="noopener">Details ↗</a>` : ''}${btn}</span></div>
+      </div>`; }
     return `<div class="cand ${win ? 'win' : i === 0 && e.total ? 'lead' : ''}">${avatar(c.name)}<div class="m">
       <div class="l1"><span>${esc(c.name)}</span><span>${p}%</span></div>
       ${c.note ? `<div class="nt">${esc(c.note)}</div>` : ''}
