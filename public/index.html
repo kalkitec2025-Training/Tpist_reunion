@@ -655,7 +655,7 @@ function privacyPage(signedIn) {
     <li>How you use the app: when you visit, which pages you open, which buttons you tap and how long you stay. Only the organising committee can see this.</li></ul>
     <h2>Why</h2><p>Only to organise the reunion: headcounts, food, rooms, transport, elections and chat between batchmates.</p>
     <h2>Who can see it</h2>
-    <ul><li>The organising committee can see registrations, votes, chat messages (for moderation) and app usage.</li>
+    <ul><li>The organising committee can see registrations, votes, chat messages and app usage.</li>
     <li>Other batchmates only see names of nominees while a poll is live. Everywhere else, including chat, people appear only as counts or as an initial with hidden letters. Your mobile number and email are never shown to other batchmates.</li></ul>
     <h2>Where it is stored</h2><p>On the app's hosting service and database. We never sell or share your data with anyone outside the committee.</p>
     <h2>Your choices</h2><p>You can edit your registration at any time and sign out from the RSVP page. To have your data deleted, ask the organising committee. All data will be deleted after the reunion.</p>
@@ -744,8 +744,7 @@ function paintChat(arg) {
           <li>Keep every message respectful and professional.</li>
           <li>Send no abusive, vulgar, offensive or unprofessional messages.</li>
           <li>Send no spam, forwards, business promotions or money requests.</li>
-          <li>Not ask for or share phone numbers, emails or other contact details. Such messages are blocked automatically.</li>
-          <li>Accept that the organising committee can see messages for moderation, and can delete messages or remove access if these rules are broken.</li>
+          <li>Accept that the admin can see messages, and can delete messages or remove access if these rules are broken.</li>
         </ol>
         <label class="agree"><input type="checkbox" name="agree" required> I have read the chat rules and I agree to follow them.</label>
         <button class="btn acc" style="width:100%">Accept and continue</button>
@@ -775,7 +774,7 @@ function paintInbox(v) {
       <div class="x">Your ${esc(C.requested ? C.requested.name : '')} plan request (${C.requested ? rupee(C.requested.price) : ''}) is with the admin. You can send messages as soon as it's activated.</div>
       <button type="button" class="btn ghost sm" data-cancelreq style="align-self:flex-start">Cancel request</button></div>`;
   } else if (C.status === 'revoked') {
-    status = `<div class="card"><div class="empty">Your chat access has been removed by the organising committee.</div></div>`;
+    status = `<div class="card"><div class="empty">Your chat access has been removed by the admin.</div></div>`;
   } else {
     status = `<div class="sec" style="margin-top:16px"><h2 class="d">Choose a plan to send messages</h2></div>
       ${C.status === 'declined' ? '<div class="note-bar" style="margin:0 20px 12px">Your last request was not approved. You can request again.</div>' : ''}${planCards()}`;
@@ -809,7 +808,7 @@ function paintThread(v, id) {
     return `${sep}<div class="bub ${m.mine ? 'me' : 'them'}">${esc(m.text)}<small>${time(m.t)}</small></div>`;
   }).join('');
   const canSend = C.status === 'active' && C.left !== 0;
-  const composer = p.committee ? `<div class="composer"><div class="in" style="justify-content:center;font-size:13px;color:var(--muted);padding:16px">Messages from the Organising Committee. Replies are not possible.</div></div>`
+  const composer = p.committee ? `<div class="composer"><div class="in" style="justify-content:center;font-size:13px;color:var(--muted);padding:16px">Messages from the Admin. Replies are not possible.</div></div>`
     : canSend
     ? `<form class="composer" id="sendForm"><div class="in"><textarea id="msg" rows="1" maxlength="500" placeholder="Message ${esc(first(p.name))}" aria-label="Message">${esc(draft)}</textarea><button aria-label="Send">${svg(SEND, 20)}</button></div>
         <div class="meta">No phone numbers, names or contact requests. Keep it professional.</div></form>`

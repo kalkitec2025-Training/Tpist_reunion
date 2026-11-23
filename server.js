@@ -636,29 +636,14 @@ function displayName(uid) {
 const COMMITTEE = 'committee';
 const maskKey = uid => (rsvpOfUser(uid) || {}).id || uid;
 function profileOf(uid, full = false) {
-  if (uid === COMMITTEE) return { id: COMMITTEE, name: 'Organising Committee', branch: '', city: '', committee: true };
+  if (uid === COMMITTEE) return { id: COMMITTEE, name: 'Admin', branch: '', city: '', committee: true };
   const r = rsvpOfUser(uid);
   if (!full) return { id: uid, name: maskFull(displayName(uid), maskKey(uid)), branch: '', city: '' };
   return { id: uid, name: displayName(uid), branch: r ? r.branch : '', city: r ? r.city : '' };
 }
-const DEFAULT_BLOCKED = ['idiot', 'stupid', 'bloody', 'bastard', 'fuck', 'shit', 'sexy', 'sex', 'dating', 'date with me', 'nude', 'pervert'];
-const ASK_CONTACT = /(phone|mobile|cell|contact|whats\s*app|wa)\s*(no|num|number|nbr|#)|\b(your|ur|send|share|give|ivvu|pampu|cheppu)\b[^.?!]{0,20}\b(number|num|no\.?)\b|\bnumber\s*(ivvu|pampu|cheppu|do|bhejo|send)\b|\bcall\s*me\b|\bwhats\s*app\b|\binsta(gram)?\s*(id|handle)\b|\b(email|mail)\s*(id|address)\b/i;
-function chatBlockReason(text) {
-  const digits = (text.match(/\d/g) || []).length;
-  if (digits >= 8 || /(\+?91[\s-]?)?[6-9]\d{2}[\s-]?\d{3}[\s-]?\d{4}/.test(text)) return 'sharing phone numbers is not allowed in chat';
-  if (/[\w.+-]+@[\w-]+\.[\w.]+/.test(text)) return 'sharing email addresses is not allowed in chat';
-  if (ASK_CONTACT.test(text)) return 'asking for phone numbers or contact details is not allowed in chat';
-  const words = (db.settings.chatBlocked && db.settings.chatBlocked.length ? db.settings.chatBlocked : DEFAULT_BLOCKED);
-  const low = ' ' + text.toLowerCase().replace(/[^a-z0-9\u0C00-\u0C7F\u0900-\u097F\s]/g, ' ').replace(/\s+/g, ' ') + ' ';
-  const hit = words.find(w => w && low.includes(' ' + w.toLowerCase().trim() + ' '));
-  if (hit) return 'the message contains words that break the chat rules';
-  if (!/[a-z\u0C00-\u0C7F\u0900-\u097F]{2,}/i.test(text) || /(.)\1{7,}/.test(text)) return 'the message looks like spam';
-  return null;
-}
 function committeeMessage(uid, text) {
   db.chat.messages.push({ id: newId(), from: COMMITTEE, to: uid, text: str(text, 500), t: Date.now(), read: false });
 }
-const lastWarn = new Map();
 function chatMe(req) {
   const su = sessionUser(req);
   if (!su) return { user: null, u: null };
@@ -748,22 +733,11 @@ app.post('/api/chat/send', (req, res) => {
   const me = needChat(req, res); if (!me) return;
   const u = me.u;
   if (!u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
-  if (u.status === 'revoked') return res.status(403).json({ error: 'Your chat access has been removed by the organising committee' });
+  if (u.status === 'revoked') return res.status(403).json({ error: 'Your chat access has been removed by the admin' });
   const to = req.body.to, peerChat = db.chat.users[to];
   if (!db.users[to] || to === me.user.id || !peerChat || !peerChat.consentAt) return res.status(404).json({ error: 'Batchmate not found' });
   const text = str(req.body.text, 500);
   if (!text) return res.status(400).json({ error: 'Type a message' });
-  const reason = chatBlockReason(text);
-  if (reason) {
-    (db.chat.flags ||= []).push({ id: newId(), uid: me.user.id, to, text, reason, t: Date.now() });
-    if (db.chat.flags.length > 500) db.chat.flags.splice(0, db.chat.flags.length - 500);
-    if (Date.now() - (lastWarn.get(me.user.id) || 0) > 10 * 60 * 1000) {
-      lastWarn.set(me.user.id, Date.now());
-      committeeMessage(me.user.id, `Your message was not delivered because ${reason}. Please keep chat respectful and professional, and do not ask for or share phone numbers. Repeated attempts can lead to chat access being removed.`);
-    }
-    saveDb();
-    return res.status(422).json({ error: `Not sent: ${reason}.` });
-  }
   const now = Date.now();
   if (now - (lastSend.get(me.user.id) || 0) < 1500) return res.status(429).json({ error: 'Slow down a little' });
   lastSend.set(me.user.id, now);
@@ -864,11 +838,9 @@ A.get('/state', (req, res) => {
     }).sort((a, b) => b.createdAt - a.createdAt),
     chat: {
       plans: PLANS,
-      users: Object.entries(db.chat.users).filter(([id]) => db.users[id]).map(([id, u]) => ({ ...profileOf(id, true), email: db.users[id].email, ...u, id, flags: (db.chat.flags || []).filter(f => f.uid === id).length }))
+      users: Object.entries(db.chat.users).filter(([id]) => db.users[id]).map(([id, u]) => ({ ...profileOf(id, true), email: db.users[id].email, ...u, id }))
         .sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0)),
-      messages: db.chat.messages.slice(-300).reverse().map(m => ({ ...m, fromName: m.from === COMMITTEE ? 'Organising Committee' : db.users[m.from] ? displayName(m.from) : '—', toName: db.users[m.to] ? displayName(m.to) : '—' })),
-      flags: (db.chat.flags || []).slice(-200).reverse().map(f => ({ ...f, name: db.users[f.uid] ? displayName(f.uid) : '—', toName: db.users[f.to] ? displayName(f.to) : '—' })),
-      blocked: db.settings.chatBlocked && db.settings.chatBlocked.length ? db.settings.chatBlocked : DEFAULT_BLOCKED
+      messages: db.chat.messages.slice(-300).reverse().map(m => ({ ...m, fromName: m.from === COMMITTEE ? 'Admin' : db.users[m.from] ? displayName(m.from) : '—', toName: db.users[m.to] ? displayName(m.to) : '—' })),
     }
   });
 });
@@ -1099,11 +1071,6 @@ A.post('/chat/:id/message', (req, res) => {
   const text = str(req.body.text, 500);
   if (!text) return res.status(400).json({ error: 'Type a message' });
   committeeMessage(req.params.id, text);
-  saveDb(); res.json({ ok: true });
-});
-A.put('/chat/blocked', (req, res) => {
-  if (!Array.isArray(req.body.words)) return res.status(400).json({ error: 'words required' });
-  db.settings.chatBlocked = req.body.words.map(w => str(w, 40).toLowerCase()).filter(Boolean).slice(0, 300);
   saveDb(); res.json({ ok: true });
 });
 A.delete('/chat/messages/:id', (req, res) => {

@@ -342,17 +342,10 @@ function chat() {
     <div class="tw"><table><tr><th>Name</th><th>Status</th><th>Messages sent</th><th></th></tr>
     ${C.users.map(u => `<tr><td><b>${esc(u.name)}</b></td><td><span class="pill ${u.status === 'revoked' ? 'r' : 'g'}">${u.status === 'revoked' ? 'Removed' : 'Active'}</span></td>
       <td>${u.used || 0}</td>
-      <td><div class="row"><button class="btn s" data-cwarn="${u.id}">Message</button>${u.status !== 'revoked' ? `<button class="btn r s" data-crevoke="${u.id}">Remove access</button>` : `<button class="btn s" data-crestore="${u.id}">Restore access</button>`}</div>${u.flags ? `<div class="sub" style="color:var(--red)">${u.flags} blocked</div>` : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="hint">Nobody has joined chat yet.</td></tr>'}
+      <td><div class="row"><button class="btn s" data-cwarn="${u.id}">Message</button>${u.status !== 'revoked' ? `<button class="btn r s" data-crevoke="${u.id}">Remove access</button>` : `<button class="btn s" data-crestore="${u.id}">Restore access</button>`}</div></td></tr>`).join('') || '<tr><td colspan="6" class="hint">Nobody has joined chat yet.</td></tr>'}
     </table></div>
   </section>
-  <section class="card"><h2>Blocked messages (${C.flags.length})</h2><p class="hint">Messages stopped by the filter (phone numbers, contact requests, blocked words, spam). The sender gets an automatic warning; send another if needed.</p>
-    ${C.flags.map(f => `<div class="rs" style="grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto"><div><b>${esc(f.name)}</b> → ${esc(f.toName)}<div class="sub">${when(f.t)}</div></div><div><div style="white-space:pre-wrap">${esc(f.text)}</div><div class="sub" style="color:var(--red)">${esc(f.reason)}</div></div><div><button class="btn s" data-cwarn="${f.uid}">Send warning</button></div></div>`).join('') || '<p class="hint">Nothing blocked yet.</p>'}
-  </section>
-  <section class="card"><h2>Blocked words</h2><p class="hint">Messages containing any of these words or phrases are not delivered. One per line. Phone numbers, emails and requests for contact details are always blocked.</p>
-    <textarea id="blockedWords" style="min-height:120px">${esc(C.blocked.join('\n'))}</textarea>
-    <div class="row mt"><button class="btn p" data-a="saveBlocked">Save blocked words</button></div>
-  </section>
-  <section class="card"><h2>Messages (latest ${C.messages.length})</h2><p class="hint">For moderation only. Delete anything that breaks the chat rules.</p>
+  <section class="card"><h2>Messages (latest ${C.messages.length})</h2><p class="hint">Every message is delivered. You can delete any message here.</p>
     ${C.messages.map(m => `<div class="rs" style="grid-template-columns:minmax(0,1fr) minmax(0,2.4fr) auto"><div><b>${esc(m.fromName)}</b> → ${esc(m.toName)}<div class="sub">${when(m.t)}</div></div><div style="white-space:pre-wrap">${esc(m.text)}</div><div><button class="btn r s" data-cdel="${m.id}">Delete</button></div></div>`).join('') || '<p class="hint">No messages yet.</p>'}
   </section></div>`;
 }
@@ -406,7 +399,6 @@ const actions = {
   restart: async () => { if (!confirm('Restart the scripted story from now? Scripted numbers go back to their starting values.')) return false; await api('/auto/restart', { method:'POST' }); toast('Restarted'); },
   startE: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ status:'live' } }); toast('Voting started. It now shows on Home.'); },
   closeE: async () => { await api(`/elections/${selE}`, { method:'PUT', json:{ status:'closed' } }); toast('Voting closed'); },
-  saveBlocked: async () => { await api('/chat/blocked', { method:'PUT', json:{ words:$('blockedWords').value.split('\n').map(x => x.trim()).filter(Boolean) } }); toast('Blocked words saved'); },
   addTest: async () => {
     if (!confirm('Add 54 test registrations? They are marked "Test", have no phone numbers, and replace the extra counts in Settings so Home shows 54.')) return false;
     const r = await api('/rsvps/test', { method:'POST', json:{ count:54 } }); toast(`${r.added} test registrations added`);
