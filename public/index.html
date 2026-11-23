@@ -116,6 +116,12 @@
   .vc .ph img { width:100%; height:100%; object-fit:cover; display:block; }
   .vc .ph a { position:absolute; right:8px; bottom:8px; font-size:10px; color:#fff; background:rgba(0,0,0,.5); padding:3px 7px; border-radius:6px; text-decoration:none; max-width:80%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .vc .ph .nw { position:absolute; left:8px; top:8px; font-size:11px; font-weight:700; color:#fff; background:var(--live); padding:3px 8px; border-radius:6px; }
+  .tm { display:flex; gap:12px; align-items:center; padding:14px 0; border-top:1px solid var(--line); }
+  .tm:first-child { border-top:0; }
+  .tm .t { font-weight:700; font-size:15px; }
+  .tm .cn { display:flex; align-items:center; gap:5px; color:var(--ok); font-weight:600; font-size:14px; margin-top:2px; }
+  .tm .cp { color:var(--muted); font-size:13px; margin-top:2px; }
+  .vc .nwb { font-size:10.5px; font-weight:700; color:var(--live-dark); background:var(--live-soft); padding:2px 7px; border-radius:6px; vertical-align:2px; margin-left:4px; white-space:nowrap; }
   .vc .h { display:flex; gap:12px; align-items:flex-start; }
   .vc .ic { width:40px; height:40px; border-radius:12px; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; flex-shrink:0; }
   .vc.lead .ic { background:var(--live-soft); color:var(--live-dark); }
@@ -234,6 +240,22 @@
   .plan .pm { font-size:13px; color:var(--muted); margin-bottom:8px; }
   .plan button { height:40px; border:0; border-radius:10px; background:var(--ink); color:#fff; font-weight:600; font-size:13px; cursor:pointer; margin-top:auto; }
   .plan.best button { background:var(--accent); }
+  .chat-hero { margin:18px 20px 4px; padding:20px; border-radius:22px; color:#fff; display:flex; gap:14px; align-items:center;
+    background:radial-gradient(120% 140% at 100% 0%, #F97316 0%, #C2410C 45%, #7C2D12 100%); box-shadow:0 10px 28px rgba(194,65,12,.25); }
+  .chat-hero .ci { width:52px; height:52px; border-radius:16px; background:rgba(255,255,255,.18); display:grid; place-items:center; flex-shrink:0; }
+  .chat-hero .ct { font-size:28px; font-weight:800; line-height:1.1; }
+  .chat-hero .cs { font-size:13.5px; opacity:.92; margin-top:4px; line-height:1.45; }
+  .plist { padding-top:4px; padding-bottom:4px; }
+  .pp { display:flex; gap:12px; align-items:center; padding:12px 0; border-top:1px solid var(--line); text-decoration:none; color:inherit; }
+  .pp:first-child { border-top:0; }
+  button.pp { width:100%; background:none; border:0; border-top:1px solid var(--line); font:inherit; text-align:left; cursor:pointer; }
+  button.pp:first-child { border-top:0; }
+  .pp .m { flex:1; min-width:0; } .pp .n { font-weight:600; font-size:15px; }
+  .pp .l { font-size:12.5px; color:var(--muted); margin-top:2px; display:flex; align-items:center; gap:6px; }
+  .pp .on { width:8px; height:8px; border-radius:50%; background:var(--live); display:inline-block; box-shadow:0 0 0 3px var(--live-soft); }
+  .pp .go { display:inline-flex; align-items:center; gap:6px; background:var(--accent); color:#fff; font-weight:700; font-size:13px; padding:8px 14px; border-radius:99px; }
+  .pp.off { opacity:.7; } .pp .lk { color:#A3A8BA; }
+  .pp.you { background:var(--ok-soft); border-radius:14px; padding:12px; margin:6px -6px; border-top:0; }
   .conv { display:flex; gap:12px; align-items:center; padding:12px 0; border-top:1px solid var(--line); text-decoration:none; }
   .conv:first-child { border-top:0; }
   .conv .m { flex:1; min-width:0; } .conv .n { font-weight:600; font-size:15px; display:flex; justify-content:space-between; gap:8px; }
@@ -333,9 +355,10 @@ const ICONS = {
   _: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>'
 };
 const TILE = { venue:0, overall:5, telecalling:1, food:0, hospitality:3, transport:1, media:3, arrangements:4, finance:2, women:3 };
+const isOpt = e => e.kind === 'venue' || e.kind === 'vendor';
 function icon(e) {
   const [bg, fg] = AV[TILE[e.id] ?? hsh(e.id) % AV.length];
-  return `<div class="ico" style="background:${bg};color:${fg}">${svg(ICONS[e.id] || ICONS._)}</div>`;
+  return `<div class="ico" style="background:${bg};color:${fg}">${svg(ICONS[e.icon || e.id] || ICONS._)}</div>`;
 }
 
 let S = null, day = 1, pending = null, form = null, nomOpen = null;
@@ -387,7 +410,7 @@ function ticker() {
   for (const e of S.elections) {
     if (!e.hasHistory || !isLive(e)) continue;
     const top = [...e.candidates].sort((a, b) => b.lastHour - a.lastHour)[0];
-    if (top && top.lastHour > 0) items.push(`${esc(e.kind === 'venue' ? 'Venue' : e.title.replace(/ Coordinator$/, ''))}: ${esc(e.kind === 'venue' ? top.name : first(top.name))} +${top.lastHour}`);
+    if (top && top.lastHour > 0) items.push(`${esc(e.kind === 'venue' ? 'Venue' : e.title.replace(/ Coordinator$/, ''))}: ${esc(isOpt(e) ? top.name : first(top.name))} +${top.lastHour}`);
   }
   return items.length ? `<div class="ticker"><b>LAST HOUR</b><span>${items.join(' · ')}</span></div>` : '';
 }
@@ -495,7 +518,7 @@ function voteCard(e) {
       const l = e.candidates[0];
       let foot;
       const nom = n => `${n} nominee${n === 1 ? '' : 's'}`;
-      if (e.confirmed) foot = e.kind === 'venue' && e.confirmed.name ? `<span class="fixed-name">${esc(e.confirmed.name)}</span><span class="chip ok">✓ Confirmed</span>` : `<span class="fixed-name">${svg(P.check, 16)}Coordinator confirmed · 1</span><span class="chip ok">Done</span>`;
+      if (e.confirmed) foot = e.confirmed.name ? `<span class="fixed-name">${esc(e.confirmed.name)}</span><span class="chip ok">✓ Confirmed</span>` : `<span class="fixed-name">${svg(P.check, 16)}Coordinator confirmed · 1</span><span class="chip ok">Done</span>`;
       else if (e.status === 'upcoming') foot = `<span class="who">${e.candidates.length ? nom(e.candidates.length) + ' so far' : 'Nominations open'}</span><span class="chip wait">Opens soon</span>`;
       else if (e.status === 'closed') foot = `<span class="who">${nom(e.candidates.length)} · ${e.total} votes</span><span class="chip wait">Closed</span>`;
       else {
@@ -526,8 +549,8 @@ function electionPage(id) {
       const credit = f.photo && !ext ? `<a href="https://commons.wikimedia.org/wiki/File:${encodeURIComponent(f.photo)}" target="_blank" rel="noopener">Area photo · ${esc(f.credit || 'Wikimedia Commons')} · CC BY-SA</a>` : f.credit ? `<a>${esc(f.credit)}</a>` : '';
       return `<div class="vc ${win ? 'win' : i === 0 && e.total ? 'lead' : ''}">
         ${src ? `<div class="ph"><img src="${esc(src)}" alt="${esc(c.name)} area" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()">${c.isNew ? '<span class="nw">New option</span>' : ''}${credit}</div>` : ''}
-        <div class="h"><div class="ic">${svg(ICONS.venue || P.pin, 20)}</div><div style="min-width:0"><div class="nm">${esc(c.name)}</div><div class="ar">${esc([f.area, f.type].filter(Boolean).join(' · '))}</div></div><div class="pc">${p}%</div></div>
-        <div class="facts">${f.capacity ? `<span><b>Guests</b>${esc(f.capacity)}</span>` : ''}${f.plate ? `<span><b>Food</b>${esc(f.plate)}</span>` : ''}${f.stay ? `<span><b>Stay</b>${esc(f.stay)}</span>` : ''}</div>
+        <div class="h"><div class="ic">${svg(ICONS[e.icon || e.id] || ICONS.venue || P.pin, 20)}</div><div style="min-width:0"><div class="nm">${esc(c.name)}${c.isNew && !src ? ' <span class="nwb">New option</span>' : ''}</div><div class="ar">${esc([f.area, f.type].filter(Boolean).join(' · '))}</div></div><div class="pc">${p}%</div></div>
+        <div class="facts">${(f.facts || [['Guests', f.capacity], ['Food', f.plate], ['Stay', f.stay]]).filter(x => x[1]).map(([k, v]) => `<span><b>${esc(k)}</b>${esc(v)}</span>`).join('')}</div>
         ${f.why ? `<div class="why">${esc(f.why)}</div>` : ''}
         <div class="bar"><div style="width:${p}%"></div></div>
         <div class="l3"><span>${c.votes} vote${c.votes === 1 ? '' : 's'}${ch ? ' · ' + ch : ''}</span><span style="display:flex;align-items:center">${f.link ? `<a class="lk" href="${esc(f.link)}" target="_blank" rel="noopener">Details ↗</a>` : ''}${btn}</span></div>
@@ -548,16 +571,16 @@ function electionPage(id) {
   return `${ticker()}<a class="back" href="#vote">‹ Elections</a>
     <div class="ehead">${icon(e)}<div><h1 class="h1 d" style="font-size:24px">${esc(e.title)}</h1><p class="sub">${esc(e.desc)}</p></div></div>
     <p class="sub" style="font-size:13px;padding:10px 20px 0">${e.total} votes · ${e.live ? 'counted live' : 'updated ' + time(S.updatedAt)}</p>
-    ${e.confirmed ? `<div class="note-bar ok">${svg(P.check, 18)}<span>${e.kind === 'venue' && e.confirmed.name ? `<b>${esc(e.confirmed.name)}</b> is confirmed.` : `The ${esc(e.title)} is confirmed.`} Voting for this role is closed.</span></div>`
+    ${e.confirmed ? `<div class="note-bar ok">${svg(P.check, 18)}<span>${e.confirmed.name ? `<b>${esc(e.confirmed.name)}</b> is confirmed${isOpt(e) ? '' : ' as ' + esc(e.title)}.` : `The ${esc(e.title)} is confirmed.`} Voting for this role is closed.</span></div>`
       : e.status === 'upcoming' ? `<div class="note-bar">${svg(P.info, 18)}<span>Voting for this role opens soon.${e.openNominations ? ' You can add nominees now.' : ''}</span></div>`
       : e.status === 'closed' ? `<div class="note-bar">${svg(P.info, 18)}<span>Voting for this role has closed.</span></div>`
       : e.myVote ? `<div class="note-bar ok">${svg(P.check, 18)}<span>Thanks, your vote is counted.</span></div>` : ''}
-    ${isLive(e) || e.kind === 'venue'
+    ${isLive(e) || isOpt(e)
       ? `<div class="card" style="margin-top:16px">${rows || `<div class="empty">No nominees yet.<br>Add a batchmate below and ask everyone to vote.</div>`}</div>`
       : `<div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><div class="n d">${e.confirmed ? 1 : e.candidates.length}</div><div class="l">${e.confirmed ? 'Coordinator confirmed' : 'Nominees'}</div></div><div class="stat"><div class="n d">${e.total}</div><div class="l">Votes</div></div></div>
          ${lockNote('Names are shown only while voting is live. The admin can see the full list and results.')}<div style="height:12px"></div>`}
     ${nomForm}
-    ${isLive(e) && e.kind !== 'venue' && e.candidates.length ? campaignBox(e) : ''}
+    ${isLive(e) && !isOpt(e) && e.candidates.length ? campaignBox(e) : ''}
     ${footer()}`;
 }
 let campOpen = null;
@@ -565,7 +588,7 @@ function campaignBox(e) {
   if (campOpen !== e.id) return `<div style="margin:0 20px 12px"><button type="button" class="btn line" style="width:100%" data-camp="${esc(e.id)}">${svg(P.video, 18)}Are you a candidate? Post a campaign video</button></div>`;
   return `<form class="card nom" id="campForm" data-e="${esc(e.id)}"><div style="font-weight:700">Post a campaign video</div>
     <div style="font-size:13px;color:var(--muted);line-height:1.5">Upload a short video to YouTube (set it to <b>Unlisted</b>) or Google Drive (<b>anyone with the link</b>), then paste the link. The committee checks it before it appears next to your name.</div>
-    <select name="cand" aria-label="Your name" style="height:46px;border:1px solid #D5D8E2;border-radius:12px;padding:0 12px;font-size:16px;background:#fff"><option value="">I am…</option>${e.candidates.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select>
+    <select name="cand" aria-label="Your name" style="height:46px;border:1px solid #D5D8E2;border-radius:12px;padding:0 12px;font-size:16px;background:#fff"><option value="">I am…</option>${e.candidates.filter(c => !c.info).map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select>
     <input name="url" type="url" inputmode="url" placeholder="https://youtu.be/… or drive.google.com/…" aria-label="Video link" required>
     <div class="row2"><button type="button" class="btn ghost sm" data-campclose>Cancel</button><button class="btn acc sm">Send for approval</button></div></form>`;
 }
@@ -609,30 +632,12 @@ function schedulePage() {
 
 // ------------------------------------------------------------------ teams
 function teamsPage() {
-  const st = S.settings;
   const teams = S.elections.filter(e => e.kind === 'role');
-  const conf = teams.filter(e => e.confirmed).length, noms = teams.reduce((n, e) => n + (e.confirmed ? 0 : e.candidates.length), 0);
-  return `<div class="pad"><h1 class="h1 d">Organising teams</h1><p class="sub">How each team is doing. Coordinators are chosen by vote.</p></div>
-    <div class="stats"><div class="stat"><div class="n d">${teams.length}</div><div class="l">Teams</div></div><div class="stat"><div class="n d">${conf}</div><div class="l">Coordinators confirmed</div></div><div class="stat"><div class="n d">${noms}</div><div class="l">Nominees</div></div></div>
-    ${lockNote('Names of coordinators and nominees are visible to the admin only.')}
-    <div style="height:14px"></div>
-    ${teams.map(e => {
-      const t = S.tasks[e.id] || { total:0, done:0, items:[] };
-      const n = e.candidates.length, nom = `${n} nominee${n === 1 ? '' : 's'}`;
-      const who = e.confirmed ? `<div class="c fx">✓ Coordinators: 1</div>`
-        : e.status === 'upcoming' ? `<div class="c">Coordinators: 0 · voting opens soon${n ? ' · ' + nom : ''}</div>`
-        : e.status === 'closed' ? `<div class="c">Coordinators: 0 · voting closed · ${nom}</div>`
-        : `<div class="c">Coordinators: 0 · voting live · ${nom}</div>`;
-      const extra = e.id === 'overall' ? '<div class="c" style="color:var(--accent);font-weight:600">Final venue confirmation pending</div>' : '';
-      return `<details class="card team"><summary>
-        <div class="hd">${icon(e)}<div style="flex:1;min-width:0"><div class="t">${esc(e.title)}</div>${who}${extra}</div>${svg(P.chevD, 18, 'chev')}</div>
-        ${t.total ? `<div class="pr"><div class="progress"><div style="width:${pct(t.done, t.total)}%"></div></div><span>${t.done}/${t.total} done</span></div>` : ''}
-      </summary>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:var(--muted)">${svg(P.lock, 16)}Names are visible to the admin only.</div>
-      ${t.total ? `<ul>${t.items.map(x => `<li><span class="dot ${x.status}"></span><span style="${x.status === 'done' ? 'color:var(--muted);text-decoration:line-through' : ''}">${esc(x.title)}</span>${x.status === 'doing' ? '<span class="chip wait" style="margin-left:auto">In progress</span>' : ''}</li>`).join('')}</ul>` : ''}
-      ${isLive(e) ? `<div style="margin-top:12px"><a class="btn ghost sm" href="#vote/${esc(e.id)}">Vote now</a></div>` : e.status === 'upcoming' && e.openNominations ? `<div style="margin-top:12px"><a class="btn ghost sm" href="#vote/${esc(e.id)}">Add a nominee</a></div>` : ''}
-      </details>`;
-    }).join('')}
+  return `<div class="pad"><h1 class="h1 d">Organising teams</h1><p class="sub">Each team and its confirmed coordinator.</p></div>
+    <div class="card" style="margin-top:14px;padding:4px 16px">
+    ${teams.map(e => `<div class="tm">${icon(e)}<div style="flex:1;min-width:0"><div class="t">${esc(e.title)}</div>
+        ${e.confirmed && e.confirmed.name ? `<div class="cn">${svg(P.check, 15)}${esc(e.confirmed.name)}</div>` : '<div class="cp">Coordinator to be confirmed</div>'}</div></div>`).join('')}
+    </div>
     ${footer()}`;
 }
 
@@ -750,7 +755,7 @@ async function api2(url, body) {
 async function loadChat(arg) {
   try {
     if (arg && arg !== 'new') { thread = await api2('/api/chat/thread/' + encodeURIComponent(arg)); C = thread.chat; }
-    else { C = await api2('/api/chat'); if (arg === 'new' && C.consent) people = await api2('/api/chat/people'); }
+    else { C = await api2('/api/chat'); if (C.consent) people = await api2('/api/chat/people'); }
   } catch (e) { toast(e.message); }
   if (S && C && C.conversations && !(arg && arg !== 'new')) { S.chatUnread = C.conversations.reduce((n, c) => n + c.unread, 0); }
   else if (S && thread) { S.chatUnread = Math.max(0, (S.chatUnread || 0) - 0); }
@@ -783,7 +788,7 @@ function paintChat(arg) {
       </form>${footer()}`;
     return;
   }
-  if (arg === 'new') return paintPeople(v);
+  if (arg === 'new') return paintInbox(v);
   if (arg) return paintThread(v, arg);
   paintInbox(v);
 }
@@ -794,40 +799,25 @@ function planCards() {
     <p class="fine" style="margin:0 20px 12px">Your request goes to the admin, who activates your plan.</p>`;
 }
 function paintInbox(v) {
-  let status;
-  if (C.status === 'active') {
-    status = `<div class="card cta"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-      <div><div class="t">Chat is free</div><div class="x">For signed-in batchmates. Keep it friendly and professional.</div></div>
-      <a class="btn acc sm" href="#chat/new">New message</a></div>
-      ${C.left !== null ? `<button type="button" class="btn ghost sm" data-showplans style="align-self:flex-start">${showPlans ? 'Hide plans' : 'Get more messages'}</button>` : ''}</div>
-      ${showPlans && C.left !== null ? planCards() : ''}`;
-  } else if (C.status === 'pending') {
-    status = `<div class="card cta" style="background:#FFF8E1;border-color:#F5E1A4"><div class="t">Request sent to admin</div>
-      <div class="x">Your ${esc(C.requested ? C.requested.name : '')} plan request (${C.requested ? rupee(C.requested.price) : ''}) is with the admin. You can send messages as soon as it's activated.</div>
-      <button type="button" class="btn ghost sm" data-cancelreq style="align-self:flex-start">Cancel request</button></div>`;
-  } else if (C.status === 'revoked') {
-    status = `<div class="card"><div class="empty">Your chat access has been removed by the admin.</div></div>`;
-  } else {
-    status = `<div class="sec" style="margin-top:16px"><h2 class="d">Choose a plan to send messages</h2></div>
-      ${C.status === 'declined' ? '<div class="note-bar" style="margin:0 20px 12px">Your last request was not approved. You can request again.</div>' : ''}${planCards()}`;
-  }
+  if (C.status === 'revoked') { v.innerHTML = `<div class="pad"><h1 class="h1 d">Chat</h1></div><div class="card" style="margin-top:14px"><div class="empty">Your chat access has been removed by the admin.</div></div>${footer()}`; return; }
   const convs = C.conversations.map(c => `<a class="conv ${c.unread ? 'unread' : ''}" href="#chat/${esc(c.id)}">${c.committee ? `<div class="av" style="background:var(--accent);color:#fff">${svg(P.info, 20)}</div>` : avatar(c.name)}
-    <div class="m"><div class="n"><span>${esc(c.name)}</span><small>${ago(c.t)}</small></div><div class="l">${c.mine ? 'You: ' : ''}${esc(c.last)}</div></div>
+    <div class="m"><div class="n"><span>${c.committee ? esc(c.name) : masked(c.name)}</span><small>${ago(c.t)}</small></div><div class="l">${c.mine ? 'You: ' : ''}${esc(c.last)}</div></div>
     ${c.unread ? `<span class="ub">${c.unread}</span>` : ''}</a>`).join('');
-  v.innerHTML = `<div class="pad"><h1 class="h1 d">Chat</h1><p class="sub">Private messages with your batchmates. ${C.members} batchmate${C.members === 1 ? '' : 's'} in chat. Names are partly hidden for privacy.</p></div>
-    <div style="height:14px"></div>${status}
-    <div class="sec"><h2 class="d">Messages</h2>${C.status === 'active' ? '<a href="#chat/new">New</a>' : ''}</div>
-    <div class="card">${convs || '<div class="empty">No messages yet.</div>'}</div>${footer()}`;
-}
-function paintPeople(v) {
-  const list = (people || []).filter(p => !peopleQ || p.name.toLowerCase().startsWith(peopleQ.trim().toLowerCase().charAt(0)));
-  const open = (people || []).filter(p => p.canChat).length;
-  v.innerHTML = `<a class="back" href="#chat">‹ Chat</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">New message</h1><p class="sub">${(people || []).length} registered · ${open} available to chat. Names are hidden for privacy.</p></div>
+  const q = peopleQ.trim().toLowerCase().charAt(0);
+  const list = (people || []).filter(p => !q || p.name.toLowerCase().startsWith(q));
+  const row = p => p.you
+    ? `<div class="pp you">${avatar(p.name)}<div class="m"><div class="n">${esc(p.name)}</div><div class="l">This is you</div></div>${youTag}</div>`
+    : p.canChat
+    ? `<a class="pp" href="#chat/${esc(p.id)}">${avatar(p.name)}<div class="m"><div class="n">${masked(p.name)}</div><div class="l"><i class="on"></i>On chat</div></div><span class="go">${svg(P.chat, 16)}Chat</span></a>`
+    : `<div class="pp off">${avatar(p.name)}<div class="m"><div class="n">${masked(p.name)}</div><div class="l">Not on chat yet</div></div><span class="lk" aria-label="Locked">${svg(P.lock, 16)}</span></div>`;
+  v.innerHTML = `<div class="chat-hero">
+      <div class="ci">${svg(P.chat, 26)}</div>
+      <div><div class="ct d">Chat</div><div class="cs">Reconnect with your batchmates after 25 years. Pick a name and say hello.</div></div>
+    </div>
+    ${convs ? `<div class="sec"><h2 class="d">Recent chats</h2></div><div class="card">${convs}</div>` : ''}
+    <div class="sec"><h2 class="d">Batchmates</h2></div>
     <div class="search"><input type="search" id="pq" placeholder="Search by first letter" value="${esc(peopleQ)}" aria-label="Search batchmates"></div>
-    <div class="card">${list.map(p => p.canChat
-      ? `<a class="conv" href="#chat/${esc(p.id)}">${avatar(p.name)}<div class="m"><div class="n">${masked(p.name)}</div><div class="l">Tap to chat</div></div><span style="color:var(--accent)">${svg(P.chat, 20)}</span></a>`
-      : `<div class="conv" aria-disabled="true" style="${p.you ? 'background:var(--ok-soft);border-radius:12px;padding:12px;margin:0 -6px;border-top:0' : 'opacity:.75'}">${avatar(p.name)}<div class="m"><div class="n">${masked(p.name)}</div></div>${p.you ? youTag : `<span style="color:#A3A8BA" aria-label="Locked">${svg(P.lock, 18)}</span>`}</div>`).join('')
-      || `<div class="empty">${people ? 'No batchmates found.' : 'Loading…'}</div>`}</div>${footer()}`;
+    <div class="card plist">${list.map(row).join('') || `<div class="empty">${people ? 'No batchmates found.' : 'Loading…'}</div>`}</div>${footer()}`;
 }
 function paintThread(v, id) {
   if (!thread || thread.peer.id !== id) { v.innerHTML = '<div class="loading">Loading…</div>'; return; }
@@ -843,7 +833,7 @@ function paintThread(v, id) {
   const composer = p.committee ? `<div class="composer"><div class="in" style="justify-content:center;font-size:13px;color:var(--muted);padding:16px">Messages from the Admin. Replies are not possible.</div></div>`
     : canSend
     ? `<form class="composer" id="sendForm"><div class="in"><textarea id="msg" rows="1" maxlength="500" placeholder="Message ${esc(first(p.name))}" aria-label="Message">${esc(draft)}</textarea><button aria-label="Send">${svg(SEND, 20)}</button></div>
-        <div class="meta">No phone numbers, names or contact requests. Keep it professional.</div></form>`
+        <div class="meta">Keep it friendly and respectful.</div></form>`
     : `<div class="composer"><div class="in" style="justify-content:center"><a class="btn acc" href="#chat" style="width:100%">${C.status === 'pending' ? 'Plan request pending' : C.status === 'active' ? 'Get more messages to reply' : 'Choose a plan to reply'}</a></div></div>`;
   v.innerHTML = `<div class="thead"><a class="bk" href="#chat" aria-label="Back to chat">‹</a>${p.committee ? `<div class="av" style="background:var(--accent);color:#fff">${svg(P.info, 20)}</div>` : avatar(p.name)}<div><div style="font-weight:700">${esc(p.name)}</div><div style="font-size:12px;color:var(--muted)">${esc([p.branch, p.city].filter(Boolean).join(' · '))}</div></div></div>
     <div class="msgs">${msgs || '<div class="empty">Say hello to ' + esc(first(p.name)) + '!</div>'}</div>${composer}`;
@@ -965,7 +955,7 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'msg') { draft = e.target.value; e.target.style.height = 'auto'; e.target.style.height = Math.min(120, e.target.scrollHeight) + 'px'; }
-  if (e.target.id === 'pq') { peopleQ = e.target.value; const pos = e.target.selectionStart; paintChat('new'); const n = $('pq'); n.focus(); n.setSelectionRange(pos, pos); }
+  if (e.target.id === 'pq') { peopleQ = e.target.value; const pos = e.target.selectionStart; paintChat(route()[1]); const n = $('pq'); n.focus(); n.setSelectionRange(pos, pos); }
 });
 document.addEventListener('keydown', e => { if (e.target.id === 'msg' && e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) { e.preventDefault(); $('sendForm').requestSubmit(); } });
 setInterval(() => { const [r, a] = route(); if (r === 'chat' && a !== 'new' && document.activeElement?.id !== 'msg') loadChat(a); }, 8000);

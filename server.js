@@ -29,6 +29,7 @@ const role = (id, title, desc, extra = {}) => ({
   id, kind: 'role', title, desc, mode: 'live', status: 'upcoming', candidates: [], openNominations: true, confirmedId: null,
   favoriteId: null, cap: 300, dipEvery: 0, rateMin: 4, rateMax: 10, startTotal: 60, afterCap: 'hold', ...extra
 });
+const OPTION_POLL = e => e.kind === 'venue' || e.kind === 'vendor';
 const cand = (name, note = '', by = 'admin') => ({ id: newId(), name, note, by, offset: 0 });
 
 function defaultDb() {
@@ -286,28 +287,15 @@ function nudge(c, ids, fav, r) {
   }
   return false;
 }
-// Options added later (joinSlot) start at 0 and pick up a few votes over time; the earlier options' history is untouched.
+// Options added later (joinSlot) always show 0 scripted votes; the earlier options' history is untouched.
 function simulate(e, upto) {
   const late = e.candidates.filter(c => c.joinSlot > 0);
-  const base = simulateBase(e, upto, e.candidates.filter(c => !(c.joinSlot > 0)).map(c => c.id));
+  const baseIds = e.candidates.filter(c => !(c.joinSlot > 0)).map(c => c.id);
+  const base = baseIds.length ? simulateBase(e, upto, baseIds) : [];
   if (!late.length) return base;
   const A = db.auto, interval = A.intervalMin * 60 * 1000;
-  const out = base.map(x => ({ ...x }));
-  for (const L of late) {
-    const r0 = rng(hash(hash(A.seed, strHash(e.id)), strHash(L.id)));
-    const target = 10 + Math.floor(r0() * 30);
-    let n = 0;
-    for (let k = 0; k <= upto; k++) {
-      if (k >= L.joinSlot && n < target) {
-        const r = rng(hash(hash(A.seed, strHash(L.id)), k));
-        const h = new Date(A.startAt + k * interval + 5.5 * HOUR).getUTCHours();
-        const p = h >= 7 && h < 23 ? 0.55 : 0.12;
-        if (r() < p) n += 1 + (r() < 0.25 ? 1 : 0);
-        n = Math.min(n, target);
-      }
-      if (out[k]) out[k][L.id] = n;
-    }
-  }
+  const out = baseIds.length ? base.map(x => ({ ...x })) : Array.from({ length: upto + 1 }, () => ({}));
+  for (const L of late) for (let k = 0; k <= upto; k++) if (out[k]) out[k][L.id] = 0;
   return out;
 }
 function simulateBase(e, upto, ids) {
@@ -453,12 +441,12 @@ function electionView(e, voterId, slot, admin = false) {
     if (admin) c.videoInfo = v || null;
     else if (v && v.status === 'approved' && isLiveNow) c.video = { kind: v.kind, embed: v.embed, url: v.url };
   }
-  if (!admin && !isLiveNow && e.kind !== 'venue') {
+  if (!admin && !isLiveNow && !OPTION_POLL(e)) {
     for (const c of candidates) { c.name = mask(c.name); c.note = ''; delete c.video; }
   }
   const out = {
-    id: e.id, kind: e.kind, title: e.title, desc: e.desc, mode: e.mode, live: e.mode === 'live',
-    confirmed: conf ? (admin || e.kind === 'venue' ? { id: conf.id, name: conf.name } : { id: null, name: null }) : null, status: conf ? 'closed' : (e.status || 'live'),
+    id: e.id, kind: e.kind, icon: e.icon || null, title: e.title, desc: e.desc, mode: e.mode, live: e.mode === 'live',
+    confirmed: conf ? { id: conf.id, name: conf.name } : null, status: conf ? 'closed' : (e.status || 'live'),
     openNominations: !!e.openNominations && !conf && (e.status || 'live') !== 'closed',
     candidates, total: candidates.reduce((s, c) => s + c.votes, 0), myVote, hasHistory
   };
@@ -625,7 +613,7 @@ function embedOf(url) {
 app.post('/api/campaign', (req, res) => {
   const vid = voterIdOf(req, res);
   const e = findElection(req.body.electionId);
-  if (!e || e.kind === 'venue') return res.status(404).json({ error: 'Election not found' });
+  if (!e || OPTION_POLL(e)) return res.status(404).json({ error: 'Election not found' });
   if (e.confirmedId || (e.status || 'live') !== 'live') return res.status(403).json({ error: 'Campaign videos are only for live polls' });
   const c = e.candidates.find(x => x.id === req.body.candidateId);
   if (!c) return res.status(404).json({ error: 'Choose your name from the list' });
@@ -683,7 +671,18 @@ function displayName(uid) {
 }
 const COMMITTEE = 'committee';
 const maskKey = uid => (rsvpOfUser(uid) || {}).id || uid;
+const QUEUED = id => typeof id === 'string' && id.startsWith('r:');
+function queuedRsvp(id) { return QUEUED(id) ? db.rsvps[id.slice(2)] || null : null; }
+// messages written to a registered batchmate who is not on chat yet wait for them; they arrive if that person joins chat
+function claimQueued(uid) {
+  const r = rsvpOfUser(uid);
+  if (!r) return;
+  let n = 0;
+  for (const m of db.chat.messages) if (m.to === 'r:' + r.id) { m.to = uid; n++; }
+  if (n) saveDb();
+}
 function profileOf(uid, full = false) {
+  if (QUEUED(uid)) { const r = queuedRsvp(uid); return { id: uid, name: r ? (full ? r.name : maskFull(r.name, r.id)) : 'Batchmate', branch: '', city: '' }; }
   if (uid === COMMITTEE) return { id: COMMITTEE, name: 'Admin', branch: '', city: '', committee: true };
   const r = rsvpOfUser(uid);
   if (!full) return { id: uid, name: maskFull(displayName(uid), maskKey(uid)), branch: '', city: '' };
@@ -700,6 +699,7 @@ function chatMe(req) {
 }
 function chatView(user, u) {
   const me = user.id;
+  claimQueued(me);
   const peers = new Map();
   for (const m of db.chat.messages) {
     if (m.from !== me && m.to !== me) continue;
@@ -714,7 +714,7 @@ function chatView(user, u) {
     registered: true, name: displayName(me), consent: !!u.consentAt, status: u.status === 'revoked' ? 'revoked' : 'active', plan: null, requested: null,
     left: null, free: true,
     plans: PLANS,
-    conversations: [...peers.entries()].filter(([p]) => db.users[p] || p === COMMITTEE).map(([p, c]) => ({ ...profileOf(p), ...c })).sort((a, b) => b.t - a.t),
+    conversations: [...peers.entries()].filter(([p]) => db.users[p] || p === COMMITTEE || queuedRsvp(p)).map(([p, c]) => ({ ...profileOf(p), ...c })).sort((a, b) => b.t - a.t),
     members: Object.values(db.chat.users).filter(x => x.consentAt && x.status !== 'revoked').length
   };
 }
@@ -747,6 +747,11 @@ app.post('/api/chat/request', (req, res) => {
   if (u.status !== 'active') u.status = 'pending';
   saveDb(); res.json(chatView(me.user, u));
 });
+// Scripted presence: about a third of the batchmates who are not on chat show as online, changing every 2 hours
+function showOnline(key) {
+  const slot = Math.floor(Date.now() / (2 * HOUR));
+  return hash(strHash(String(key)), slot) % 100 < 33;
+}
 app.get('/api/chat/people', (req, res) => {
   const me = needChat(req, res); if (!me) return;
   if (!me.u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
@@ -755,19 +760,22 @@ app.get('/api/chat/people', (req, res) => {
   for (const r of Object.values(db.rsvps)) {
     const uid = r.voterId && r.voterId.startsWith('u:') ? r.voterId.slice(2) : null;
     if (uid) seen.add(uid);
-    list.push({ id: uid === my ? null : (chatOk(uid) ? uid : null), name: maskFull(r.name, r.id), canChat: uid !== my && chatOk(uid), you: uid === my, t: r.createdAt });
+    const ok = uid !== my && chatOk(uid);
+    const on = ok || (uid !== my && showOnline(r.id));
+    list.push({ id: uid === my ? null : (ok ? uid : on ? 'r:' + r.id : null), name: uid === my ? r.name : maskFull(r.name, r.id), canChat: on, online: on, you: uid === my, t: r.createdAt });
   }
   for (const uid of Object.keys(db.chat.users)) {
     if (seen.has(uid) || !db.users[uid]) continue;
-    list.push({ id: uid === my ? null : (chatOk(uid) ? uid : null), name: maskFull(displayName(uid), uid), canChat: uid !== my && chatOk(uid), you: uid === my, t: db.users[uid].createdAt });
+    const ok = uid !== my && chatOk(uid);
+    list.push({ id: uid === my ? null : (ok ? uid : null), name: uid === my ? displayName(uid) : maskFull(displayName(uid), uid), canChat: ok, online: ok, you: uid === my, t: db.users[uid].createdAt });
   }
-  list.sort((a, b) => (b.you - a.you) || (b.canChat - a.canChat) || (b.t - a.t));
+  list.sort((a, b) => (b.you - a.you) || (b.online - a.online) || (b.t - a.t));
   res.json(list.map(({ t, ...x }) => x));
 });
 app.get('/api/chat/thread/:id', (req, res) => {
   const me = needChat(req, res); if (!me) return;
   if (!me.u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
-  if (!db.users[req.params.id] && req.params.id !== COMMITTEE) return res.status(404).json({ error: 'Batchmate not found' });
+  if (!db.users[req.params.id] && req.params.id !== COMMITTEE && !queuedRsvp(req.params.id)) return res.status(404).json({ error: 'Batchmate not found' });
   const my = me.user.id, peer = req.params.id;
   let changed = false;
   const msgs = db.chat.messages.filter(m => (m.from === my && m.to === peer) || (m.from === peer && m.to === my)).map(m => {
@@ -783,7 +791,8 @@ app.post('/api/chat/send', (req, res) => {
   if (!u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
   if (u.status === 'revoked') return res.status(403).json({ error: 'Your chat access has been removed by the admin' });
   const to = req.body.to, peerChat = db.chat.users[to];
-  if (!db.users[to] || to === me.user.id || !peerChat || !peerChat.consentAt) return res.status(404).json({ error: 'Batchmate not found' });
+  const queued = queuedRsvp(to);
+  if (queued ? queued.voterId === 'u:' + me.user.id : (!db.users[to] || to === me.user.id || !peerChat || !peerChat.consentAt)) return res.status(404).json({ error: 'Batchmate not found' });
   const text = str(req.body.text, 500);
   if (!text) return res.status(400).json({ error: 'Type a message' });
   const now = Date.now();
@@ -888,7 +897,7 @@ A.get('/state', (req, res) => {
       plans: PLANS,
       users: Object.entries(db.chat.users).filter(([id]) => db.users[id]).map(([id, u]) => ({ ...profileOf(id, true), email: db.users[id].email, ...u, id }))
         .sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0)),
-      messages: db.chat.messages.slice(-300).reverse().map(m => ({ ...m, fromName: m.from === COMMITTEE ? 'Admin' : db.users[m.from] ? displayName(m.from) : '—', toName: db.users[m.to] ? displayName(m.to) : '—' })),
+      messages: db.chat.messages.slice(-300).reverse().map(m => ({ ...m, fromName: m.from === COMMITTEE ? 'Admin' : db.users[m.from] ? displayName(m.from) : '—', toName: db.users[m.to] ? displayName(m.to) : queuedRsvp(m.to) ? queuedRsvp(m.to).name + ' (not on chat yet)' : '—' })),
     }
   });
 });
@@ -1187,9 +1196,45 @@ function applyVenueList() {
   db.venueList = 2;
 }
 
+// Service partners researched from listing sites (Nov 2026). Rates are indicative; confirm with each vendor.
+const VENDOR_POLLS = [
+  { id: 'transport', match: /transport/i,
+    options: [
+      { name: 'TransRentals', area: 'RK Beach Road', type: 'Bus & tempo traveller hire', facts: [['Fleet', '12-seat tempo to 45-seat AC coach'], ['Rate', '~₹18/km tempo · ~₹40/km coach'], ['Local', '8-hour package from ~₹3,500']], why: 'Every bus size with driver; good for airport and station pickups.', link: 'https://transrentals.in/bus-rental/visakhapatnam/rk-beach' },
+      { name: 'Clear Car Rental', area: 'Visakhapatnam', type: 'Bus & car rental', facts: [['Fleet', '13-seat to 55-seat Volvo'], ['Coach', '40-seater 2+2 with luggage space']], why: 'Big coaches for moving the whole batch in one go.', link: 'https://www.clearcarrental.com/bus-rental-visakhapatnam' },
+      { name: 'ChikuCab', area: 'Visakhapatnam', type: 'Tempo traveller hire', facts: [['Fleet', '9 to 20-seat tempo travellers']], why: 'Smaller vans for families and pickups from different towns.', link: 'https://chikucab.com/tempo-traveller-visakhapatnam.html' },
+      { name: 'zingbus', area: 'Visakhapatnam', type: 'Group bus charter', facts: [['Service', 'Charter for any route or group size']], why: 'Useful for batchmates coming in groups from Hyderabad and other cities.', link: 'https://www.zingbus.com/bus-tickets/visakhapatnam-bus-booking-online' },
+      { name: 'Vaishnavi Tours & Travels', area: 'Visakhapatnam', type: 'Local travels', facts: [['Fleet', 'Cars up to Force Traveller']], why: 'Local operator for cars and mini-bus runs.', link: 'https://www.trodly.com/partner/VaishnaviToursVizag' }
+    ] },
+  { id: 'media', match: /photo|video|media/i,
+    options: [
+      { name: 'Somesh Photography', area: 'MVP Colony', type: 'Photo & video studio', facts: [['Covers', 'Traditional, candid, cinematic, drone'], ['Price', 'from ~₹90,000']], why: 'Full team that also travels with the group.', link: 'https://www.weddingwire.in/wedding-photographers/somesh-photography-vizag--e301767' },
+      { name: 'Mythri Studios', area: 'Visakhapatnam', type: 'Photo & video studio', facts: [['Covers', 'Candid, cinematic, drone, live screening']], why: 'Award-winning team; live screening on a big screen at the event.', link: 'https://www.weddingwire.in/wedding-photographers/mythri-studios--e452958' },
+      { name: 'Naidu Photography', area: 'Visakhapatnam', type: 'Photographer', facts: [['Price', '~₹80,000/day photo + video'], ['Photo only', '~₹40,000/day']], why: 'Candid photos plus a cinematic video of the day.', link: 'https://www.wedmegood.com/profile/Naidu-Photography-1195677' },
+      { name: 'Studio Stories', area: 'Ram Nagar', type: 'Photo & video studio', facts: [['Covers', 'Photography & videography']], why: 'Well-reviewed local team for events.', link: 'https://www.wedmegood.com/profile/Studio-Stories-Photography-and-Videography-4517312' },
+      { name: '35mm Arts', area: 'Visakhapatnam', type: 'Cinematic films', facts: [['Covers', 'Photos & cinematic films']], why: 'Known for story-style cinematic videos.', link: 'https://www.wedmegood.com/profile/35mm-Arts-580697' },
+      { name: 'Arrow Photography', area: 'Visakhapatnam', type: 'Photographer', facts: [['Candid', '~₹20,000/day']], why: 'Budget-friendly candid coverage.', link: 'https://www.weddingbazaar.com/wedding-photographers/visakhapatnam/arrow-photography' }
+    ] }
+];
+function applyVendorPolls() {
+  if (db.vendorPolls === 2) return;
+  // like the venue poll: keep everything that is there and add the researched options (0 votes)
+  const join = currentSlot() + 1, norm = x => x.toLowerCase().replace(/[^a-z0-9]/g, '');
+  for (const P of VENDOR_POLLS) {
+    const e = db.elections.find(x => x.id === P.id) || db.elections.find(x => x.kind === 'role' && P.match.test(x.title));
+    if (!e) continue;
+    for (const x of P.options) {
+      if (e.candidates.some(c => norm(c.name) === norm(x.name))) continue;
+      e.candidates.push({ ...cand(x.name, x.area), joinSlot: join, info: { area: x.area, type: x.type, facts: x.facts, why: x.why, link: x.link } });
+    }
+  }
+  db.vendorPolls = 2;
+}
+
 async function main() {
   db = await loadDb();
   applyVenueList();
+  applyVendorPolls();
   await flush();
   app.listen(PORT, () => {
     console.log(`Running on http://localhost:${PORT}  (admin: /admin)  storage: ${pool ? 'postgres' : 'file'}`);
@@ -1200,4 +1245,4 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, async () => { try { if (db) await flush(); } finally { process.exit(0); } });
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { simulate, init: async () => { db = await loadDb(); applyVenueList(); return db; }, getDb: () => db };
+module.exports = { simulate, init: async () => { db = await loadDb(); applyVenueList(); applyVendorPolls(); return db; }, getDb: () => db };
