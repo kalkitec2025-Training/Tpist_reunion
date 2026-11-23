@@ -445,7 +445,7 @@ function electionView(e, voterId, slot, admin = false) {
     for (const c of candidates) { c.name = mask(c.name); c.note = ''; delete c.video; }
   }
   const out = {
-    id: e.id, kind: e.kind, icon: e.icon || null, title: e.title, desc: e.desc, mode: e.mode, live: e.mode === 'live',
+    id: e.id, kind: e.kind, icon: e.icon || null, team: e.team || [], title: e.title, desc: e.desc, mode: e.mode, live: e.mode === 'live',
     confirmed: conf ? { id: conf.id, name: conf.name } : null, status: conf ? 'closed' : (e.status || 'live'),
     openNominations: !!e.openNominations && !conf && (e.status || 'live') !== 'closed',
     candidates, total: candidates.reduce((s, c) => s + c.votes, 0), myVote, hasHistory
@@ -983,6 +983,7 @@ A.put('/elections/:id', (req, res) => {
   if (['upcoming', 'live', 'closed'].includes(b.status)) e.status = b.status;
   if (b.confirmedId === null || b.confirmedId === '') e.confirmedId = null;
   else if (e.candidates.some(c => c.id === b.confirmedId)) e.confirmedId = b.confirmedId;
+  if (Array.isArray(b.team)) e.team = b.team.map(x => str(x, 60)).filter(Boolean).slice(0, 20);
   if (b.favoriteId === null || b.favoriteId === '') e.favoriteId = null;
   else if (e.candidates.some(c => c.id === b.favoriteId)) e.favoriteId = b.favoriteId;
   for (const [k, lo, hi] of [['cap', 0, 100000], ['dipEvery', 0, 1000], ['rateMin', 0, 1000], ['rateMax', 0, 1000], ['startTotal', 0, 100000]]) {

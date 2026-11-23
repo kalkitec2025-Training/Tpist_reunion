@@ -190,6 +190,9 @@ function electionEditor(e) {
       <div><label>How results are counted</label><select name="mode"><option value="live" ${!sc ? 'selected' : ''}>Live: real votes only</option><option value="scripted" ${sc ? 'selected' : ''}>Scripted: numbers follow the script</option></select></div></div>
       <div class="f2 mt"><div><label>Status</label><select name="status"><option value="upcoming" ${e.status === 'upcoming' ? 'selected' : ''}>Upcoming (not on Home, no voting yet)</option><option value="live" ${e.status === 'live' ? 'selected' : ''}>Live (shown on Home, voting open)</option><option value="closed" ${e.status === 'closed' ? 'selected' : ''}>Closed (results only)</option></select></div>
       <div><label>&nbsp;</label><div class="row">${e.status !== 'live' ? `<button type="button" class="btn p" data-a="startE">Start voting now</button>` : `<button type="button" class="btn r" data-a="closeE">Close voting</button>`}</div></div></div>
+      ${e.kind === 'role' ? `<div class="mt"><label>Confirmed people on this team (Teams tab) · one name per line</label><textarea name="team" placeholder="e.g.
+Srinivas Rao
+Kiran Kumar">${esc((e.team || []).join('\n'))}</textarea></div>` : ''}
       <div class="mt"><label>Description shown to voters</label><textarea name="desc">${esc(e.desc)}</textarea></div>
       <div class="f2 mt"><div><label>Confirmed coordinator (highlighted in the app, closes voting)</label><select name="confirmedId"><option value="">Not confirmed yet</option>${e.candidates.map(c => `<option value="${c.id}" ${c.id === e.confirmedId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
       <div><label>Nominations</label><label class="check" style="height:40px"><input type="checkbox" name="openNominations" ${e.openNominationsSetting ? 'checked' : ''}> Anyone can add nominees from the app</label></div></div>
@@ -481,6 +484,7 @@ document.addEventListener('submit', run(async e => {
   else if (f.id === 'eForm') {
     for (const k of ['cap','dipEvery','rateMin','rateMax','startTotal']) if (k in d) d[k] = +d[k];
     d.openNominations = !!d.openNominations;
+    if ('team' in d) d.team = d.team.split('\n').map(x => x.trim()).filter(Boolean);
     await api(`/elections/${selE}`, { method:'PUT', json:d }); toast('Election saved');
   }
   else if (f.id === 'newC') { await api(`/elections/${selE}/candidates`, { method:'POST', json:d }); toast('Candidate added'); }

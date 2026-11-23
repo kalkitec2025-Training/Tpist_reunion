@@ -6,12 +6,12 @@
 <meta name="theme-color" content="#FFFFFF">
 <meta name="description" content="Silver Jubilee Reunion: register, vote for the organising teams and see the schedule.">
 <title>Silver Jubilee Reunion</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23C2410C'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='26' fill='white' text-anchor='middle'%3E25%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23111827'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='26' fill='white' text-anchor='middle'%3E25%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --live:#16A34A; --live-dark:#15803D; --live-soft:#DCFCE7; --bg:#F6F7FB; --card:#fff; --ink:#12131A; --muted:#5B6070; --line:#E6E8F0; --accent:#C2410C; --accent-soft:#FFF4EC; --track:#EEF0F5; --ok:#1F7A4D; --ok-soft:#E5F5EC; }
+  :root { --live:#16A34A; --live-dark:#15803D; --live-soft:#DCFCE7; --bg:#F3F5F7; --card:#fff; --ink:#111827; --muted:#6B7280; --line:#E5E7EB; --accent:#0D9488; --accent-soft:#E6F6F4; --track:#EEF0F3; --ok:#1F7A4D; --ok-soft:#E5F5EC; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { margin:0; background:var(--bg); color:var(--ink); font-family:Inter, system-ui, -apple-system, sans-serif; -webkit-font-smoothing:antialiased; }
   .d { font-family:'Space Grotesk', Inter, sans-serif; }
@@ -21,7 +21,7 @@
 
   .top { position:sticky; top:0; z-index:10; background:rgba(255,255,255,.94); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); padding:12px 20px; display:flex; justify-content:space-between; align-items:center; }
   .brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
-  .mark { width:34px; height:34px; border-radius:10px; background:var(--accent); color:#fff; display:grid; place-items:center; font-weight:700; font-size:14px; }
+  .mark { width:34px; height:34px; border-radius:10px; background:var(--ink); color:#fff; display:grid; place-items:center; font-weight:700; font-size:14px; }
   .brand b { display:block; font-size:16px; line-height:1.1; } .brand small { display:block; font-size:11px; color:var(--muted); margin-top:1px; }
   .live { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ok); font-weight:600; }
   .live i { width:7px; height:7px; border-radius:50%; background:var(--ok); animation:pulse 1.8s infinite; }
@@ -42,16 +42,28 @@
   .note-bar svg { flex-shrink:0; margin-top:1px; }
   .note-bar.ok { background:var(--ok-soft); border-color:#BFE3CF; color:var(--ok); }
 
-  .hero { margin:16px 20px 0; background:var(--ink); color:#fff; border-radius:20px; padding:22px 20px; position:relative; overflow:hidden; }
-  .hero:after { content:''; position:absolute; right:-40px; top:-40px; width:160px; height:160px; border-radius:50%; border:28px solid rgba(194,65,12,.35); }
-  .hero .k { font-size:11px; letter-spacing:.14em; font-weight:700; color:#FDBA8C; }
-  .hero h1 { margin:10px 0 0; font-size:30px; line-height:1.1; position:relative; z-index:1; }
-  .hero p { margin:8px 0 0; color:#C9CCD6; font-size:13px; line-height:1.5; position:relative; z-index:1; }
-  .hero .rows { margin-top:16px; display:flex; flex-direction:column; gap:8px; position:relative; z-index:1; }
-  .hero .row { display:flex; gap:10px; align-items:center; font-size:14px; }
-  .hero .row svg { color:#FDBA8C; flex-shrink:0; }
+  .hero { margin:16px 16px 0; background:var(--ink); color:#fff; border-radius:20px; padding:22px 20px 20px; position:relative; overflow:hidden; }
+  .hero:before { content:''; position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size:28px 28px; pointer-events:none; }
+  .hero > * { position:relative; }
+  .hero .chip-o { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:#5EEAD4; background:rgba(13,148,136,.2); padding:5px 10px; border-radius:99px; }
+  .hero h1 { margin:14px 0 0; font-size:28px; line-height:1.15; letter-spacing:-.02em; }
+  .hero p { margin:8px 0 0; color:#C5CAD3; font-size:13.5px; line-height:1.5; }
+  .hero .tiles { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; margin-top:18px; }
+  .hero .tile { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px 12px; min-width:0; }
+  .hero .tile small { display:block; font-size:11.5px; color:#9CA3AF; } .hero .tile b { display:block; font-size:14px; font-weight:600; margin-top:2px; line-height:1.3; }
+  .hero .act { display:flex; justify-content:flex-end; margin-top:16px; }
+  .h-reg { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:0 20px; border-radius:12px; background:var(--accent); color:#fff; font-weight:600; font-size:14.5px; text-decoration:none; }
+  .h-reg.ok { background:rgba(94,234,212,.12); color:#5EEAD4; border:1px solid rgba(94,234,212,.3); }
+  .kstrip { margin:14px 16px 0; display:flex; align-items:center; background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px 4px; }
+  .kstrip > * { flex:1 1 0; text-align:center; border-right:1px solid var(--line); text-decoration:none; color:inherit; }
+  .kstrip > *:last-child { border-right:0; }
+  .kstrip b { display:block; font-size:22px; font-weight:700; } .kstrip span { font-size:12px; color:var(--muted); }
+  .qa { margin:0 16px; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+  .qa a { display:flex; flex-direction:column; gap:10px; padding:14px; background:#fff; border:1px solid var(--line); border-radius:16px; text-decoration:none; color:var(--ink); }
+  .qa .qi { width:36px; height:36px; border-radius:10px; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; }
+  .qa b { display:block; font-size:14.5px; font-weight:600; } .qa small { display:block; font-size:12px; color:var(--muted); margin-top:1px; }
 
-  .wa { margin:14px 20px 0; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:16px; padding:12px 14px; }
+  .wa { margin:14px 16px 0; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:16px; padding:12px 14px; }
   .wa-top { display:flex; align-items:center; gap:12px; }
   .wa-ic { width:40px; height:40px; border-radius:12px; background:#16A34A; color:#fff; display:grid; place-items:center; flex-shrink:0; }
   .wa-t { font-weight:700; font-size:15px; } .wa-s { font-size:12px; color:#4B5563; margin-top:1px; }
@@ -219,13 +231,26 @@
   body.signin nav.tabs, body.signin .top .live { display:none; }
   body.signin .shell { padding-bottom:24px; }
   .si-hero { margin:20px; background:var(--ink); color:#fff; border-radius:22px; padding:26px 22px; position:relative; overflow:hidden; }
-  .si-hero:after { content:''; position:absolute; right:-50px; top:-50px; width:180px; height:180px; border-radius:50%; border:30px solid rgba(194,65,12,.35); }
+  .si-hero:after { content:''; position:absolute; right:-50px; top:-50px; width:180px; height:180px; border-radius:50%; border:30px solid rgba(13,148,136,.35); }
   .si-hero h1 { margin:10px 0 0; font-size:30px; line-height:1.1; position:relative; z-index:1; }
   .si-hero p { color:#C9CCD6; font-size:14px; line-height:1.5; margin:10px 0 0; position:relative; z-index:1; }
   .si-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px; }
   .si-list li { display:flex; gap:12px; align-items:center; font-size:14px; }
   .gwrap { display:flex; justify-content:center; min-height:44px; transition:opacity .2s; }
   .gwrap.off { opacity:.4; pointer-events:none; filter:grayscale(1); }
+  .rv-acc { display:flex; gap:12px; align-items:center; margin:16px 20px 0; }
+  .rv-acc img, .rv-acc .av { width:44px; height:44px; border-radius:50%; object-fit:cover; }
+  .rv-acc .nm { font-weight:600; font-size:15px; } .rv-acc .em { font-size:12.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rv-out { border:1px solid var(--line); background:#fff; color:var(--muted); font-weight:600; font-size:13px; padding:7px 12px; border-radius:99px; cursor:pointer; }
+  .rv-status { display:flex; gap:12px; align-items:center; margin:16px 20px 0; padding:14px 16px; border-radius:16px; background:var(--ok-soft); border:1px solid #BFE3CF; }
+  .rv-status .ck { width:34px; height:34px; border-radius:50%; background:var(--ok); color:#fff; display:grid; place-items:center; flex-shrink:0; }
+  .rv-status .t { font-weight:700; color:var(--ok); } .rv-status .x { font-size:12.5px; color:var(--muted); margin-top:1px; }
+  .rv-pass { font-size:12px; font-weight:700; color:var(--ok); background:#fff; border:1px solid #BFE3CF; padding:5px 10px; border-radius:99px; text-decoration:none; white-space:nowrap; }
+  .rv-h { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:20px 24px 8px; }
+  .rv-card { padding:2px 16px; }
+  .rv-row { display:flex; justify-content:space-between; gap:12px; padding:13px 0; border-top:1px solid var(--line); font-size:14.5px; }
+  .rv-row:first-child { border-top:0; } .rv-row span:first-child { color:var(--muted); } .rv-row span:last-child { font-weight:600; text-align:right; }
+  .rv-form { margin-top:0; }
   .me-bar { display:flex; gap:12px; align-items:center; }
   .me-bar img, .me-bar .av { width:40px; height:40px; border-radius:50%; object-fit:cover; }
   .prose h2 { font-size:16px; margin:18px 0 6px; } .prose p, .prose li { font-size:14px; line-height:1.6; color:#3D4150; } .prose ul { padding-left:20px; margin:6px 0; }
@@ -468,6 +493,7 @@ function waSection() {
     <div class="wa-bot"><span class="ad">${w.admins} admin${w.admins === 1 ? '' : 's'}</span>${locs.map(l => { const c = flagCode(l.place); return `<span class="loc" title="${esc(l.place)}">${c ? `<img class="flag" src="https://flagcdn.com/w40/${c}.png" alt="${esc(l.place)}" width="20" height="15" loading="lazy">` : esc(l.place)} <b>${l.count}</b></span>`; }).join('')}<button type="button" class="wa-more" data-wainfo>View details ${svg(P.chevR, 14)}</button></div>
   </section>`;
 }
+const QI = { bars:'<path d="M6 20V12M12 20V5M18 20v-6"/>', man:'<circle cx="12" cy="7" r="3.5"/><path d="M5 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2"/>', polls:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 12 3 3 5-6"/>', teams:'<circle cx="9" cy="8" r="3.5"/><path d="M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M22 21v-1a6 6 0 0 0-4-5.7"/>' };
 function homePage() {
   const st = S.settings;
   const venue = S.elections.find(e => e.kind === 'venue');
@@ -478,35 +504,29 @@ function homePage() {
   const live = S.elections.filter(isLive);
   return `${ticker()}
   ${st.announcement ? `<div class="note-bar">${svg(P.info, 18)}<span>${esc(st.announcement)}</span></div>` : ''}
-  <div class="quick">
-    <a class="q-venue" href="#vote/venue" aria-label="Venue status and poll"><span class="ic">${svg(P.pin, 18)}</span>
-      <span style="min-width:0"><small style="font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:0 0 1px">Venue</small><b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(st.venueStatus || 'Not yet confirmed')}</b><small>${vLead ? `${esc(vLead.name)} leads the poll` : 'Vote in the venue poll'}</small></span></a>
-    ${me ? `<a class="q-reg ok" href="#rsvp">${svg(P.check, 16)}Registered</a>` : `<a class="q-reg" href="#rsvp">Register</a>`}
-  </div>
   <section class="hero">
-    <div class="k">${esc(st.years)} YEARS · REUNION</div>
+    <span class="chip-o">${me ? 'You\u2019re registered' : st.rsvpOpen ? 'Registrations open' : esc(st.years) + ' years · Reunion'}</span>
     <h1 class="d">${esc(st.eventTitle)}</h1>
     <p>Batchmates reuniting after ${esc(st.years)} years. Two days, one batch, a lifetime of stories.</p>
-    <div class="rows">
-      <div class="row">${svg(P.cal, 18)}<span>${esc(st.eventDate)}</span></div>
-      <div class="row">${svg(P.pin, 18)}<span>Visakhapatnam</span></div>
-    </div>
+    <div class="tiles"><div class="tile"><small>Date</small><b>${esc(st.eventDate)}</b></div><div class="tile"><small>City</small><b>Visakhapatnam</b></div></div>
+    <div class="act">${me ? `<a class="h-reg ok" href="#rsvp">${svg(P.check, 16)}Registered</a>` : `<a class="h-reg" href="#rsvp">Register ${svg(P.chevR, 16)}</a>`}</div>
   </section>
-  <div class="stats">
-    <a class="stat" href="#members" style="text-decoration:none;display:block"><div class="n d">${S.regShown.total}</div><div class="l" style="display:flex;justify-content:space-between;align-items:center">Registered ${svg(P.chevR, 14)}</div></a>
-    <div class="stat"><div class="n d">${S.regShown.male}</div><div class="l">Men</div></div>
-    <div class="stat"><div class="n d">${S.regShown.female}</div><div class="l">Women</div></div>
+  <div class="kstrip">
+    <a href="#members"><b>${S.regShown.total}</b><span>Registered</span></a>
+    <div><b>${S.regShown.male}</b><span>Men</span></div>
+    <div><b>${S.regShown.female}</b><span>Women</span></div>
+    ${st.whatsapp && st.whatsapp.show !== false ? `<div><b style="color:var(--accent)">${st.whatsapp.active}</b><span>On WhatsApp</span></div>` : ''}
   </div>
   <p class="fine">Registered batchmates are counted as attending. Anyone in the batch can vote.</p>
+  <div class="sec"><h2 class="d">Quick actions</h2></div>
+  <div class="qa">
+    <a href="#vote"><span class="qi">${svg(QI.polls, 18)}</span><span><b>Live polls</b><small>${live.length} open · ${live.filter(e => e.myVote).length} voted</small></span></a>
+    <a href="#schedule"><span class="qi">${svg(P.cal, 18)}</span><span><b>Schedule</b><small>Day 1 & Day 2</small></span></a>
+    <a href="#teams"><span class="qi">${svg(QI.teams, 18)}</span><span><b>Teams</b><small>${S.elections.filter(e => e.kind === 'role').length} organising teams</small></span></a>
+    <a href="#chat"><span class="qi">${svg(P.chat, 18)}</span><span><b>Chat</b><small>Message batchmates</small></span></a>
+  </div>
+  <div style="height:4px"></div>
   ${waSection()}
-
-  ${roles.length ? `<div class="sec"><h2 class="d">Your ballot</h2><a href="#vote">Polls</a></div>
-  <div class="card cta">
-    <div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">${voted} of ${roles.length} done</span><span style="color:var(--muted)">${roles.length - voted ? `${roles.length - voted} left` : 'All done'}</span></div>
-    <div class="progress"><div style="width:${pct(voted, roles.length)}%"></div></div>
-    ${roles.length - voted && st.votingOpen ? `<a class="btn" href="#vote">Continue voting</a>` : ''}
-  </div>` : ''}
-
   ${footer()}`;
 }
 
@@ -629,7 +649,7 @@ function passesPage() {
 }
 function schedulePage() {
   const items = S.schedule.filter(s => s.day === day);
-  return `<div class="pad"><h1 class="h1 d">Schedule</h1><p class="sub">${esc(S.settings.eventDate)}. Timings may change slightly.</p></div>
+  return `<div style="height:16px"></div>
     <div class="seg" role="tablist"><button type="button" class="${day === 1 ? 'on' : ''}" data-day="1">Day 1</button><button type="button" class="${day === 2 ? 'on' : ''}" data-day="2">Day 2</button></div>
     <div class="card" style="margin-top:12px"><div class="tl">${items.map(tlItem).join('') || '<div class="empty">Schedule coming soon.</div>'}</div></div>
     ${footer()}`;
@@ -638,10 +658,10 @@ function schedulePage() {
 // ------------------------------------------------------------------ teams
 function teamsPage() {
   const teams = S.elections.filter(e => e.kind === 'role');
-  return `<div class="pad"><h1 class="h1 d">Organising teams</h1><p class="sub">Each team and its confirmed coordinator.</p></div>
-    <div class="card" style="margin-top:14px;padding:4px 16px">
+  return `<div class="card" style="margin-top:16px;padding:4px 16px">
     ${teams.map(e => `<div class="tm">${icon(e)}<div style="flex:1;min-width:0"><div class="t">${esc(e.title)}</div>
-        ${e.confirmed && e.confirmed.name ? `<div class="cn">${svg(P.check, 15)}${esc(e.confirmed.name)}</div>` : '<div class="cp">Coordinator to be confirmed</div>'}</div></div>`).join('')}
+        ${(() => { const names = [...new Set([e.confirmed && e.confirmed.name, ...(e.team || [])].filter(Boolean))];
+          return names.length ? names.map(n => `<div class="cn">${svg(P.check, 15)}${esc(n)}</div>`).join('') : '<div class="cp">Coordinator to be confirmed</div>'; })()}</div></div>`).join('')}
     </div>
     ${footer()}`;
 }
@@ -649,40 +669,45 @@ function teamsPage() {
 // ------------------------------------------------------------------ rsvp
 function rsvpPage() {
   const st = S.settings, me = S.myRsvp;
-  const meBar = S.me ? `<div class="card me-bar" style="margin-top:16px">${S.me.picture ? `<img src="${esc(S.me.picture)}" alt="" referrerpolicy="no-referrer">` : avatar(S.me.name || 'You')}
-    <div style="flex:1;min-width:0"><div style="font-weight:600">${esc(S.me.name)}</div><div style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis">${esc(S.me.email)}</div></div>
-    <button type="button" class="btn ghost sm" data-signout>Sign out</button></div>` : '';
+  const meBar = S.me ? `<div class="rv-acc">${S.me.picture ? `<img src="${esc(S.me.picture)}" alt="" referrerpolicy="no-referrer">` : avatar(S.me.name || 'You')}
+    <div style="flex:1;min-width:0"><div class="nm">${esc(S.me.name)}</div><div class="em">${esc(S.me.email)}</div></div>
+    <button type="button" class="rv-out" data-signout>Sign out</button></div>` : '';
   if (!form) form = me ? { ...me } : { pass:'silver', name: S.me ? S.me.name : '', gender:'', branch:'', phone:'', city:'', attend:'both', overnight:false, pickup:'', food:'nonveg', editing:false };
+  const row = (k, v) => `<div class="rv-row"><span>${k}</span><span>${v}</span></div>`;
   if (me && !form.editing) {
-    return `<div class="pad"><h1 class="h1 d">Your registration</h1><p class="sub">The Tele-calling team may call to confirm. Update anything here.</p></div>
-    ${meBar}<div class="card ok-card" style="margin-top:${S.me ? 0 : 16}px">
-      <div style="font-weight:700;font-size:16px">You're registered ✓</div>
-      <div class="kv">
-        <div>Pass</div><div>${me.pass ? `<b>${esc(passName(me.pass))}</b> · <a href="#passes" style="color:var(--accent)">see benefits</a>` : 'To be assigned by the committee'}</div>
-        <div>Name</div><div>${esc(me.name)}</div><div>Gender</div><div>${me.gender === 'female' ? 'Female' : me.gender === 'male' ? 'Male' : '—'}</div>
-        <div>Branch</div><div>${esc(me.branch || '—')}</div><div>Mobile</div><div>${esc(me.phone)}</div><div>City</div><div>${esc(me.city || '—')}</div>
-        <div>Attending</div><div>${me.attend === 'both' ? 'Both days' : 'Day 1 only'}</div><div>Overnight</div><div>${me.overnight ? 'Yes' : 'No'}</div>
-        <div>Transport</div><div>${me.pickup ? 'Pickup from ' + esc(me.pickup) : 'Coming on my own'}</div><div>Food</div><div>${me.food === 'veg' ? 'Vegetarian' : 'Non-vegetarian'}</div>
-      </div>
-      <button type="button" class="btn ghost sm" style="margin-top:16px" data-edit>Edit details</button>
-    </div>${footer()}`;
+    return `${meBar}
+    <div class="rv-status"><span class="ck">${svg(P.check, 18)}</span><div style="flex:1"><div class="t">You're registered</div><div class="x">The Tele-calling team may call to confirm.</div></div>
+      ${me.pass ? `<a class="rv-pass" href="#passes">${esc(passName(me.pass))}</a>` : ''}</div>
+    <div class="rv-h">Personal</div>
+    <div class="card rv-card">${row('Name', esc(me.name))}${row('Gender', me.gender === 'female' ? 'Female' : me.gender === 'male' ? 'Male' : '—')}${row('Branch', esc(me.branch || '—'))}${row('Mobile', esc(me.phone))}${row('City', esc(me.city || '—'))}</div>
+    <div class="rv-h">Attendance</div>
+    <div class="card rv-card">${row('Attending', me.attend === 'both' ? 'Both days' : 'Day 1 only')}${row('Overnight stay', me.overnight ? 'Yes' : 'No')}${row('Transport', me.pickup ? 'Pickup from ' + esc(me.pickup) : 'Coming on my own')}${row('Food', me.food === 'veg' ? 'Vegetarian' : 'Non-vegetarian')}${row('Pass', me.pass ? esc(passName(me.pass)) : 'To be assigned')}</div>
+    <div style="margin:16px 20px 0"><button type="button" class="btn" style="width:100%;background:#fff;color:var(--ink);border:1px solid var(--line)" data-edit>Edit details</button></div>
+    ${footer()}`;
   }
-  if (!st.rsvpOpen) return `<div class="pad"><h1 class="h1 d">Registration</h1></div><div class="card" style="margin-top:16px"><div class="empty">Registrations are closed. Please contact the Tele-calling team.</div></div>`;
+  if (!st.rsvpOpen) return `${meBar}<div class="card" style="margin-top:16px"><div class="empty">Registrations are closed. Please contact the Tele-calling team.</div></div>`;
   const pill = (k, v, label) => `<button type="button" class="${form[k] === v ? 'on' : ''}" data-set="${k}|${v}">${label}</button>`;
-  return `<div class="pad"><h1 class="h1 d">${me ? 'Update details' : 'Register for the reunion'}</h1>
-    <p class="sub">Takes a minute. Only registered batchmates are counted as attending, and the teams plan meals, rooms and pickups from this.</p></div>
-    ${meBar}<form class="card form" id="rsvpForm" style="margin-top:${S.me ? 0 : 16}px" novalidate>
+  return `${meBar}
+    <form id="rsvpForm" novalidate>
+    <div class="rv-h">${me ? 'Update your details' : 'Register for the reunion'}</div>
+    <div class="card form rv-form">
       <div class="fl"><label for="f-name">Full name</label><input id="f-name" name="name" autocomplete="name" value="${esc(form.name)}" required></div>
       <div class="fl"><div class="lb">Gender</div><div class="pills">${pill('gender', 'male', 'Male')}${pill('gender', 'female', 'Female')}</div></div>
       <div class="fl"><label for="f-branch">Branch</label><select id="f-branch" name="branch"><option value="">Select branch</option>${st.branches.map(b => `<option ${form.branch === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
       <div class="fl"><label for="f-phone">Mobile number</label><input id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="14" value="${esc(form.phone)}" required><div class="hint">Only the organising committee sees this.</div></div>
       <div class="fl"><label for="f-city">Current city</label><input id="f-city" name="city" autocomplete="address-level2" value="${esc(form.city)}"></div>
+    </div>
+    <div class="rv-h">Attendance</div>
+    <div class="card form rv-form">
       <div class="fl"><div class="lb">Attending</div><div class="pills">${pill('attend', 'both', 'Both days')}${pill('attend', 'day1', 'Day 1 only')}</div></div>
       ${form.attend === 'both' ? `<div class="fl"><div class="lb">Staying overnight on Day 1?</div><div class="pills">${pill('overnight', true, 'Yes')}${pill('overnight', false, 'No')}</div></div>` : ''}
       <div class="fl"><label for="f-pickup">Transport</label><select id="f-pickup" name="pickup"><option value="">I'll come on my own</option>${st.pickupPoints.map(p => `<option value="${esc(p)}" ${form.pickup === p ? 'selected' : ''}>Pickup from ${esc(p)}</option>`).join('')}</select></div>
       <div class="fl"><div class="lb">Food preference</div><div class="pills">${pill('food', 'nonveg', 'Non-veg')}${pill('food', 'veg', 'Veg')}</div></div>
-      <button class="btn acc" type="submit">${me ? 'Save changes' : 'Confirm my place'}</button>
-      ${me ? '<button type="button" class="btn ghost" data-cancel>Cancel</button>' : ''}
+    </div>
+    <div style="margin:16px 20px 0;display:flex;flex-direction:column;gap:10px">
+      <button class="btn acc" type="submit" style="width:100%">${me ? 'Save changes' : 'Confirm my place'}</button>
+      ${me ? '<button type="button" class="btn ghost" style="width:100%" data-cancel>Cancel</button>' : ''}
+    </div>
     </form>${footer()}`;
 }
 
@@ -705,7 +730,7 @@ function privacyPage(signedIn) {
 }
 function signinPage() {
   const testForm = CFG && CFG.testAuth ? `<form id="testSignin" class="nom" style="margin-top:14px"><input name="name" placeholder="Test name" required><input name="email" placeholder="test@example.com" required><button class="btn ghost sm">Test sign-in</button></form>` : '';
-  return `<section class="si-hero"><div class="k" style="font-size:11px;letter-spacing:.14em;font-weight:700;color:#FDBA8C">25 YEARS · REUNION</div>
+  return `<section class="si-hero"><div class="k" style="font-size:11px;letter-spacing:.14em;font-weight:700;color:#5EEAD4">25 YEARS · REUNION</div>
     <h1 class="d">Silver Jubilee Reunion</h1><p>Sign in to register, vote for the organising teams and chat with your batchmates.</p></section>
     <div class="card">
       <ul class="si-list">
