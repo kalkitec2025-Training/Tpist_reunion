@@ -265,6 +265,27 @@ function distribute(n, weights) {
 }
 
 const simCaches = new Map();
+// From this moment every scripted election changes at every update (earlier updates stay exactly as they were)
+const ALWAYS_MOVE_FROM = Date.parse('2026-11-23T10:00:00+05:30');
+function nudge(c, ids, fav, r) {
+  // move 1–3 votes between candidates, keeping the favourite on top
+  const pool = fav && ids.length > 2 ? ids.filter(i => i !== fav) : ids;
+  if (pool.length < 2) return false;
+  const n = pool.length, off = Math.floor(r() * n * n);
+  for (let q = 0; q < n * n; q++) {
+    const x = (off + q) % (n * n), from = pool[Math.floor(x / n)], to = pool[x % n];
+    if (from === to || c[from] <= 0) continue;
+    let m = Math.min(c[from], 1 + Math.floor(r() * 3));
+    if (fav && (from === fav || to === fav)) {
+      const rival = Math.max(...ids.filter(i => i !== fav).map(i => c[i]));
+      if (from === fav) m = Math.min(m, Math.max(0, Math.floor((c[fav] - rival - 3) / 2)));
+      if (m <= 0) continue;
+    }
+    c[from] -= m; c[to] += m;
+    return true;
+  }
+  return false;
+}
 function simulate(e, upto) {
   const A = db.auto;
   const ids = e.candidates.map(c => c.id);
@@ -304,7 +325,10 @@ function simulate(e, upto) {
     const istHour = new Date(A.startAt + k * interval + 5.5 * HOUR).getUTCHours();
     const factor = istHour < 6 ? 0.25 : istHour < 9 ? 0.6 : istHour >= 23 ? 0.5 : 1;
     let n = Math.round((e.rateMin + r() * Math.max(0, e.rateMax - e.rateMin)) * factor);
+    const always = A.startAt + k * interval >= ALWAYS_MOVE_FROM;
+    if (always) n = Math.max(1, n);
     n = Math.max(0, Math.min(n, e.cap - total));
+    const before = always ? JSON.stringify(c) : '';
 
     if (!fav) {
       if (n > 0) distribute(n, base.map(b => b * (0.5 + r()))).forEach((v, i) => (c[others[i]] += v));
@@ -358,6 +382,7 @@ function simulate(e, upto) {
         }
       }
     }
+    if (always && JSON.stringify(c) === before) nudge(c, ids, fav, r);
     snaps.push(c);
   }
   return snaps;
