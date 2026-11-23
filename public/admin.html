@@ -146,6 +146,9 @@ function overview() {
         <div class="kpi"><b>${n(r => r.food === 'veg')}</b><span>Veg</span></div>
         <div class="kpi"><b>${n(r => r.food !== 'veg')}</b><span>Non-veg</span></div>
         <div class="kpi"><b>${n(r => r.pickup)}</b><span>Need pickup</span></div>
+        <div class="kpi"><b>${R.reduce((t, r) => t + (r.headcount || 1), 0)}</b><span>Total people incl. family</span></div>
+        <div class="kpi"><b>${R.reduce((t, r) => t + (r.spouse ? 1 : 0) + (r.others || 0), 0)}</b><span>Family adults</span></div>
+        <div class="kpi"><b>${R.reduce((t, r) => t + (r.kids || []).length, 0)}</b><span>Kids (${R.flatMap(r => r.kids || []).filter(a => a < 5).length} under 5)</span></div>
         <div class="kpi"><b>${n(r => r.callStatus === 'confirmed')}</b><span>Confirmed by call</span></div>
       </div>
       <div class="row mt">${Object.entries(pick).map(([k, v]) => `<span class="pill b">${esc(k)}: ${v}</span>`).join('')}</div>
@@ -255,7 +258,7 @@ function rsvps() {
     </details>
     <div class="mt">${list.map(r => `<div class="rs">
       <div><b>${esc(r.name)}</b> <span class="sub">${esc(r.branch)}</span><br>${r.phone ? `<a href="tel:${esc(r.phone)}" style="color:var(--blue)">${esc(r.phone)}</a>` : '<span class="sub">no phone</span>'} · ${esc(r.city || '—')}${r.email ? `<div class="sub">${esc(r.email)}</div>` : ''}<div class="sub">${when(r.createdAt)} · ${r.source === 'test' ? '<span class="pill o">Test</span>' : r.source === 'call' ? 'added by caller' : 'self-registered'}</div></div>
-      <div><span class="pill ${r.pass === 'platinum' ? 'd' : r.pass === 'gold' ? 'o' : ''}" style="${r.pass === 'platinum' ? 'background:#1C1D24;color:#fff' : ''}">${esc(passNm(r.pass))}</span>${r.gender ? `<span class="pill">${r.gender === 'female' ? 'Female' : 'Male'}</span>` : ''}<span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>
+      <div><span class="pill ${r.pass === 'platinum' ? 'd' : r.pass === 'gold' ? 'o' : ''}" style="${r.pass === 'platinum' ? 'background:#1C1D24;color:#fff' : ''}">${esc(passNm(r.pass))}</span>${r.gender ? `<span class="pill">${r.gender === 'female' ? 'Female' : 'Male'}</span>` : ''}<span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>${r.family === 'family' ? `<span class="pill o">Family · ${r.headcount} people${r.spouse ? ' · spouse' : ''}${(r.kids || []).length ? ` · kids ${r.kids.join(', ')} yrs` : ''}${r.others ? ` · +${r.others} other` : ''}</span>` : ''}
         <input type="text" class="mt" data-rnote="${r.id}" value="${esc(r.note)}" placeholder="Caller note" style="margin-top:8px"></div>
       <div class="row" style="align-items:stretch"><select data-rpass="${r.id}" style="flex:1" aria-label="Pass"><option value="" ${!r.pass ? 'selected' : ''}>Pass: not assigned</option>${S.settings.passes.map(p => `<option value="${p.id}" ${r.pass === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><select data-rstat="${r.id}" style="flex:1">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${r.callStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn s r" data-delr="${r.id}" style="height:40px">Delete</button></div>
     </div>`).join('') || '<p class="hint">No registrations match.</p>'}</div>
@@ -289,6 +292,8 @@ const bars = (rows, name) => { const max = Math.max(1, ...rows.map(r => r[1])); 
 function activity() {
   const A = S.activity || { people: [] };
   return `<div class="grid">
+    <section class="card" style="grid-column:1/-1"><h2>Album photos in the app (${(S.album || []).length})</h2><p class="hint">Highlights uploaded in the app, about ${Math.round((S.album || []).reduce((n, p) => n + p.size, 0) / 1048576)} MB. Remove anything that shouldn't be there.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${(S.album || []).map(p => `<div style="position:relative;width:96px"><img src="/api/album/${p.id}/t" alt="" style="width:96px;height:96px;object-fit:cover;border-radius:10px;display:block"><div class="sub" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.by)}</div><button class="btn s r" style="position:absolute;top:4px;right:4px;padding:2px 6px" data-delphoto="${p.id}" aria-label="Remove photo">✕</button></div>`).join('') || '<p class="hint">No photos yet.</p>'}</div></section>
     <section class="card" style="grid-column:1/-1"><h2>App usage</h2><p class="hint">Signed-in batchmates only. Visits, pages and taps are recorded from this update onwards.</p>
       <div class="kpis">
         <div class="kpi"><b>${A.today || 0}</b><span>Active today</span></div>
@@ -390,6 +395,8 @@ function settings() {
       <div style="grid-column:1/-1"><label>Admin locations</label><textarea name="wa_locations">${esc(((s.whatsapp || {}).locations || []).map(l => `${l.place}: ${l.count}`).join('\n'))}</textarea></div>
     </div>
     <label class="check mt"><input type="checkbox" name="wa_show" ${(s.whatsapp || {}).show !== false ? 'checked' : ''}> Show the WhatsApp Group section on Home</label>
+    <h2 class="mt" style="margin-top:22px">Album</h2>
+    <div><label>Google Photos shared album link (everyone adds the full set of photos here)</label><input type="text" name="albumLink" value="${esc(s.albumLink || '')}" placeholder="https://photos.app.goo.gl/…"></div>
     <div class="row mt" style="gap:20px"><label class="check"><input type="checkbox" name="votingOpen" ${s.votingOpen ? 'checked' : ''}> Voting open</label><label class="check"><input type="checkbox" name="rsvpOpen" ${s.rsvpOpen ? 'checked' : ''}> Registrations open</label></div>
     <div class="row mt"><button class="btn p">Save settings</button></div></form>
   </section>`;
@@ -418,9 +425,9 @@ const actions = {
   sadd: async () => { sched.push({ day:1, time:'', title:'', note:'', tag:'' }); render(); return false; },
   ssave: async () => { await api('/schedule', { method:'PUT', json:{ items:sched } }); sched = null; toast('Schedule saved'); },
   csv: async () => {
-    const cols = ['name','email','pass','gender','branch','phone','city','attend','overnight','pickup','food','callStatus','note','source','createdAt'];
+    const cols = ['name','email','pass','gender','branch','phone','city','attend','overnight','pickup','food','family','spouse','kids','others','headcount','callStatus','note','source','createdAt'];
     const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const rows = [cols.join(',')].concat(S.rsvps.map(r => cols.map(c => cell(c === 'createdAt' ? new Date(r[c]).toISOString() : r[c])).join(',')));
+    const rows = [cols.join(',')].concat(S.rsvps.map(r => cols.map(c => cell(c === 'createdAt' ? new Date(r[c]).toISOString() : c === 'kids' ? (r.kids || []).join(' ') : r[c])).join(',')));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + rows.join('\n')], { type:'text/csv' }));
     a.download = 'reunion-registrations.csv'; a.click();
@@ -434,6 +441,7 @@ document.addEventListener('click', run(async e => {
   const s = t.closest('[data-sel]'); if (s) { selE = s.dataset.sel; render(); return; }
   const adj = t.closest('[data-adj]'); if (adj) { const [cid, d] = adj.dataset.adj.split('|'); await api(`/elections/${selE}/candidates/${cid}`, { method:'PUT', json:{ delta:+d } }); return load(); }
   const clr = t.closest('[data-clr]'); if (clr) { await api(`/elections/${selE}/candidates/${clr.dataset.clr}`, { method:'PUT', json:{ clear:true } }); return load(); }
+  const dp = t.closest('[data-delphoto]'); if (dp) { if (!confirm('Remove this photo from the album?')) return; await api(`/album/${dp.dataset.delphoto}`, { method:'DELETE' }); toast('Photo removed'); return load(); }
   const dc = t.closest('[data-delc]'); if (dc) { if (!confirm('Remove this candidate and their votes?')) return; await api(`/elections/${selE}/candidates/${dc.dataset.delc}`, { method:'DELETE' }); return load(); }
   const dr = t.closest('[data-delr]'); if (dr) { if (!confirm('Delete this registration?')) return; await api(`/rsvps/${dr.dataset.delr}`, { method:'DELETE' }); return load(); }
   const sd = t.closest('[data-sdel]'); if (sd) { sched.splice(+sd.dataset.sdel, 1); render(); return; }

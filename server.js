@@ -180,6 +180,7 @@ async function loadDb() {
   let data = null;
   if (pool) {
     await pool.query('create table if not exists app_state (id int primary key, data jsonb not null, updated_at timestamptz default now())');
+    await pool.query('create table if not exists photos (id text primary key, thumb bytea not null, full_img bytea not null, created_at timestamptz default now())');
     const r = await pool.query('select data from app_state where id = 1');
     data = r.rows[0] ? r.rows[0].data : null;
   } else {
@@ -489,7 +490,8 @@ function publicState(voterId) {
 
 // ======================================================================= app
 const app = express();
-app.use(express.json({ limit: '200kb' }));
+const jsonSmall = express.json({ limit: '200kb' });
+app.use((req, res, next) => req.path === '/api/album/upload' ? next() : jsonSmall(req, res, next));
 app.use(cookieParser());
 app.set('trust proxy', 1);
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
@@ -813,6 +815,12 @@ function cleanRsvp(b) {
     pass: ['platinum', 'gold', 'silver'].includes(b.pass) ? b.pass : '',
     overnight: !!b.overnight, pickup: str(b.pickup, 60), food: b.food === 'veg' ? 'veg' : 'nonveg'
   };
+  const kids = Array.isArray(b.kids) ? b.kids.slice(0, 8).map(a => Math.max(0, Math.min(17, Math.round(+a) || 0))) : [];
+  r.family = b.family === 'family' ? 'family' : 'alone';
+  r.spouse = r.family === 'family' && !!b.spouse;
+  r.kids = r.family === 'family' ? kids : [];
+  r.others = r.family === 'family' ? Math.max(0, Math.min(10, Math.round(+b.others) || 0)) : 0;
+  r.headcount = 1 + (r.spouse ? 1 : 0) + r.kids.length + r.others;
   if (r.attend === 'day1') r.overnight = false;
   if (r.name.length < 2) throw new Error('Please enter your full name');
   if (!r.gender) throw new Error('Please choose Male or Female');
@@ -836,6 +844,54 @@ app.post('/api/rsvp', (req, res) => {
   }
   saveDb();
   res.json(publicState(vid));
+});
+
+// ---- reunion album: highlights stored in the app (compressed in the browser); the full album lives on Google Photos
+const PHOTO_DIR = path.join(DATA_DIR, 'photos');
+const ALBUM_MAX = 1500, ALBUM_PER_USER = 25;
+async function photoPut(id, thumb, full) {
+  if (pool) return pool.query('insert into photos (id, thumb, full_img) values ($1, $2, $3)', [id, thumb, full]);
+  fs.mkdirSync(PHOTO_DIR, { recursive: true });
+  fs.writeFileSync(path.join(PHOTO_DIR, id + '-t.jpg'), thumb); fs.writeFileSync(path.join(PHOTO_DIR, id + '-f.jpg'), full);
+}
+async function photoGet(id, kind) {
+  if (pool) { const r = await pool.query(`select ${kind === 't' ? 'thumb' : 'full_img'} as b from photos where id = $1`, [id]); return r.rows[0] ? r.rows[0].b : null; }
+  try { return fs.readFileSync(path.join(PHOTO_DIR, `${id}-${kind}.jpg`)); } catch { return null; }
+}
+async function photoDel(id) {
+  if (pool) return pool.query('delete from photos where id = $1', [id]);
+  for (const k of ['t', 'f']) try { fs.unlinkSync(path.join(PHOTO_DIR, `${id}-${k}.jpg`)); } catch {}
+}
+const jpg = b64 => { const b = Buffer.from(String(b64 || '').replace(/^data:image\/jpeg;base64,/, ''), 'base64'); return b.length > 100 && b[0] === 0xFF && b[1] === 0xD8 ? b : null; };
+app.get('/api/album', (req, res) => {
+  const u = sessionUser(req), list = db.album || [];
+  res.json({ link: db.settings.albumLink || '', max: ALBUM_PER_USER, mine: u ? list.filter(p => p.uid === u.id).length : 0,
+    photos: list.slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, mine: !!u && p.uid === u.id, w: p.w, h: p.h })) });
+});
+app.post('/api/album/upload', express.json({ limit: '4mb' }), async (req, res) => {
+  const u = sessionUser(req);
+  if (!u && AUTH) return res.status(401).json({ error: 'Please sign in' });
+  const list = (db.album ||= []);
+  if (list.length >= ALBUM_MAX) return res.status(409).json({ error: 'The in-app album is full. Please add photos to the Google Photos album.' });
+  if (u && list.filter(p => p.uid === u.id).length >= ALBUM_PER_USER) return res.status(409).json({ error: `You can add up to ${ALBUM_PER_USER} photos here. Please add the rest to the Google Photos album.` });
+  const thumb = jpg(req.body.thumb), full = jpg(req.body.full);
+  if (!thumb || !full || thumb.length > 200000 || full.length > 1500000) return res.status(400).json({ error: 'That photo could not be read. Please try another.' });
+  const id = newId();
+  try { await photoPut(id, thumb, full); } catch (e) { return res.status(507).json({ error: 'Could not save the photo right now. The album may be full.' }); }
+  list.push({ id, uid: u ? u.id : null, byName: u ? displayName(u.id) : 'Batchmate', t: Date.now(), w: num(req.body.w, 1, 10000) || 0, h: num(req.body.h, 1, 10000) || 0, size: full.length });
+  saveDb(); res.json({ ok: true, id });
+});
+app.get('/api/album/:id/:kind(t|f)', async (req, res) => {
+  if (!(db.album || []).some(p => p.id === req.params.id)) return res.status(404).end();
+  const b = await photoGet(req.params.id, req.params.kind);
+  if (!b) return res.status(404).end();
+  res.set('Cache-Control', 'private, max-age=31536000, immutable').type('jpeg').send(b);
+});
+app.delete('/api/album/:id', async (req, res) => {
+  const u = sessionUser(req), list = db.album || [], p = list.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  if (!u || p.uid !== u.id) return res.status(403).json({ error: 'You can only remove your own photos' });
+  db.album = list.filter(x => x !== p); await photoDel(p.id); saveDb(); res.json({ ok: true });
 });
 
 // ===================================================================== admin
@@ -891,6 +947,7 @@ A.get('/state', (req, res) => {
     rsvps: Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(({ voterId, ...r }) => ({ ...r, email: voterId && voterId.startsWith('u:') && db.users[voterId.slice(2)] ? db.users[voterId.slice(2)].email : '' })),
     accounts: Object.keys(db.users).length,
     activity: activityReport(),
+    album: (db.album || []).slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, size: p.size || 0 })),
     accountList: Object.values(db.users).map(u => {
       const r = Object.values(db.rsvps).find(x => x.voterId === 'u:' + u.id);
       return { name: u.name || '', email: u.email || '', picture: u.picture || '', createdAt: u.createdAt, lastSeen: u.lastSeen || u.createdAt, registered: !!r, rsvpName: r ? r.name : '', chat: !!(db.chat.users[u.id] && db.chat.users[u.id].consentAt) };
@@ -915,6 +972,7 @@ A.put('/settings', (req, res) => {
     if (Array.isArray(b[k])) s[k] = b[k].map(x => str(x, 60)).filter(Boolean).slice(0, 30);
   }
   for (const k of ['votingOpen', 'rsvpOpen']) if (typeof b[k] === 'boolean') s[k] = b[k];
+  if (typeof b.albumLink === 'string') s.albumLink = /^https:\/\//.test(b.albumLink.trim()) ? str(b.albumLink.trim(), 500) : '';
   if (b.whatsapp && typeof b.whatsapp === 'object') {
     const w = b.whatsapp, cur = s.whatsapp || {};
     s.whatsapp = {
@@ -1054,6 +1112,11 @@ A.delete('/elections/:id/candidates/:cid', (req, res) => {
 
 // RSVPs
 A.get('/ping', (req, res) => res.json({ ok: true }));
+A.delete('/album/:id', async (req, res) => {
+  const p = (db.album || []).find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  db.album = db.album.filter(x => x !== p); await photoDel(p.id); saveDb(); res.json({ ok: true });
+});
 A.post('/import', (req, res) => {
   const rows = Array.isArray(req.body.rows) ? req.body.rows.slice(0, 3000) : [];
   const have = new Set(Object.values(db.rsvps).map(r => String(r.phone || '').slice(-10)).filter(Boolean));
