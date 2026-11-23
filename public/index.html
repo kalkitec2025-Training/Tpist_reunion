@@ -66,6 +66,7 @@
   .imp-prev { border:1px solid var(--line); border-radius:12px; padding:4px 12px; font-size:13px; margin-top:10px; }
   .imp-prev > div { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid var(--line); } .imp-prev > div:first-child { border-top:0; }
   .imp-ic { width:44px; height:44px; border-radius:12px; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; margin-bottom:12px; }
+  .ehead2 { display:flex; gap:12px; align-items:center; margin:6px 20px 0; } .ehead2 h1 { margin:0; font-size:19px; font-weight:700; line-height:1.25; } .ehead2 small { display:block; font-size:12.5px; color:var(--muted); margin-top:2px; }
   .act-dot { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#DC2626; white-space:nowrap; }
   .act-dot:before { content:''; width:8px; height:8px; border-radius:50%; background:#DC2626; animation:redpulse 1.6s infinite; }
   @keyframes redpulse { 0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)} 70%{box-shadow:0 0 0 7px rgba(220,38,38,0)} 100%{box-shadow:0 0 0 0 rgba(220,38,38,0)} }
@@ -727,8 +728,7 @@ function electionPage(id) {
         <div class="row2"><button type="button" class="btn ghost sm" data-nomclose>Cancel</button><button class="btn acc sm">Add nominee</button></div></form>`
     : `<div style="margin:0 20px 12px"><button type="button" class="btn line" style="width:100%" data-nom="${esc(e.id)}">${svg(P.plus, 18)}Add a nominee</button></div>`) : '';
   return `${ticker()}<a class="back" href="#vote">‹ Polls</a>
-    <div class="ehead">${icon(e)}<div><h1 class="h1 d" style="font-size:24px">${esc(e.title)}</h1><p class="sub">${esc(e.desc)}</p></div></div>
-    <p class="sub" style="font-size:13px;padding:10px 20px 0">${e.total} votes · ${e.live ? 'counted live' : 'updated ' + time(S.updatedAt)}</p>
+    <div class="ehead2">${icon(e)}<div style="min-width:0"><h1>${esc(e.title)}</h1><small>${e.total} votes · ${e.live ? 'counted live' : 'updated ' + time(S.updatedAt)}</small></div></div>
     ${e.confirmed ? `<div class="note-bar ok">${svg(P.check, 18)}<span>${e.confirmed.name ? `<b>${esc(e.confirmed.name)}</b> is confirmed${isOpt(e) ? '' : ' as ' + esc(e.title)}.` : `The ${esc(e.title)} is confirmed.`} Voting for this role is closed.</span></div>`
       : e.status === 'upcoming' ? `<div class="note-bar">${svg(P.info, 18)}<span>Voting for this role opens soon.${e.openNominations ? ' You can add nominees now.' : ''}</span></div>`
       : e.status === 'closed' ? `<div class="note-bar">${svg(P.info, 18)}<span>Voting for this role has closed.</span></div>`
@@ -738,7 +738,6 @@ function electionPage(id) {
       : `<div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><div class="n d">${e.confirmed ? 1 : e.candidates.length}</div><div class="l">${e.confirmed ? 'Coordinator confirmed' : 'Nominees'}</div></div><div class="stat"><div class="n d">${e.total}</div><div class="l">Votes</div></div></div>
          ${lockNote('Names are shown only while voting is live. The admin can see the full list and results.')}<div style="height:12px"></div>`}
     ${nomForm}
-    ${isLive(e) && !isOpt(e) && e.candidates.length ? campaignBox(e) : ''}
     ${footer()}`;
 }
 let campOpen = null;
