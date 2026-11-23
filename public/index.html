@@ -67,6 +67,13 @@
   .imp-prev > div { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid var(--line); } .imp-prev > div:first-child { border-top:0; }
   .imp-ic { width:44px; height:44px; border-radius:12px; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; margin-bottom:12px; }
   .ehead2 { display:flex; gap:12px; align-items:center; margin:6px 20px 0; } .ehead2 h1 { margin:0; font-size:19px; font-weight:700; line-height:1.25; } .ehead2 small { display:block; font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .tr { margin-top:14px; } .tr-h { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; } .tr-h b { font-size:16px; } .tr-h span { font-size:12px; color:var(--muted); }
+  .tr-x { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:2px; }
+  .tr-rows { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+  .tr-r { display:flex; align-items:center; gap:8px; font-size:13.5px; flex-wrap:wrap; } .tr-r i { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+  .tr-m { font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; } .tr-m.up { background:#DCFCE7; color:#15803D; } .tr-m.dn { background:#FEE2E2; color:#B91C1C; } .tr-m.st { background:var(--track); color:var(--muted); }
+  .tr-n { margin-left:auto; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .tr-notes { margin:12px 0 0; padding:12px 0 0 18px; border-top:1px solid var(--line); font-size:13px; line-height:1.5; color:var(--ink); } .tr-notes li { margin:2px 0; }
   .act-dot { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#DC2626; white-space:nowrap; }
   .act-dot:before { content:''; width:8px; height:8px; border-radius:50%; background:#DC2626; animation:redpulse 1.6s infinite; }
   @keyframes redpulse { 0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)} 70%{box-shadow:0 0 0 7px rgba(220,38,38,0)} 100%{box-shadow:0 0 0 0 rgba(220,38,38,0)} }
@@ -691,6 +698,33 @@ function voteCard(e) {
   }
 }
 
+const TC = ['#0D9488', '#EA580C', '#7C3AED'];
+function trendCard(e) {
+  const T = e.trend; if (!T) return '';
+  const ids = Object.keys(T.series), names = Object.fromEntries(e.candidates.map(c => [c.id, c.name]));
+  const all = ids.flatMap(id => T.series[id]), lo = Math.min(...all), hi = Math.max(...all), span = Math.max(1, hi - lo);
+  const W = 320, H = 130, n = T.hours;
+  const X = i => 8 + i * (W - 16) / n, Y = v => 10 + (H - 20) * (1 - (v - lo) / span);
+  const lines = ids.map((id, j) => `<polyline points="${T.series[id].map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')}" fill="none" stroke="${TC[j]}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${X(n)}" cy="${Y(T.series[id][n])}" r="3.5" fill="${TC[j]}"/>`).join('');
+  const grid = [0, .5, 1].map(f => `<line x1="8" x2="${W - 8}" y1="${10 + (H - 20) * f}" y2="${10 + (H - 20) * f}" stroke="#E5E7EB" stroke-dasharray="3 4"/>`).join('');
+  const d = (id, h) => T.series[id][n] - T.series[id][n - h];
+  const sign = v => (v > 0 ? '+' : '') + v;
+  const lead = s => ids.reduce((a, b) => (T.series[b][s] > T.series[a][s] ? b : a));
+  const ledHours = id => T.series[id].filter((_, i) => lead(i) === id).length - 1;
+  const rows = ids.map((id, j) => { const h1 = d(id, 1), h6 = d(id, 6), mood = h1 > 0 && h1 >= h6 / 6 ? ['up', 'Rising'] : h1 < 0 ? ['dn', 'Falling'] : h6 > 0 ? ['up', 'Gaining'] : ['st', 'Steady'];
+    return `<div class="tr-r"><i style="background:${TC[j]}"></i><b>${esc(first(names[id]))}</b><span class="tr-m ${mood[0]}">${mood[1]}</span><span class="tr-n">${sign(h1)} 1h · ${sign(h6)} 6h · ${sign(d(id, n))} 24h</span></div>`; }).join('');
+  const now = lead(n), before = lead(n - 1);
+  const notes = [
+    now !== before ? `<b>${esc(first(names[now]))}</b> moved ahead of <b>${esc(first(names[before]))}</b> in the last hour.` : `<b>${esc(first(names[now]))}</b> has held the lead this hour.`,
+    `${esc(first(names[now]))} led for ${Math.max(0, ledHours(now))} of the last 24 hours.`,
+    T.leadChanges ? `The lead changed ${T.leadChanges} time${T.leadChanges === 1 ? '' : 's'} in 24 hours.` : 'No change at the top in 24 hours.'
+  ];
+  return `<section class="card tr"><div class="tr-h"><b>Trends</b><span>Last 24 hours</span></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Votes over the last 24 hours">${grid}${lines}</svg>
+    <div class="tr-x"><span>24h ago</span><span>12h ago</span><span>Now</span></div>
+    <div class="tr-rows">${rows}</div>
+    <ul class="tr-notes">${notes.map(x => `<li>${x}</li>`).join('')}</ul></section>`;
+}
 function electionPage(id) {
   const e = S.elections.find(x => x.id === id);
   if (!e) return `<a class="back" href="#vote">‹ Polls</a><div class="empty">This election is no longer available.</div>`;
@@ -737,6 +771,7 @@ function electionPage(id) {
       ? `<div class="card" style="margin-top:16px">${rows || `<div class="empty">No nominees yet.<br>Add a batchmate below and ask everyone to vote.</div>`}</div>`
       : `<div class="stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><div class="n d">${e.confirmed ? 1 : e.candidates.length}</div><div class="l">${e.confirmed ? 'Coordinator confirmed' : 'Nominees'}</div></div><div class="stat"><div class="n d">${e.total}</div><div class="l">Votes</div></div></div>
          ${lockNote('Names are shown only while voting is live. The admin can see the full list and results.')}<div style="height:12px"></div>`}
+    ${trendCard(e)}
     ${nomForm}
     ${footer()}`;
 }

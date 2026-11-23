@@ -406,6 +406,19 @@ function currentSlot() {
   return Math.max(0, Math.floor((Date.now() - A.startAt) / (A.intervalMin * 60 * 1000)));
 }
 
+// hour-by-hour counts for the top candidates (from the script, or from real vote times), for the Trends card
+function trendOf(e, slot, ids) {
+  const HRS = 24, interval = db.auto.intervalMin * 60 * 1000;
+  const off = Object.fromEntries(e.candidates.map(c => [c.id, c.offset || 0]));
+  let at; // at(k): counts k hours ago
+  if (e.mode === 'scripted') { const snaps = simulate(e, slot); at = k => snaps[Math.max(0, slot - Math.round(k * HOUR / interval))] || {}; }
+  else { const votes = Object.values(db.votes[e.id] || {}); at = k => { const t = Date.now() - k * HOUR, c = {}; for (const v of votes) if (v.t <= t) c[v.c] = (c[v.c] || 0) + 1; return c; }; }
+  const pts = [];
+  for (let k = HRS; k >= 0; k--) { const c = at(k); pts.push(Object.fromEntries(ids.map(id => [id, Math.max(0, (c[id] || 0) + off[id])]))); }
+  let changes = 0, prevLead = null;
+  for (const p of pts) { const lead = ids.reduce((a, b) => (p[b] > p[a] ? b : a)); if (prevLead && lead !== prevLead) changes++; prevLead = lead; }
+  return { hours: HRS, series: Object.fromEntries(ids.map(id => [id, pts.map(p => p[id])])), leadChanges: changes };
+}
 function electionView(e, voterId, slot, admin = false) {
   const real = db.votes[e.id] || {};
   const myVote = voterId && real[voterId] ? real[voterId].c : null;
@@ -451,6 +464,7 @@ function electionView(e, voterId, slot, admin = false) {
     openNominations: !!e.openNominations && !conf && (e.status || 'live') !== 'closed',
     candidates, total: candidates.reduce((s, c) => s + c.votes, 0), myVote, hasHistory
   };
+  if (isLiveNow && candidates.length > 1 && (!OPTION_POLL(e) || e.kind === 'venue')) out.trend = trendOf(e, slot, candidates.slice(0, 3).map(c => c.id));
   if (admin) Object.assign(out, { confirmedId: e.confirmedId || null, openNominationsSetting: !!e.openNominations, favoriteId: e.favoriteId, cap: e.cap, dipEvery: e.dipEvery, rateMin: e.rateMin, rateMax: e.rateMax, startTotal: e.startTotal, afterCap: e.afterCap, realVoters: Object.keys(real).length });
   return out;
 }
