@@ -67,6 +67,43 @@
   .imp-prev > div { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid var(--line); } .imp-prev > div:first-child { border-top:0; }
   .imp-ic { width:44px; height:44px; border-radius:12px; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; margin-bottom:12px; }
   .ehead2 { display:flex; gap:12px; align-items:center; margin:6px 20px 0; } .ehead2 h1 { margin:0; font-size:19px; font-weight:700; line-height:1.25; } .ehead2 small { display:block; font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .oc { margin:18px 10px 0; }
+  .oc-top { display:flex; gap:14px; align-items:center; background:var(--ink); color:#fff; border-radius:18px; padding:16px 18px; box-shadow:0 12px 26px rgba(11,21,51,.28), inset 0 1px 0 rgba(255,255,255,.12); margin:0 6px; }
+  .oc-ti { padding-right:14px; border-right:1px solid rgba(255,255,255,.2); display:grid; place-items:center; }
+  .oc-top b { display:block; font-size:18px; font-weight:800; }
+  .oc-sub { font-size:13px; color:#9CA3AF; margin-top:3px; }
+  .oc-lead { display:inline-block; margin-top:8px; background:var(--accent); color:#fff; font-size:12px; font-weight:800; padding:3px 14px; border-radius:99px; }
+  .oc-br { position:relative; height:34px; }
+  .oc-br i { position:absolute; background:#9CA3AF; }
+  .oc-br .v { left:50%; top:0; width:2px; height:16px; margin-left:-1px; }
+  .oc-br .h { top:16px; height:2px; left:calc(50% / var(--n)); right:calc(50% / var(--n)); }
+  .oc-br .d { top:16px; width:2px; height:18px; }
+  .oc-br .d:after { content:''; position:absolute; left:-4px; bottom:-2px; border:5px solid transparent; border-top-color:#9CA3AF; border-bottom:0; }
+  .oc-cols { display:grid; grid-template-columns:repeat(var(--n), minmax(0,1fr)); gap:6px; align-items:start; }
+  .oc-col { background:#fff; border:1px solid var(--line); border-radius:14px; padding:0 4px 6px; min-width:0; }
+  .oc-gh { display:flex; align-items:center; gap:6px; color:#fff; border-radius:12px; padding:9px 7px; margin:0 -4px 6px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.02em; line-height:1.15; box-shadow:0 6px 14px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.25); }
+  .oc-gh svg { flex-shrink:0; } .oc-gh small { font-size:11px; }
+  .oc-row { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; width:100%; height:128px; position:relative; text-align:center; font:inherit; color:var(--ink); background:none; border:0; border-top:1px solid var(--line); padding:12px 4px; cursor:pointer; -webkit-tap-highlight-color:transparent; border-radius:10px; transition:background .12s; }
+  .oc-gh + .oc-row { border-top:0; }
+  .oc-row:active, .oc-row:hover { background:var(--accent-soft); }
+  .oc-row .ico { width:36px; height:36px; border-radius:10px; } .oc-row .ico svg { width:18px; height:18px; }
+  .oc-row b { font-size:12.5px; line-height:1.25; font-weight:600; }
+  .oc-row > i { position:absolute; top:8px; right:8px; width:18px; height:18px; border-radius:50%; display:grid; place-items:center; }
+  .oc-row > i.ok { background:#16A34A; color:#fff; } .oc-row > i.pd { background:#FFEDD5; color:#C2410C; }
+  .oc-card { position:relative; display:flex; flex-direction:column; align-items:flex-start; width:100%; height:136px; text-align:left; font:inherit; color:inherit; cursor:pointer; background:#fff; border:1px solid #BFD3F7; border-radius:12px; padding:10px 8px; margin-top:6px; box-shadow:0 1px 2px rgba(37,99,235,.08), 0 4px 12px rgba(37,99,235,.06); transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease; -webkit-tap-highlight-color:transparent; overflow:hidden; }
+  .oc-card:hover { border-color:#93B4F0; box-shadow:0 2px 4px rgba(37,99,235,.1), 0 8px 18px rgba(37,99,235,.12); }
+  .oc-card:active { transform:scale(.97); box-shadow:0 1px 2px rgba(37,99,235,.1); }
+  .oc-card:focus-visible { outline:2px solid #2563EB; outline-offset:2px; }
+  .oc-go { position:absolute; right:6px; top:10px; color:#93B4F0; }
+  .oc-ppl em { font-style:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; } .oc-ppl .more { color:#2563EB; font-weight:600; font-size:11.5px; padding-left:17px; }
+  .oc-card .ico { width:30px; height:30px; border-radius:9px; margin-bottom:6px; } .oc-card .ico svg { width:16px; height:16px; }
+  .oc-card b { display:block; font-size:12.5px; line-height:1.25; color:var(--ink); }
+  .oc-ppl { display:flex; flex-direction:column; gap:2px; margin-top:5px; } .oc-ppl span { display:flex; align-items:flex-start; gap:4px; font-size:12px; font-weight:700; color:#15803D; line-height:1.3; } .oc-ppl svg { flex-shrink:0; margin-top:2px; }
+  .oc-ppl.lt { flex-direction:row; flex-wrap:wrap; gap:6px; margin-top:8px; } .oc-ppl.lt span { color:#86EFAC; font-size:13px; background:rgba(134,239,172,.1); border:1px solid rgba(134,239,172,.25); padding:3px 9px 3px 7px; border-radius:99px; align-items:center; white-space:nowrap; } .oc-ppl.lt svg { margin-top:0; }
+  .oc-tbc { display:flex; gap:4px; align-items:flex-start; margin-top:5px; font-size:11.5px; color:#C2410C; line-height:1.3; } .oc-tbc svg { flex-shrink:0; margin-top:1px; }
+  .oc-leg { display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin:16px 6px 0; padding:10px 14px; background:#fff; border:1px solid var(--line); border-radius:99px; font-size:12px; }
+  .oc-leg span { display:flex; align-items:center; gap:6px; } .oc-leg i { width:18px; height:18px; border-radius:50%; display:grid; place-items:center; }
+  .oc-leg .ok { background:#16A34A; color:#fff; } .oc-leg .pd { background:#FFEDD5; color:#C2410C; }
   .act-dot { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#DC2626; white-space:nowrap; }
   .act-dot:before { content:''; width:8px; height:8px; border-radius:50%; background:#DC2626; animation:redpulse 1.6s infinite; }
   @keyframes redpulse { 0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)} 70%{box-shadow:0 0 0 7px rgba(220,38,38,0)} 100%{box-shadow:0 0 0 0 rgba(220,38,38,0)} }
@@ -377,6 +414,7 @@
 <dialog id="ask"><div class="dlg"><h3 id="askT"></h3><p id="askP"></p><div class="row"><button type="button" class="btn ghost" id="askNo">Cancel</button><button type="button" class="btn acc" id="askYes">Confirm vote</button></div></div></dialog>
 <dialog id="vidDlg" style="width:min(94vw,560px);background:#000"><div style="position:relative;padding-top:177%;max-height:80vh" id="vidBox"></div><div style="display:flex;justify-content:space-between;align-items:center;background:#12131A;color:#fff;padding:10px 14px;font-size:14px"><span id="vidName"></span><button type="button" class="btn sm" style="background:#2A2C36" id="vidClose">Close</button></div></dialog>
 <dialog id="phDlg" style="width:min(96vw,720px);background:#000"><div id="phBox"></div></dialog>
+<dialog id="tmDlg" aria-labelledby="tmT"><div class="dlg" id="tmBox"></div></dialog>
 <dialog id="impDlg" aria-labelledby="impT"><div class="dlg" id="impBox"></div></dialog>
 <dialog id="waDlg" aria-labelledby="waT"><div class="dlg"><div style="width:44px;height:44px;border-radius:12px;background:#16A34A;color:#fff;display:grid;place-items:center;margin-bottom:12px" id="waIc"></div>
   <h3 id="waT">WhatsApp Group details</h3><p>This will be enabled after the election closes. Please request the Admin to add you to the group manually.</p>
@@ -788,14 +826,32 @@ function schedulePage() {
 }
 
 // ------------------------------------------------------------------ teams
+const ORG = [
+  { name: 'Core Planning', ids: ['arrangements', 'finance', 'telecalling'], c: '#0D9488', bg: '#F0FAF9', g: 'linear-gradient(135deg,#14B8A6,#0F766E)', ic: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="m12 12 7-7M16 5h3v3"/>' },
+  { name: 'Event Operations', ids: ['food', 'hospitality', 'transport'], c: '#0D9488', bg: '#F0FAF9', g: 'linear-gradient(135deg,#14B8A6,#0F766E)', ic: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>' },
+  { name: 'Event Experience', ids: ['media', 'women'], c: '#0D9488', bg: '#F0FAF9', g: 'linear-gradient(135deg,#14B8A6,#0F766E)', ic: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>' }
+];
+const HOUR_IC = '<path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9"/>';
+function teamNames(e) { return [...new Set([e.confirmed && e.confirmed.name, ...(e.team || [])].filter(Boolean))]; }
 function teamsPage() {
-  const teams = S.elections.filter(e => e.kind === 'role');
-  return `<div class="card" style="margin-top:16px;padding:4px 16px">
-    ${teams.map(e => `<div class="tm">${icon(e)}<div style="flex:1;min-width:0"><div class="t">${esc(e.title)}</div>
-        ${(() => { const names = [...new Set([e.confirmed && e.confirmed.name, ...(e.team || [])].filter(Boolean))];
-          return names.length ? names.map(n => `<div class="cn">${svg(P.check, 15)}${esc(n)}</div>`).join('') : '<div class="cp">Coordinator to be confirmed</div>'; })()}</div></div>`).join('')}
-    </div>
-    ${footer()}`;
+  const roles = S.elections.filter(e => e.kind === 'role'), by = Object.fromEntries(roles.map(e => [e.id, e]));
+  const top = by.overall;
+  const people = e => { const n = teamNames(e); return n.length ? `<div class="oc-ppl">${n.slice(0, 2).map(x => `<span>${svg(P.check, 13)}<em>${esc(x)}</em></span>`).join('')}${n.length > 2 ? `<span class="more">+${n.length - 2} more</span>` : ''}</div>` : `<div class="oc-tbc">${svg(HOUR_IC, 13)}<span>To be confirmed</span></div>`; };
+  const card = e => { const ok = teamNames(e).length; return `<button type="button" class="oc-row" data-team="${esc(e.id)}" aria-label="${esc(e.title)}, ${ok ? 'confirmed' : 'to be confirmed'}">${icon(e)}<b>${esc(e.title)}</b><i class="${ok ? 'ok' : 'pd'}">${svg(ok ? P.check : HOUR_IC, 12)}</i></button>`; };
+  const used = new Set(['overall', ...ORG.flatMap(g => g.ids)]);
+  const groups = ORG.map(g => ({ ...g, list: g.ids.map(id => by[id]).filter(Boolean) })).filter(g => g.list.length);
+  const extra = roles.filter(e => !used.has(e.id));
+  const col = (g, k) => `<div class="oc-col" style="--c:${g.c};--bg:${g.bg}"><div class="oc-gh" style="background:${g.g}">${svg(g.ic, 18)}<span><small>${k + 1}.</small> ${esc(g.name)}</span></div>
+    ${g.list.map(card).join('')}</div>`;
+  const n = groups.length;
+  return `<div class="oc">
+    ${top ? `<div class="oc-top"><div class="oc-ti"><svg width="34" height="34" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><circle cx="12" cy="9" r="3.2"/><circle cx="5.5" cy="11" r="2.4" opacity=".85"/><circle cx="18.5" cy="11" r="2.4" opacity=".85"/><path d="M6 20c0-3.3 2.7-6 6-6s6 2.7 6 6z"/><path d="M1.5 20c0-2.5 1.8-4.3 4-4.5-.8 1.2-1.3 2.8-1.3 4.5zM22.5 20c0-2.5-1.8-4.3-4-4.5.8 1.2 1.3 2.8 1.3 4.5z" opacity=".85"/><path d="M9 3.8l1.4 1.3L12 3l1.6 2.1L15 3.8V6H9z" fill="#F6C343"/></svg></div>
+      <div style="min-width:0;flex:1"><b>${esc(top.title)}</b>${teamNames(top).length ? `<div class="oc-ppl lt">${teamNames(top).map(x => `<span>${svg(P.check, 13)}${esc(x)}</span>`).join('')}</div>` : '<div class="oc-sub">Coordinator to be confirmed</div>'}<span class="oc-lead">Lead</span></div></div>` : ''}
+    <div class="oc-br" style="--n:${n}"><i class="v"></i><i class="h"></i>${groups.map((_, k) => `<i class="d" style="left:calc(${(k + .5) * 100 / n}% - 1px)"></i>`).join('')}</div>
+    <div class="oc-cols" style="--n:${n}">${groups.map(col).join('')}</div>
+    ${extra.length ? `<div class="oc-col" style="--c:#475569;--bg:#F1F5F9;margin-top:12px"><div class="oc-gh" style="background:linear-gradient(135deg,#64748B,#334155)"><span>Other teams</span></div>${extra.map(card).join('')}</div>` : ''}
+    <div class="oc-leg"><span><i class="ok">${svg(P.check, 12)}</i>Confirmed</span><span><i class="pd">${svg(HOUR_IC, 12)}</i>Pending</span><span style="color:var(--muted)">Tap a team to see names</span></div>
+  </div>${footer()}`;
 }
 
 // ------------------------------------------------------------------ rsvp
@@ -1024,6 +1080,14 @@ function syncForm() {
 document.addEventListener('click', e => {
   const d = e.target.closest('[data-day]'); if (d) { day = +d.dataset.day; render(); return; }
   if (e.target.closest('[data-import]')) { impStart(); return; }
+  const tm = e.target.closest('[data-team]'); if (tm) { const t = S.elections.find(x => x.id === tm.dataset.team); if (t) { const n = teamNames(t);
+    $('tmBox').innerHTML = `<div style="display:flex;gap:12px;align-items:center">${icon(t)}<h3 id="tmT" style="margin:0">${esc(t.title)}</h3></div>
+      <p style="margin-top:12px">${esc(t.desc)}</p>
+      <div class="lb" style="margin-top:14px">${n.length > 1 ? 'Confirmed coordinators' : 'Confirmed coordinator'}</div>
+      ${n.length ? `<div class="oc-ppl" style="margin-top:6px">${n.map(x => `<span style="font-size:14.5px">${svg(P.check, 15)}${esc(x)}</span>`).join('')}</div>` : `<div class="oc-tbc" style="font-size:14px">${svg(HOUR_IC, 15)}<span>To be confirmed</span></div>`}
+      <div class="row" style="margin-top:18px">${isLive(t) ? `<a class="btn acc" href="#vote/${esc(t.id)}" data-tmclose>View poll</a>` : ''}<button type="button" class="btn ghost" data-tmclose>Close</button></div>`;
+    $('tmDlg').showModal(); } return; }
+  if (e.target.closest('[data-tmclose]')) { $('tmDlg').close(); if (!e.target.closest('a')) return; }
   const ph = e.target.closest('[data-ph]'); if (ph) { showPhoto(ph.dataset.ph); return; }
   if (e.target.closest('[data-phclose]')) { $('phDlg').close(); return; }
   const pd = e.target.closest('[data-phdel]'); if (pd) { (async () => { try { await fetch('/api/album/' + encodeURIComponent(pd.dataset.phdel), { method:'DELETE' }); $('phDlg').close(); AL = null; renderAlbum(); toast('Photo removed'); } catch (err) { toast(err.message); } })(); return; }
