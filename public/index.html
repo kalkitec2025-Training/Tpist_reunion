@@ -716,8 +716,7 @@ function trendCard(e) {
   const now = lead(n), before = lead(n - 1);
   const notes = [
     now !== before ? `<b>${esc(first(names[now]))}</b> moved ahead of <b>${esc(first(names[before]))}</b> in the last hour.` : `<b>${esc(first(names[now]))}</b> has held the lead this hour.`,
-    `${esc(first(names[now]))} led for ${Math.max(0, ledHours(now))} of the last 24 hours.`,
-    T.leadChanges ? `A close race: the top spot swapped ${T.leadChanges} time${T.leadChanges === 1 ? '' : 's'} in 24 hours.` : 'The same candidate stayed on top all day.'
+    `${esc(first(names[now]))} led for ${Math.max(0, ledHours(now))} of the last 24 hours.`
   ];
   return `<section class="card tr"><div class="tr-h"><b>Trends</b><span>Last 24 hours</span></div>
     <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Votes over the last 24 hours">${grid}${lines}</svg>
