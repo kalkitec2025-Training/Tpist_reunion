@@ -440,7 +440,7 @@ function electionView(e, voterId, slot, admin = false) {
   for (const c of candidates) {
     const v = byId[c.id] && byId[c.id].video;
     if (admin) c.videoInfo = v || null;
-    else if (v && v.status === 'approved' && isLiveNow) c.video = { kind: v.kind, embed: v.embed, url: v.url };
+    else if (v && v.status === 'approved' && isLiveNow) c.video = { kind: v.kind, embed: v.embed, url: v.url, likes: videoLikes(v, c.id), liked: !!(v.likers && v.likers[voterId]) };
   }
   if (!admin && !isLiveNow && !OPTION_POLL(e)) {
     for (const c of candidates) { c.name = mask(c.name); c.note = ''; delete c.video; }
@@ -540,7 +540,7 @@ app.post('/api/auth/google', async (req, res) => {
   let g;
   try { g = await verifyGoogle(String(req.body.credential || '')); } catch (e) { return res.status(401).json({ error: e.message }); }
   let user = Object.values(db.users).find(u => u.sub === g.sub);
-  if (!user) { const id = newId(); user = db.users[id] = { id, sub: g.sub, createdAt: Date.now() }; }
+  if (!user) { const id = newId(); user = db.users[id] = { id, sub: g.sub, createdAt: Date.now(), approval: db.settings.requireApproval === false ? 'approved' : 'pending' }; }
   Object.assign(user, { name: str(g.name, 80), email: str(g.email, 120), picture: str(g.picture, 300), privacyAt: user.privacyAt || Date.now(), lastSeen: Date.now() });
   linkDevice(req.cookies.vid, 'u:' + user.id);
   saveDb();
@@ -576,7 +576,9 @@ app.post('/api/auth/logout', (req, res) => { res.clearCookie('sid'); res.json({ 
 // when sign-in is set up, the app's data needs a signed-in user
 app.use('/api', (req, res, next) => {
   if (!AUTH || req.path.startsWith('/admin') || req.path.startsWith('/auth') || req.path === '/config') return next();
-  if (!sessionUser(req)) return res.status(401).json({ error: 'Please sign in', signin: true });
+  const u = sessionUser(req);
+  if (!u) return res.status(401).json({ error: 'Please sign in', signin: true });
+  if (u.approval && u.approval !== 'approved') return res.status(403).json({ error: 'Waiting for approval', approval: u.approval, name: u.name || '', email: u.email || '' });
   next();
 });
 
@@ -604,6 +606,22 @@ app.get('/api/members', (req, res) => {
 });
 
 // ---- campaign videos (links to YouTube or Google Drive; approved by admin; never change vote counts)
+// likes on a campaign video: a scripted count that climbs over the first days, plus real likes from batchmates
+function videoLikes(v, key) {
+  const r = rng(hash(db.auto.seed, strHash(String(key) + (v.at || 0))));
+  const target = 45 + Math.floor(r() * 140), hrs = Math.max(0, (Date.now() - (v.at || Date.now())) / HOUR);
+  const start = 8 + Math.floor(r() * 18); // a few likes from the moment it's posted
+  const scripted = start + Math.round(target * (1 - Math.exp(-hrs / 20))) + Math.min(Math.floor(hrs / 4), 25); // only ever goes up
+  return scripted + Object.keys(v.likers || {}).length;
+}
+app.post('/api/campaign/like', (req, res) => {
+  const vid = voterIdOf(req, res), e = findElection(req.body.electionId);
+  const c = e && e.candidates.find(x => x.id === req.body.candidateId);
+  if (!c || !c.video || c.video.status !== 'approved') return res.status(404).json({ error: 'Video not found' });
+  const L = (c.video.likers ||= {});
+  if (L[vid]) delete L[vid]; else L[vid] = Date.now();
+  saveDb(); res.json({ ok: true, liked: !!L[vid], likes: videoLikes(c.video, c.id) });
+});
 function embedOf(url) {
   const u = String(url || '').trim();
   let m = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,20})/);
@@ -950,7 +968,7 @@ A.get('/state', (req, res) => {
     album: (db.album || []).slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, size: p.size || 0 })),
     accountList: Object.values(db.users).map(u => {
       const r = Object.values(db.rsvps).find(x => x.voterId === 'u:' + u.id);
-      return { name: u.name || '', email: u.email || '', picture: u.picture || '', createdAt: u.createdAt, lastSeen: u.lastSeen || u.createdAt, registered: !!r, rsvpName: r ? r.name : '', chat: !!(db.chat.users[u.id] && db.chat.users[u.id].consentAt) };
+      return { id: u.id, approval: u.approval || 'approved', name: u.name || '', email: u.email || '', picture: u.picture || '', createdAt: u.createdAt, lastSeen: u.lastSeen || u.createdAt, registered: !!r, rsvpName: r ? r.name : '', chat: !!(db.chat.users[u.id] && db.chat.users[u.id].consentAt) };
     }).sort((a, b) => b.createdAt - a.createdAt),
     chat: {
       plans: PLANS,
@@ -972,6 +990,7 @@ A.put('/settings', (req, res) => {
     if (Array.isArray(b[k])) s[k] = b[k].map(x => str(x, 60)).filter(Boolean).slice(0, 30);
   }
   for (const k of ['votingOpen', 'rsvpOpen']) if (typeof b[k] === 'boolean') s[k] = b[k];
+  if (typeof b.requireApproval === 'boolean') s.requireApproval = b.requireApproval;
   if (typeof b.albumLink === 'string') s.albumLink = /^https:\/\//.test(b.albumLink.trim()) ? str(b.albumLink.trim(), 500) : '';
   if (b.whatsapp && typeof b.whatsapp === 'object') {
     const w = b.whatsapp, cur = s.whatsapp || {};
@@ -1112,6 +1131,13 @@ A.delete('/elections/:id/candidates/:cid', (req, res) => {
 
 // RSVPs
 A.get('/ping', (req, res) => res.json({ ok: true }));
+A.post('/accounts/:id/approval', (req, res) => {
+  const u = db.users[req.params.id];
+  if (!u) return res.status(404).json({ error: 'Account not found' });
+  const a = req.body.action;
+  if (!['approved', 'declined', 'pending'].includes(a)) return res.status(400).json({ error: 'Unknown action' });
+  u.approval = a; u.approvalAt = Date.now(); saveDb(); res.json({ ok: true });
+});
 A.delete('/album/:id', async (req, res) => {
   const p = (db.album || []).find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'Not found' });
@@ -1314,8 +1340,15 @@ function applyVendorPolls() {
   db.vendorPolls = 2;
 }
 
+function applyApprovalInit() {
+  if (db.approvalInit === 1) return;
+  for (const u of Object.values(db.users)) if (!u.approval) u.approval = 'approved'; // everyone already in keeps access
+  if (db.settings.requireApproval === undefined) db.settings.requireApproval = true;
+  db.approvalInit = 1;
+}
 async function main() {
   db = await loadDb();
+  applyApprovalInit();
   applyVenueList();
   applyVendorPolls();
   await flush();
@@ -1328,4 +1361,4 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, async () => { try { if (db) await flush(); } finally { process.exit(0); } });
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { simulate, init: async () => { db = await loadDb(); applyVenueList(); applyVendorPolls(); return db; }, getDb: () => db };
+module.exports = { simulate, init: async () => { db = await loadDb(); applyApprovalInit(); applyVenueList(); applyVendorPolls(); return db; }, getDb: () => db };

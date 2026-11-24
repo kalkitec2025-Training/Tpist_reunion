@@ -104,6 +104,14 @@
   .oc-leg { display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin:16px 6px 0; padding:10px 14px; background:#fff; border:1px solid var(--line); border-radius:99px; font-size:12px; }
   .oc-leg span { display:flex; align-items:center; gap:6px; } .oc-leg i { width:18px; height:18px; border-radius:50%; display:grid; place-items:center; }
   .oc-leg .ok { background:#16A34A; color:#fff; } .oc-leg .pd { background:#FFEDD5; color:#C2410C; }
+  .cv-row { display:flex; gap:12px; overflow-x:auto; padding:2px 16px 6px; scroll-snap-type:x mandatory; scrollbar-width:none; } .cv-row::-webkit-scrollbar { display:none; }
+  .cv { flex:0 0 220px; scroll-snap-align:start; background:#fff; border:1px solid var(--line); border-radius:16px; overflow:hidden; position:relative; }
+  .cv-th { position:relative; display:block; width:100%; aspect-ratio:16/10; border:0; padding:0; cursor:pointer; background:linear-gradient(135deg,#1F2937,#0F766E); }
+  .cv-th img { width:100%; height:100%; object-fit:cover; display:block; }
+  .cv-pl { position:absolute; inset:0; margin:auto; width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,.92); color:var(--ink); display:grid; place-items:center; box-shadow:0 6px 16px rgba(0,0,0,.25); } .cv-pl svg { margin-left:3px; }
+  .cv-m { padding:10px 12px 12px; padding-right:72px; } .cv-m b { display:block; font-size:14.5px; } .cv-m small { display:block; font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cv-like { position:absolute; right:10px; bottom:12px; display:inline-flex; align-items:center; gap:5px; height:32px; padding:0 10px; border-radius:99px; border:1px solid var(--line); background:#fff; color:var(--muted); font-weight:700; font-size:13px; cursor:pointer; }
+  .cv-like.on { color:#E11D48; border-color:#FECDD3; background:#FFF1F2; } .cv-like.on svg { fill:#E11D48; }
   .act-dot { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#DC2626; white-space:nowrap; }
   .act-dot:before { content:''; width:8px; height:8px; border-radius:50%; background:#DC2626; animation:redpulse 1.6s infinite; }
   @keyframes redpulse { 0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)} 70%{box-shadow:0 0 0 7px rgba(220,38,38,0)} 100%{box-shadow:0 0 0 0 rgba(220,38,38,0)} }
@@ -479,6 +487,7 @@ async function load() {
   try {
     const r = await fetch('/api/state', { cache:'no-store' });
     if (r.status === 401) { S = null; showSignin(); return; }
+    if (r.status === 403) { const d = await r.json().catch(() => ({})); if (d.approval) { S = null; showWaiting(d); return; } }
     S = await r.json(); document.body.classList.remove('signin'); render();
     if (!tracked && S.me) { tracked = true; track('visit'); track('page'); }
   } catch {}
@@ -559,6 +568,7 @@ function resultRow(e, idx) {
 const WA_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>';
 const FLAGS = { india:'in', usa:'us', us:'us', 'united states':'us', america:'us', uk:'gb', 'united kingdom':'gb', britain:'gb', england:'gb', australia:'au', canada:'ca', uae:'ae', dubai:'ae', 'united arab emirates':'ae', singapore:'sg', germany:'de', 'saudi arabia':'sa', qatar:'qa', kuwait:'kw', oman:'om', bahrain:'bh', 'new zealand':'nz', ireland:'ie', netherlands:'nl', france:'fr', japan:'jp', malaysia:'my', sweden:'se', switzerland:'ch', italy:'it', 'south africa':'za', 'hong kong':'hk' };
 const flagCode = place => { const k = String(place || '').trim().toLowerCase(); return FLAGS[k] || (/^[a-z]{2}$/.test(k) ? k : null); };
+const HEART = '<path d="M12 20s-7-4.4-9.2-8.6C1.2 8.3 3 5 6.2 5c2 0 3.2 1.1 3.8 2.2C10.6 6.1 11.8 5 13.8 5 17 5 18.8 8.3 17.2 11.4 15 15.6 12 20 12 20z" transform="translate(1.6 0)"/>';
 const CAM = '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>';
 let AL = null, alBusy = '';
 async function renderAlbum() {
@@ -705,8 +715,17 @@ function homePage() {
 // ------------------------------------------------------------------ vote
 function votePage() {
   const live = S.elections.filter(isLive);
-  return `${ticker()}
-  <div class="card" style="padding:2px 16px;margin-top:16px">${live.map(resultRow).join('') || '<div class="empty">No polls are running right now.<br>New polls will appear here as soon as they start.</div>'}</div>
+  const vids = S.elections.filter(isLive).flatMap(e => e.candidates.filter(c => c.video).map(c => ({ e, c })));
+  const thumb = v => { const m = v.kind === 'youtube' && v.url.match(/youtu\.be\/([A-Za-z0-9_-]+)/); return m ? `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg` : ''; };
+  const camp = vids.length ? `<div class="sec"><h2 class="d">Campaign videos</h2></div>
+    <div class="cv-row">${vids.map(({ e, c }) => `<div class="cv">
+      <button type="button" class="cv-th" data-watch="${esc(e.id)}|${esc(c.id)}" aria-label="Play ${esc(c.name)}'s video">${thumb(c.video) ? `<img src="${esc(thumb(c.video))}" alt="" loading="lazy">` : ''}<span class="cv-pl">${svg(P.play, 22)}</span></button>
+      <div class="cv-m"><b>${esc(c.name)}</b><small>${esc(e.title)}</small></div>
+      <button type="button" class="cv-like ${c.video.liked ? 'on' : ''}" data-like="${esc(e.id)}|${esc(c.id)}" aria-pressed="${c.video.liked}" aria-label="Like">${svg(HEART, 16)}<span>${c.video.likes}</span></button>
+    </div>`).join('')}</div>` : '';
+  return `${ticker()}${camp}
+  <div class="${vids.length ? 'sec' : ''}">${vids.length ? '<h2 class="d">Polls</h2>' : ''}</div>
+  <div class="card" style="padding:2px 16px;margin-top:${vids.length ? 0 : 16}px">${live.map(resultRow).join('') || '<div class="empty">No polls are running right now.<br>New polls will appear here as soon as they start.</div>'}</div>
   ${footer()}`;
 }
 function voteCard(e) {
@@ -959,8 +978,20 @@ function loadGis(cb) {
 }
 async function finishSignin(credential) {
   if (!$('privacyOk') || !$('privacyOk').checked) { toast('Please accept the privacy policy first'); return; }
-  try { await api2('/api/auth/google', { credential, privacy: true }); document.body.classList.remove('signin'); location.hash = '#home'; await load(); toast('Welcome!'); }
+  try { await api2('/api/auth/google', { credential, privacy: true }); location.hash = '#home'; await load(); if (S) document.body.classList.remove('signin'); if (S) toast('Welcome!'); }
   catch (e) { toast(e.message); }
+}
+function showWaiting(d) {
+  document.body.classList.add('signin');
+  const no = d.approval === 'declined';
+  $('view').innerHTML = `<section class="si-hero"><div class="k" style="font-size:11px;letter-spacing:.14em;font-weight:700;color:#5EEAD4">25 YEARS · REUNION</div><h1 class="d">Silver Jubilee Reunion</h1></section>
+    <div class="card" style="text-align:center;padding:26px 20px">
+      <div style="width:56px;height:56px;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;background:${no ? '#FEE2E2' : 'var(--accent-soft)'};color:${no ? '#B91C1C' : 'var(--accent)'}">${svg(no ? P.lock : HOUR_IC, 26)}</div>
+      <h2 style="margin:0;font-size:20px">${no ? 'Access not approved' : 'Waiting for approval'}</h2>
+      <p style="color:var(--muted);line-height:1.55;margin:10px 0 0">${no ? 'The admin has not approved access for this account. If you think this is a mistake, please contact the organising committee.' : 'Thanks for signing in! The admin checks every new account to keep the app for our batch only. You’ll get in as soon as you’re approved — please check back soon.'}</p>
+      <div style="margin-top:16px;font-size:13px;color:var(--muted)">Signed in as <b style="color:var(--ink)">${esc(d.email || d.name || '')}</b></div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:18px">${no ? '' : '<button type="button" class="btn acc" data-recheck>Check again</button>'}<button type="button" class="btn ghost" data-signout>Sign out</button></div>
+    </div><div class="foot">Reunion Organising Committee</div>`;
 }
 function showSignin() {
   document.body.classList.add('signin');
@@ -1111,6 +1142,7 @@ document.addEventListener('click', e => {
       if (!/^\d{10}$/.test(ph)) return toast('Please enter a 10-digit mobile number'); }
     rsvpStep = Math.max(0, Math.min(5, rsvpStep + +sp.dataset.step)); render(); scrollTo(0, 0); return; }
   if (e.target.closest('[data-cancel]')) { form = null; rsvpStep = 0; render(); return; }
+  if (e.target.closest('[data-recheck]')) { load().then(() => { if (S) { location.hash = '#home'; toast('Welcome! You’re approved.'); } else toast('Not approved yet'); }); return; }
   if (e.target.closest('[data-signout]')) { api2('/api/auth/logout', {}).then(() => { S = null; C = null; form = null; location.hash = '#home'; showSignin(); }); return; }
   const pp = e.target.closest('[data-pickpass]');
   if (pp) { form = S.myRsvp ? { ...S.myRsvp, editing:true, pass: pp.dataset.pickpass } : { pass: pp.dataset.pickpass, name:'', gender:'', branch:'', phone:'', city:'', attend:'both', overnight:false, pickup:'', food:'nonveg' }; keepForm = true; location.hash = '#rsvp'; return; }
@@ -1126,8 +1158,10 @@ document.addEventListener('click', e => {
     const portrait = c.video.kind === 'youtube' && /shorts/.test(c.video.url) || c.video.kind === 'drive';
     $('vidBox').style.paddingTop = portrait ? '150%' : '56.25%';
     $('vidBox').innerHTML = `<iframe src="${esc(c.video.embed)}" title="Campaign video" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>`;
-    $('vidName').textContent = c.name; $('vidDlg').showModal(); return;
+    $('vidName').innerHTML = `${esc(c.name)} <button type="button" class="cv-like ${c.video.liked ? 'on' : ''}" style="position:static;margin-left:8px" data-like="${esc(eid)}|${esc(cid)}" aria-label="Like">${svg(HEART, 15)}<span>${c.video.likes}</span></button>`; $('vidDlg').showModal(); return;
   }
+  const lk = e.target.closest('[data-like]'); if (lk) { const [eid, cid] = lk.dataset.like.split('|'); (async () => { try { const d = await api2('/api/campaign/like', { electionId: eid, candidateId: cid });
+    const c = S.elections.find(x => x.id === eid).candidates.find(x => x.id === cid); c.video.liked = d.liked; c.video.likes = d.likes; render(); const dl = $('vidName').querySelector('[data-like]'); if (dl) { dl.classList.toggle('on', d.liked); dl.querySelector('span').textContent = d.likes; } } catch (err) { toast(err.message); } })(); return; }
   const cp = e.target.closest('[data-camp]'); if (cp) { campOpen = cp.dataset.camp; render(); return; }
   if (e.target.closest('[data-campclose]')) { campOpen = null; render(); return; }
   const n = e.target.closest('[data-nom]'); if (n) { nomOpen = n.dataset.nom; render(); const i = document.querySelector('#nomForm input'); if (i) i.focus(); return; }

@@ -133,7 +133,7 @@ function overview() {
   const R = S.rsvps, n = f => R.filter(f).length;
   const pick = {}; R.forEach(r => { const k = r.pickup || 'Own transport'; pick[k] = (pick[k] || 0) + 1; });
   const a = S.auto;
-  return `<div class="grid">
+  return `${(S.accountList || []).some(a => a.approval === 'pending') ? `<section class="card" style="margin-bottom:16px;border-color:#F5C79C"><h2>${(S.accountList || []).filter(a => a.approval === 'pending').length} new sign-in(s) waiting for your approval</h2><p class="hint">Open <b>Registrations → Signed-in accounts</b> to approve or decline.</p></section>` : ''}<div class="grid">
     <section class="card" style="grid-column:1/-1"><h2>Registrations</h2><p class="hint">Live counts for food, stay and transport planning.</p>
       <div class="kpis">
         <div class="kpi"><b>${R.length}</b><span>Registered</span></div>
@@ -267,15 +267,15 @@ function rsvps() {
 
 // ------------------------------------------------------------ signed-in accounts
 function accountsCard() {
-  const A = S.accountList || [], reg = A.filter(a => a.registered).length;
+  const A = (S.accountList || []).slice().sort((a, b) => (a.approval === 'pending' ? 0 : 1) - (b.approval === 'pending' ? 0 : 1)), reg = A.filter(a => a.registered).length, pend = A.filter(a => a.approval === 'pending').length;
   return `<section class="card" style="margin-bottom:16px">
-    <div class="hrow"><h2>Signed-in accounts (${A.length})</h2><span class="sub">${reg} registered · ${A.length - reg} not registered yet</span></div>
-    <details class="mt" ${A.length && A.length <= 15 ? 'open' : ''}><summary style="cursor:pointer;color:var(--blue);font-weight:600">${A.length ? 'Show Gmail accounts' : 'No one has signed in yet'}</summary>
+    <div class="hrow"><h2>Signed-in accounts (${A.length})</h2><span class="sub">${pend ? `<b style="color:#C2410C">${pend} waiting for approval</b> · ` : ''}${reg} registered · ${A.length - reg} not registered yet</span></div>
+    <details class="mt" ${(A.length && A.length <= 15) || pend ? 'open' : ''}><summary style="cursor:pointer;color:var(--blue);font-weight:600">${A.length ? 'Show Gmail accounts' : 'No one has signed in yet'}</summary>
     <div class="mt">${A.map(a => `<div class="acc">
       ${a.picture ? `<img src="${esc(a.picture)}" alt="" referrerpolicy="no-referrer">` : `<span class="av">${esc((a.name || a.email || '?')[0].toUpperCase())}</span>`}
       <div style="min-width:0"><b>${esc(a.name || '—')}</b><div class="sub" style="overflow:hidden;text-overflow:ellipsis">${esc(a.email)}</div>
         <div class="sub">First sign-in ${when(a.createdAt)}${a.lastSeen && a.lastSeen !== a.createdAt ? ` · last ${when(a.lastSeen)}` : ''}</div></div>
-      <div style="text-align:right">${a.registered ? `<span class="pill g">Registered</span>${a.rsvpName && a.rsvpName !== a.name ? `<div class="sub">as ${esc(a.rsvpName)}</div>` : ''}` : '<span class="pill o">Not registered</span>'}${a.chat ? '<div class="sub">Chat on</div>' : ''}</div>
+      <div style="text-align:right">${a.approval === 'pending' ? `<div style="display:flex;gap:6px;justify-content:flex-end;margin-bottom:4px"><button class="btn s p" data-appr="${a.id}|approved">Approve</button><button class="btn s r" data-appr="${a.id}|declined">Decline</button></div>` : a.approval === 'declined' ? `<div style="margin-bottom:4px"><span class="pill r">Declined</span> <button class="btn s" data-appr="${a.id}|approved">Approve</button></div>` : ''}${a.registered ? `<span class="pill g">Registered</span>${a.rsvpName && a.rsvpName !== a.name ? `<div class="sub">as ${esc(a.rsvpName)}</div>` : ''}` : '<span class="pill o">Not registered</span>'}${a.chat ? '<div class="sub">Chat on</div>' : ''}</div>
     </div>`).join('')}</div></details></section>`;
 }
 
@@ -395,6 +395,8 @@ function settings() {
       <div style="grid-column:1/-1"><label>Admin locations</label><textarea name="wa_locations">${esc(((s.whatsapp || {}).locations || []).map(l => `${l.place}: ${l.count}`).join('\n'))}</textarea></div>
     </div>
     <label class="check mt"><input type="checkbox" name="wa_show" ${(s.whatsapp || {}).show !== false ? 'checked' : ''}> Show the WhatsApp Group section on Home</label>
+    <h2 class="mt" style="margin-top:22px">Access</h2>
+    <label class="check"><input type="checkbox" name="requireApproval" ${s.requireApproval !== false ? 'checked' : ''}> New Google sign-ins need my approval before they can use the app</label>
     <h2 class="mt" style="margin-top:22px">Album</h2>
     <div><label>Google Photos shared album link (everyone adds the full set of photos here)</label><input type="text" name="albumLink" value="${esc(s.albumLink || '')}" placeholder="https://photos.app.goo.gl/…"></div>
     <div class="row mt" style="gap:20px"><label class="check"><input type="checkbox" name="votingOpen" ${s.votingOpen ? 'checked' : ''}> Voting open</label><label class="check"><input type="checkbox" name="rsvpOpen" ${s.rsvpOpen ? 'checked' : ''}> Registrations open</label></div>
@@ -441,6 +443,7 @@ document.addEventListener('click', run(async e => {
   const s = t.closest('[data-sel]'); if (s) { selE = s.dataset.sel; render(); return; }
   const adj = t.closest('[data-adj]'); if (adj) { const [cid, d] = adj.dataset.adj.split('|'); await api(`/elections/${selE}/candidates/${cid}`, { method:'PUT', json:{ delta:+d } }); return load(); }
   const clr = t.closest('[data-clr]'); if (clr) { await api(`/elections/${selE}/candidates/${clr.dataset.clr}`, { method:'PUT', json:{ clear:true } }); return load(); }
+  const ap = t.closest('[data-appr]'); if (ap) { const [id, action] = ap.dataset.appr.split('|'); await api(`/accounts/${id}/approval`, { method:'POST', json:{ action } }); toast(action === 'approved' ? 'Approved — they can now use the app' : 'Declined'); return load(); }
   const dp = t.closest('[data-delphoto]'); if (dp) { if (!confirm('Remove this photo from the album?')) return; await api(`/album/${dp.dataset.delphoto}`, { method:'DELETE' }); toast('Photo removed'); return load(); }
   const dc = t.closest('[data-delc]'); if (dc) { if (!confirm('Remove this candidate and their votes?')) return; await api(`/elections/${selE}/candidates/${dc.dataset.delc}`, { method:'DELETE' }); return load(); }
   const dr = t.closest('[data-delr]'); if (dr) { if (!confirm('Delete this registration?')) return; await api(`/rsvps/${dr.dataset.delr}`, { method:'DELETE' }); return load(); }
@@ -503,6 +506,7 @@ document.addEventListener('submit', run(async e => {
     d.passes = ids.map(id => ({ id, name:d[`pass_${id}_name`], tagline:d[`pass_${id}_tagline`], price:d[`pass_${id}_price`], benefits:String(d[`pass_${id}_benefits`] || '').split('\n').map(x => x.trim()).filter(Boolean) }));
     d.passBase = Object.fromEntries(ids.map(id => [id, +d[`pass_${id}_base`]]));
     for (const k of Object.keys(d)) if (k.startsWith('pass_')) delete d[k];
+    d.requireApproval = !!d.requireApproval;
     d.whatsapp = { show: !!d.wa_show, active: +d.wa_active, left: +d.wa_left, admins: +d.wa_admins,
       locations: String(d.wa_locations || '').split('\n').map(x => x.split(':')).filter(x => x[0] && x[0].trim()).map(([pl, c]) => ({ place: pl.trim(), count: +(c || 0) })) };
     for (const k of Object.keys(d)) if (k.startsWith('wa_')) delete d[k];
