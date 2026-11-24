@@ -211,6 +211,7 @@
   .vc .lk { color:var(--accent); font-weight:600; text-decoration:none; margin-right:10px; white-space:nowrap; }
   .mp { padding:14px 16px; margin-top:0; }
   .oc-mail { display:block; margin-top:6px; font-size:12.5px; color:#99F6E4; text-decoration:none; word-break:break-all; }
+  .alb-n { font-size:13px; color:var(--muted); }
   .tq { padding-bottom:4px; }
   .tq-top { margin-top:16px; padding:16px; }
   .tq-k { font-size:11.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
@@ -621,6 +622,7 @@ let AL = null, alBusy = '';
 async function renderAlbum() {
   const v = $('view');
   if (!AL) { v.innerHTML = '<div class="loading">Loading…</div>'; try { AL = await api2('/api/album'); } catch (e) { toast(e.message); AL = { photos: [], link: '', mine: 0, max: 25 }; } if (route()[0] !== 'album') return; }
+  const tp = AL.photos.filter(p => p.album === 'TPIST'), hl = AL.photos.filter(p => p.album !== 'TPIST');
   const share = encodeURIComponent(`Our Silver Jubilee Reunion album is ready! 📸\nSee the photos in the app: ${location.origin}/#album${AL.link ? `\nFull album (add yours too): ${AL.link}` : ''}`);
   v.innerHTML = `<div class="alb-h"><div><h1 class="d">Reunion Album</h1><p>Photos from the celebration, shared by batchmates.</p></div></div>
     <div class="alb-acts">
@@ -628,8 +630,10 @@ async function renderAlbum() {
       <a class="btn" style="gap:8px;background:#25D366;text-decoration:none" href="https://wa.me/?text=${share}" target="_blank" rel="noopener">${WA_ICON}Send to everyone</a>
     </div>
     ${AL.link ? `<a class="alb-gp" href="${esc(AL.link)}" target="_blank" rel="noopener"><span class="qi">${svg(CAM, 20)}</span><span style="flex:1;min-width:0"><b>Full album on Google Photos</b><small>Add all your photos and videos here</small></span><span>↗</span></a>` : ''}
-    <div class="sec"><h2 class="d">Highlights</h2>${AL.photos.length ? `<button type="button" class="lnk" data-alzip>Download all</button>` : ''}</div>
-    <div class="alb-grid">${AL.photos.map(p => `<button type="button" data-ph="${esc(p.id)}" aria-label="Photo by ${esc(p.by)}"><img src="/api/album/${esc(p.id)}/t" alt="" loading="lazy"></button>`).join('') || '<div class="card" style="grid-column:1/-1"><div class="empty">No photos yet. Be the first to add one!</div></div>'}</div>
+    ${tp.length ? `<div class="sec"><h2 class="d">TPIST</h2><span class="alb-n">${tp.length} photo${tp.length === 1 ? '' : 's'} · our campus</span></div>
+    <div class="alb-grid">${tp.map(p => `<button type="button" data-ph="${esc(p.id)}" aria-label="TPIST campus photo"><img src="/api/album/${esc(p.id)}/t" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
+    <div class="sec"><h2 class="d">Highlights</h2>${hl.length ? `<button type="button" class="lnk" data-alzip>Download all</button>` : ''}</div>
+    <div class="alb-grid">${hl.map(p => `<button type="button" data-ph="${esc(p.id)}" aria-label="Photo by ${esc(p.by)}"><img src="/api/album/${esc(p.id)}/t" alt="" loading="lazy"></button>`).join('') || '<div class="card" style="grid-column:1/-1"><div class="empty">No photos yet. Be the first to add one!</div></div>'}</div>
     <p class="fine">You can add up to ${AL.max} highlight photos here${AL.mine ? ` (you've added ${AL.mine})` : ''}.${AL.link ? ' Add the rest to the Google Photos album.' : ''}</p>
     ${footer()}`;
 }

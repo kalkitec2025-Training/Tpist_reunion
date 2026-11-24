@@ -879,17 +879,31 @@ async function photoDel(id) {
   for (const k of ['t', 'f']) try { fs.unlinkSync(path.join(PHOTO_DIR, `${id}-${k}.jpg`)); } catch {}
 }
 const jpg = b64 => { const b = Buffer.from(String(b64 || '').replace(/^data:image\/jpeg;base64,/, ''), 'base64'); return b.length > 100 && b[0] === 0xFF && b[1] === 0xD8 ? b : null; };
+// the TPIST album: campus photos added by the committee (files in seed/tpist), loaded into the photo store once
+async function applyTpistAlbum() {
+  if (db.tpistAlbum === 1) return;
+  const dir = path.join(__dirname, 'seed', 'tpist');
+  const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /^\d+\.jpg$/.test(f)).sort((a, b) => parseInt(a) - parseInt(b)) : [];
+  const list = (db.album ||= []), t0 = Date.now();
+  for (const [i, f] of files.entries()) {
+    const full = fs.readFileSync(path.join(dir, f)), thumb = fs.readFileSync(path.join(dir, f.replace('.jpg', '-t.jpg')));
+    const id = newId();
+    try { await photoPut(id, thumb, full); } catch (e) { console.error('TPIST album photo failed', e.message); continue; }
+    list.unshift({ id, uid: null, byName: 'Core Committee', album: 'TPIST', t: t0 - i, size: full.length });
+  }
+  db.tpistAlbum = 1; saveDb();
+}
 app.get('/api/album', (req, res) => {
   const u = sessionUser(req), list = db.album || [];
-  res.json({ link: db.settings.albumLink || '', max: ALBUM_PER_USER, mine: u ? list.filter(p => p.uid === u.id).length : 0,
-    photos: list.slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, mine: !!u && p.uid === u.id, w: p.w, h: p.h })) });
+  res.json({ link: db.settings.albumLink || '', max: ALBUM_PER_USER, mine: u ? list.filter(p => p.uid === u.id && !p.album).length : 0,
+    photos: list.slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, mine: !!u && p.uid === u.id, w: p.w, h: p.h, album: p.album || '' })) });
 });
 app.post('/api/album/upload', express.json({ limit: '4mb' }), async (req, res) => {
   const u = sessionUser(req);
   if (!u && AUTH) return res.status(401).json({ error: 'Please sign in' });
   const list = (db.album ||= []);
   if (list.length >= ALBUM_MAX) return res.status(409).json({ error: 'The in-app album is full. Please add photos to the Google Photos album.' });
-  if (u && list.filter(p => p.uid === u.id).length >= ALBUM_PER_USER) return res.status(409).json({ error: `You can add up to ${ALBUM_PER_USER} photos here. Please add the rest to the Google Photos album.` });
+  if (u && list.filter(p => p.uid === u.id && !p.album).length >= ALBUM_PER_USER) return res.status(409).json({ error: `You can add up to ${ALBUM_PER_USER} photos here. Please add the rest to the Google Photos album.` });
   const thumb = jpg(req.body.thumb), full = jpg(req.body.full);
   if (!thumb || !full || thumb.length > 200000 || full.length > 1500000) return res.status(400).json({ error: 'That photo could not be read. Please try another.' });
   const id = newId();
@@ -963,7 +977,7 @@ A.get('/state', (req, res) => {
     rsvps: Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(({ voterId, ...r }) => ({ ...r, email: voterId && voterId.startsWith('u:') && db.users[voterId.slice(2)] ? db.users[voterId.slice(2)].email : '' })),
     accounts: Object.keys(db.users).length,
     activity: activityReport(),
-    album: (db.album || []).slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, size: p.size || 0 })),
+    album: (db.album || []).slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, size: p.size || 0, album: p.album || '' })),
     monthPoll: monthPoll(null),
     accountList: Object.values(db.users).map(u => {
       const r = Object.values(db.rsvps).find(x => x.voterId === 'u:' + u.id);
@@ -1418,6 +1432,7 @@ async function main() {
   applyVenueList();
   applyVendorPolls();
   applyConfirmations();
+  await applyTpistAlbum();
   await flush();
   app.listen(PORT, () => {
     console.log(`Running on http://localhost:${PORT}  (admin: /admin)  storage: ${pool ? 'postgres' : 'file'}`);
@@ -1428,4 +1443,4 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, async () => { try { if (db) await flush(); } finally { process.exit(0); } });
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { simulate, init: async () => { db = await loadDb(); applyApprovalInit(); applySchedNoPass(); applyVenueList(); applyVendorPolls(); applyConfirmations(); return db; }, getDb: () => db };
+module.exports = { simulate, init: async () => { db = await loadDb(); applyApprovalInit(); applySchedNoPass(); applyVenueList(); applyVendorPolls(); applyConfirmations(); await applyTpistAlbum(); return db; }, getDb: () => db };
