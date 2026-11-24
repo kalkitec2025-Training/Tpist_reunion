@@ -708,7 +708,6 @@ function homePage() {
     <a href="#chat"><span class="qi">${svg(P.chat, 18)}</span><span><b>Chat</b><small>Message batchmates</small></span></a>
   </div>
   <div style="height:4px"></div>
-  ${waSection()}
   <div style="margin:12px 16px 0"><button type="button" class="btn" style="width:100%;background:#fff;color:var(--ink);border:1px solid var(--line);gap:8px" data-import>${svg(IMP, 18)}Import contacts</button></div>
   ${footer()}`;
 }
@@ -810,7 +809,7 @@ function campaignBox(e) {
 
 // ------------------------------------------------------------------ schedule
 const tagClass = t => /platinum/i.test(t) && !/gold|silver|all/i.test(t) ? 'platinum' : /^gold/i.test(t) && !/silver|platinum/i.test(t) ? 'gold' : /^silver/i.test(t) ? 'silver' : '';
-const tlItem = s => `<div class="it"><div class="tm">${esc(s.time)}</div><div><div class="tt">${esc(s.title)}</div>${s.note ? `<div class="tn">${esc(s.note)}</div>` : ''}${s.tag ? `<span class="tagc ${tagClass(s.tag)}">${esc(s.tag)}</span>` : ''}</div></div>`;
+const tlItem = s => `<div class="it"><div class="tm">${esc(s.time)}</div><div><div class="tt">${esc(s.title)}</div>${s.note ? `<div class="tn">${esc(s.note)}</div>` : ''}${s.tag && !/platinum|gold|silver|pass/i.test(s.tag) ? `<span class="tagc">${esc(s.tag)}</span>` : ''}</div></div>`;
 const passList = () => S.settings.passes || [];
 const passName = id => (passList().find(p => p.id === id) || { name: 'To be assigned' }).name;
 let MEM = null;
@@ -875,12 +874,15 @@ function teamsPage() {
 
 // ------------------------------------------------------------------ rsvp
 let rsvpStep = 0;
+const MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const whenOpts = () => { const d = new Date(), o = []; let y = d.getFullYear(), m = d.getMonth() + 1; for (let i = 0; i < 14; i++, m++) { if (m > 11) { m = 0; y++; } o.push(`${y}-${String(m + 1).padStart(2, '0')}`); } return o; };
+const whenName = w => !w ? 'Not given' : w === 'any' ? 'Any month works' : (([y, m]) => `${['January','February','March','April','May','June','July','August','September','October','November','December'][+m - 1]} ${y}`)(w.split('-'));
 function rsvpPage() {
   const st = S.settings, me = S.myRsvp;
   const meBar = S.me ? `<div class="rv-acc">${S.me.picture ? `<img src="${esc(S.me.picture)}" alt="" referrerpolicy="no-referrer">` : avatar(S.me.name || 'You')}
     <div style="flex:1;min-width:0"><div class="nm">${esc(S.me.name)}</div><div class="em">${esc(S.me.email)}</div></div>
     <button type="button" class="rv-out" data-signout>Sign out</button></div>` : '';
-  if (!form) form = me ? { ...me } : { pass:'silver', name: S.me ? S.me.name : '', gender:'', branch:'', phone:'', city:'', attend:'both', overnight:false, pickup:'', food:'nonveg', family:'alone', spouse:false, kids:[], others:0, editing:false };
+  if (!form) form = me ? { ...me } : { pass:'silver', name: S.me ? S.me.name : '', gender:'', branch:'', phone:'', city:'', attend:'both', overnight:false, pickup:'', when:'', food:'nonveg', family:'alone', spouse:false, kids:[], others:0, editing:false };
   const row = (k, v) => `<div class="rv-row"><span>${k}</span><span>${v}</span></div>`;
   if (me && !form.editing) {
     return `${meBar}
@@ -889,7 +891,7 @@ function rsvpPage() {
     <div class="rv-h">Personal</div>
     <div class="card rv-card">${row('Name', esc(me.name))}${row('Gender', me.gender === 'female' ? 'Female' : me.gender === 'male' ? 'Male' : '—')}${row('Branch', esc(me.branch || '—'))}${row('Mobile', esc(me.phone))}${row('City', esc(me.city || '—'))}</div>
     <div class="rv-h">Attendance</div>
-    <div class="card rv-card">${row('Attending', me.attend === 'both' ? 'Both days' : 'Day 1 only')}${row('Coming with', me.family === 'family' ? [me.spouse ? 'Spouse' : '', (me.kids || []).length ? `${me.kids.length} kid${me.kids.length === 1 ? '' : 's'} (${me.kids.map(a => a + 'y').join(', ')})` : '', me.others ? `${me.others} other${me.others === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ') || 'Family' : 'Just me')}${row('Total people', String(me.headcount || 1))}${row('Overnight stay', me.overnight ? 'Yes' : 'No')}${row('Transport', me.pickup ? 'Pickup from ' + esc(me.pickup) : 'Coming on my own')}${row('Food', me.food === 'veg' ? 'Vegetarian' : 'Non-vegetarian')}${row('Pass', me.pass ? esc(passName(me.pass)) : 'To be assigned')}</div>
+    <div class="card rv-card">${row('Attending', me.attend === 'both' ? 'Both days' : 'Day 1 only')}${row('Preferred month', whenName(me.when))}${row('Coming with', me.family === 'family' ? [me.spouse ? 'Spouse' : '', (me.kids || []).length ? `${me.kids.length} kid${me.kids.length === 1 ? '' : 's'} (${me.kids.map(a => a + 'y').join(', ')})` : '', me.others ? `${me.others} other${me.others === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ') || 'Family' : 'Just me')}${row('Total people', String(me.headcount || 1))}${row('Overnight stay', me.overnight ? 'Yes' : 'No')}${row('Transport', me.pickup ? 'Pickup from ' + esc(me.pickup) : 'Coming on my own')}${row('Food', me.food === 'veg' ? 'Vegetarian' : 'Non-vegetarian')}${row('Pass', me.pass ? esc(passName(me.pass)) : 'To be assigned')}</div>
     <div style="margin:16px 20px 0"><button type="button" class="btn" style="width:100%;background:#fff;color:var(--ink);border:1px solid var(--line)" data-edit>Edit details</button></div>
     ${footer()}`;
   }
@@ -908,6 +910,7 @@ function rsvpPage() {
      <div class="fl"><label for="f-phone">Mobile number</label><input id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="14" value="${esc(form.phone)}" required><div class="hint">Only the organising committee sees this.</div></div>
      <div class="fl"><label for="f-city">Current city</label><input id="f-city" name="city" autocomplete="address-level2" value="${esc(form.city)}"></div>`,
     `<div class="fl"><div class="lb">Which days are you attending?</div><div class="pills">${pill('attend', 'both', 'Both days')}${pill('attend', 'day1', 'Day 1 only')}</div></div>
+     <div class="fl"><label for="f-when">Which month and year suit you for the reunion?</label><select id="f-when" name="when"><option value="">Select month and year</option>${whenOpts().map(w => `<option value="${w}" ${form.when === w ? 'selected' : ''}>${whenName(w)}</option>`).join('')}<option value="any" ${form.when === 'any' ? 'selected' : ''}>Any month works for me</option></select><div class="hint">Helps the committee pick a date that suits most people.</div></div>
      <div class="fl"><label for="f-pickup">Transport</label><select id="f-pickup" name="pickup"><option value="">I'll come on my own</option>${st.pickupPoints.map(p => `<option value="${esc(p)}" ${form.pickup === p ? 'selected' : ''}>Pickup from ${esc(p)}</option>`).join('')}</select></div>`,
     `<div class="fl"><div class="lb">Who's coming with you?</div><div class="pills">${pill('family', 'alone', 'Just me')}${pill('family', 'family', 'With family')}</div></div>
      ${fam ? `<div class="fl"><div class="lb">Spouse coming?</div><div class="pills">${pill('spouse', true, 'Yes')}${pill('spouse', false, 'No')}</div></div>
@@ -919,7 +922,7 @@ function rsvpPage() {
       : `<div class="empty" style="padding:18px 6px">You're attending Day 1 only, so no overnight stay is needed.</div>`,
     `<div class="fl"><div class="lb">Food preference</div><div class="pills">${pill('food', 'nonveg', 'Non-veg')}${pill('food', 'veg', 'Veg')}</div></div>`,
     `<div class="rv-card" style="padding:0">${[['Name', esc(form.name)], ['Gender', form.gender === 'female' ? 'Female' : form.gender === 'male' ? 'Male' : '—'], ['Branch', esc(form.branch || '—')], ['Mobile', esc(form.phone)], ['City', esc(form.city || '—')],
-      ['Attending', form.attend === 'both' ? 'Both days' : 'Day 1 only'], ['Coming with', fam ? [form.spouse ? 'Spouse' : '', form.kids.length ? `${form.kids.length} kid${form.kids.length === 1 ? '' : 's'} (${form.kids.map(a => a + 'y').join(', ')})` : '', +form.others ? `${form.others} other${+form.others === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ') || 'Family' : 'Just me'], ['Total people', String(heads)], ['Transport', form.pickup ? 'Pickup from ' + esc(form.pickup) : 'Coming on my own'], ['Overnight stay', yesno(form.overnight)], ['Food', form.food === 'veg' ? 'Vegetarian' : 'Non-vegetarian']]
+      ['Attending', form.attend === 'both' ? 'Both days' : 'Day 1 only'], ['Preferred month', whenName(form.when)], ['Coming with', fam ? [form.spouse ? 'Spouse' : '', form.kids.length ? `${form.kids.length} kid${form.kids.length === 1 ? '' : 's'} (${form.kids.map(a => a + 'y').join(', ')})` : '', +form.others ? `${form.others} other${+form.others === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ') || 'Family' : 'Just me'], ['Total people', String(heads)], ['Transport', form.pickup ? 'Pickup from ' + esc(form.pickup) : 'Coming on my own'], ['Overnight stay', yesno(form.overnight)], ['Food', form.food === 'veg' ? 'Vegetarian' : 'Non-vegetarian']]
       .map(([a, b]) => `<div class="rv-row"><span>${a}</span><span>${b}</span></div>`).join('')}</div>`
   ][k];
   return `${meBar}
@@ -1107,7 +1110,7 @@ function paintThread(v, id) {
 // ------------------------------------------------------------------ events
 function syncForm() {
   const f = $('rsvpForm'); if (!f || !form) return;
-  for (const k of ['name', 'branch', 'phone', 'city', 'pickup']) if (f.elements[k]) form[k] = f.elements[k].value;
+  for (const k of ['name', 'branch', 'phone', 'city', 'pickup', 'when']) if (f.elements[k]) form[k] = f.elements[k].value;
 }
 document.addEventListener('click', e => {
   const d = e.target.closest('[data-day]'); if (d) { day = +d.dataset.day; render(); return; }

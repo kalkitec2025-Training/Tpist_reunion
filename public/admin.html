@@ -94,6 +94,7 @@ let qPass = '';
 let PW = sessionStorage.getItem('pw') || '', S = null, tab = 'overview', selE = null, q = '', qStatus = '', sched = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const whenNm = w => w === 'any' ? 'Any month' : (([y, m]) => `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m - 1]} ${y}`)(String(w).split('-'));
 const when = t => t ? new Date(t).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' }) : '—';
 const passNm = id => ((S && S.settings.passes || []).find(p => p.id === id) || { name: 'No pass yet' }).name;
 const STATUS = { new:'Not called', confirmed:'Confirmed', not_reachable:'Not reachable', declined:'Not coming' };
@@ -151,6 +152,8 @@ function overview() {
         <div class="kpi"><b>${R.reduce((t, r) => t + (r.kids || []).length, 0)}</b><span>Kids (${R.flatMap(r => r.kids || []).filter(a => a < 5).length} under 5)</span></div>
         <div class="kpi"><b>${n(r => r.callStatus === 'confirmed')}</b><span>Confirmed by call</span></div>
       </div>
+      <h2 style="margin-top:16px;font-size:15px">Preferred month for the reunion</h2>
+      <div class="row mt">${(() => { const c = {}; R.forEach(r => { if (r.when) c[r.when] = (c[r.when] || 0) + 1; }); const e = Object.entries(c).sort((a, b) => b[1] - a[1]); return e.length ? e.map(([w, v], i) => `<span class="pill ${i ? 'b' : 'g'}">${esc(whenNm(w))}: ${v}</span>`).join('') : '<span class="hint">No preferences yet</span>'; })()}</div>
       <div class="row mt">${Object.entries(pick).map(([k, v]) => `<span class="pill b">${esc(k)}: ${v}</span>`).join('')}</div>
     </section>
     <section class="card"><h2>Elections</h2><p class="hint">Current leader in each.</p>
@@ -238,7 +241,7 @@ Kiran Kumar">${esc((e.team || []).join('\n'))}</textarea></div>` : ''}
 function rsvps() {
   const st = S.settings;
   const list = S.rsvps.filter(r => (!qPass || (qPass === 'none' ? !r.pass : r.pass === qPass)) && (!qStatus || r.callStatus === qStatus) && (!q || `${r.name} ${r.phone} ${r.city} ${r.branch}`.toLowerCase().includes(q.toLowerCase())));
-  return accountsCard() + `<section class="card">
+  return broadcastCard() + accountsCard() + `<section class="card">
     <div class="hrow"><h2>Registrations (${S.rsvps.length}${S.rsvps.some(r => r.source === 'test') ? `, ${S.rsvps.filter(r => r.source === 'test').length} test` : ''})</h2>
       <div class="row"><button class="btn" data-a="addTest">Add 54 test registrations</button>${S.rsvps.some(r => r.source === 'test') ? '<button class="btn r" data-a="delTest">Delete all test registrations</button>' : ''}<button class="btn" data-a="csv">Export CSV</button></div></div>
     <div class="f3 mt"><div><label for="q">Search</label><input type="search" id="q" value="${esc(q)}" placeholder="Name, phone, city"></div>
@@ -261,7 +264,7 @@ function rsvps() {
     </details>
     <div class="mt">${list.map(r => `<div class="rs">
       <div><b>${esc(r.name)}</b> <span class="sub">${esc(r.branch)}</span><br>${r.phone ? `<a href="tel:${esc(r.phone)}" style="color:var(--blue)">${esc(r.phone)}</a>` : '<span class="sub">no phone</span>'} · ${esc(r.city || '—')}${r.email ? `<div class="sub">${esc(r.email)}</div>` : ''}<div class="sub">${when(r.createdAt)} · ${r.source === 'test' ? '<span class="pill o">Test</span>' : r.source === 'call' ? 'added by caller' : 'self-registered'}</div></div>
-      <div><span class="pill ${r.pass === 'platinum' ? 'd' : r.pass === 'gold' ? 'o' : ''}" style="${r.pass === 'platinum' ? 'background:#1C1D24;color:#fff' : ''}">${esc(passNm(r.pass))}</span>${r.gender ? `<span class="pill">${r.gender === 'female' ? 'Female' : 'Male'}</span>` : ''}<span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>${r.family === 'family' ? `<span class="pill o">Family · ${r.headcount} people${r.spouse ? ' · spouse' : ''}${(r.kids || []).length ? ` · kids ${r.kids.join(', ')} yrs` : ''}${r.others ? ` · +${r.others} other` : ''}</span>` : ''}
+      <div><span class="pill ${r.pass === 'platinum' ? 'd' : r.pass === 'gold' ? 'o' : ''}" style="${r.pass === 'platinum' ? 'background:#1C1D24;color:#fff' : ''}">${esc(passNm(r.pass))}</span>${r.gender ? `<span class="pill">${r.gender === 'female' ? 'Female' : 'Male'}</span>` : ''}<span class="pill ${r.attend === 'both' ? 'g' : ''}">${r.attend === 'both' ? 'Both days' : 'Day 1 only'}</span>${r.overnight ? '<span class="pill o">Overnight</span>' : ''}<span class="pill b">${r.pickup ? 'Pickup: ' + esc(r.pickup) : 'Own transport'}</span><span class="pill">${r.food === 'veg' ? 'Veg' : 'Non-veg'}</span>${r.when ? `<span class="pill b">Prefers ${esc(whenNm(r.when))}</span>` : ''}${r.family === 'family' ? `<span class="pill o">Family · ${r.headcount} people${r.spouse ? ' · spouse' : ''}${(r.kids || []).length ? ` · kids ${r.kids.join(', ')} yrs` : ''}${r.others ? ` · +${r.others} other` : ''}</span>` : ''}
         <input type="text" class="mt" data-rnote="${r.id}" value="${esc(r.note)}" placeholder="Caller note" style="margin-top:8px"></div>
       <div class="row" style="align-items:stretch"><select data-rpass="${r.id}" style="flex:1" aria-label="Pass"><option value="" ${!r.pass ? 'selected' : ''}>Pass: not assigned</option>${S.settings.passes.map(p => `<option value="${p.id}" ${r.pass === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><select data-rstat="${r.id}" style="flex:1">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${r.callStatus === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn s r" data-delr="${r.id}" style="height:40px">Delete</button></div>
     </div>`).join('') || '<p class="hint">No registrations match.</p>'}</div>
@@ -270,6 +273,19 @@ function rsvps() {
 
 // ------------------------------------------------------------ signed-in accounts
 setInterval(() => { if (S && S.elections && S.elections.some(x => x.candidates.some(c => c.videoInfo && c.videoInfo.status === 'processing'))) load(); }, 15000);
+function broadcastCard() {
+  const A = (S.accountList || []).filter(a => a.approval === 'approved' && !a.blockedUntil);
+  const core = A.find(a => /^corecommit/i.test(a.email)) || null;
+  const n = { unregistered: A.filter(a => !a.registered).length, registered: A.filter(a => a.registered).length, all: A.length };
+  const dflt = "Hi! You've signed in to the Silver Jubilee Reunion app but haven't registered yet. Please open the RSVP tab and register, so we can plan food, stay and transport for you. Thank you! – Core Committee";
+  return `<section class="card" style="margin-bottom:16px"><h2>Message everyone</h2><p class="hint">Goes to each person's Chat. They see a number on the Chat tab. Sent from a Gmail account, they can reply and you read the replies by signing in to the app with that account.</p>
+    <form id="bcast" class="mt" style="display:grid;gap:10px">
+      <div class="f2"><div><label>Send to</label><select name="to"><option value="unregistered">Signed in, not registered yet (${n.unregistered})</option><option value="registered">Registered (${n.registered})</option><option value="all">Everyone signed in (${n.all})</option></select></div>
+      <div><label>From</label><select name="from">${core ? `<option value="${core.id}">${esc(core.name || 'Core Committee')} (${esc(core.email)})</option>` : ''}<option value="committee">Admin (no replies)</option>${A.filter(a => a !== core).map(a => `<option value="${a.id}">${esc(a.name || a.email)} (${esc(a.email)})</option>`).join('')}</select></div></div>
+      <div><label>Message</label><textarea name="text" rows="4" maxlength="500">${esc(dflt)}</textarea></div>
+      <div><button class="btn p">Send message</button></div>
+    </form></section>`;
+}
 function accountsCard() {
   const A = (S.accountList || []).slice().sort((a, b) => (a.approval === 'pending' ? 0 : 1) - (b.approval === 'pending' ? 0 : 1)), reg = A.filter(a => a.registered).length, pend = A.filter(a => a.approval === 'pending').length;
   return `<section class="card" style="margin-bottom:16px">
@@ -431,9 +447,9 @@ const actions = {
   sadd: async () => { sched.push({ day:1, time:'', title:'', note:'', tag:'' }); render(); return false; },
   ssave: async () => { await api('/schedule', { method:'PUT', json:{ items:sched } }); sched = null; toast('Schedule saved'); },
   csv: async () => {
-    const cols = ['name','email','pass','gender','branch','phone','city','attend','overnight','pickup','food','family','spouse','kids','others','headcount','callStatus','note','source','createdAt'];
+    const cols = ['name','email','pass','gender','branch','phone','city','attend','overnight','pickup','when','food','family','spouse','kids','others','headcount','callStatus','note','source','createdAt'];
     const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const rows = [cols.join(',')].concat(S.rsvps.map(r => cols.map(c => cell(c === 'createdAt' ? new Date(r[c]).toISOString() : c === 'kids' ? (r.kids || []).join(' ') : r[c])).join(',')));
+    const rows = [cols.join(',')].concat(S.rsvps.map(r => cols.map(c => cell(c === 'createdAt' ? new Date(r[c]).toISOString() : c === 'kids' ? (r.kids || []).join(' ') : c === 'when' ? (r.when ? whenNm(r.when) : '') : r[c])).join(',')));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + rows.join('\n')], { type:'text/csv' }));
     a.download = 'reunion-registrations.csv'; a.click();
@@ -515,6 +531,11 @@ document.addEventListener('input', e => { if (e.target.id === 'q') { q = e.targe
 document.addEventListener('submit', run(async e => {
   e.preventDefault();
   const f = e.target, d = Object.fromEntries(new FormData(f));
+  if (f.id === 'bcast') {
+    const o = f.elements.to.selectedOptions[0].text;
+    if (!confirm(`Send this message to: ${o}?`)) return false;
+    const r = await api('/broadcast', { method:'POST', json:d }); toast(`Sent to ${r.sent} ${r.sent === 1 ? 'person' : 'people'}`); return;
+  }
   if (f.id === 'newE') { const r = await api('/elections', { method:'POST', json:d }); selE = r.id; toast('Election added'); }
   else if (f.id === 'eForm') {
     for (const k of ['cap','dipEvery','rateMin','rateMax','startTotal']) if (k in d) d[k] = +d[k];

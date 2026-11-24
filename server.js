@@ -134,26 +134,26 @@ function defaultDb() {
     activity: {},    // account id -> visits, page views, taps and time in the app (admin only)
     secret: crypto.randomBytes(32).toString('hex'),
     schedule: [
-      S(1, '8:00 AM', 'Red-carpet arrivals', 'Platinum guests walk the red carpet with a personal announcement and photo wall', 'Platinum'),
-      S(1, '8:00 AM', 'Welcome desk & registration', 'Collect your badge and welcome kit. Gold guests get a personal welcome', 'All passes'),
-      S(1, '8:30 AM', 'Welcome breakfast', '', 'All passes'),
-      S(1, '10:00 AM', 'Inauguration', 'Lamp lighting and felicitation of our faculty. Platinum guests seated in the front row', 'All passes'),
-      S(1, '10:45 AM', 'Voices of the Batch', 'Platinum guests share their journey and views on stage (5 minutes each)', 'Platinum'),
-      S(1, '11:45 AM', 'Giving Back showcase', 'Platinum guests present the services they offer to society', 'Platinum'),
-      S(1, '12:30 PM', '25 years in 2 minutes', 'Gold shout-outs on stage, then quick intros from everyone', 'Gold & Silver'),
+      S(1, '8:00 AM', 'Red-carpet arrivals', 'Walk the red carpet with a personal announcement and photo wall'),
+      S(1, '8:00 AM', 'Welcome desk & registration', 'Collect your badge and welcome kit'),
+      S(1, '8:30 AM', 'Welcome breakfast'),
+      S(1, '10:00 AM', 'Inauguration', 'Lamp lighting and felicitation of our faculty'),
+      S(1, '10:45 AM', 'Voices of the Batch', 'Batchmates share their journey and views on stage (5 minutes each)'),
+      S(1, '11:45 AM', 'Giving Back showcase', 'Batchmates present the services they offer to society'),
+      S(1, '12:30 PM', '25 years in 2 minutes', 'Shout-outs on stage, then quick intros from everyone'),
       S(1, '1:30 PM', 'Lunch'),
       S(1, '2:30 PM', 'Games & batch awards', 'Including the Women\u2019s Coordinator crowning'),
-      S(1, '4:00 PM', 'Portrait sessions', 'Professional portraits for Platinum; photos with faculty for Gold', 'Platinum & Gold'),
-      S(1, '4:30 PM', 'Batch group photo', '', 'All passes'),
+      S(1, '4:00 PM', 'Portrait sessions', 'Professional portraits and photos with faculty'),
+      S(1, '4:30 PM', 'Batch group photo'),
       S(1, '5:00 PM', 'High tea'),
-      S(1, '6:00 PM', 'Cultural evening & music', 'Front rows reserved for Platinum, next rows for Gold'),
+      S(1, '6:00 PM', 'Cultural evening & music', 'Songs, dance and performances by batchmates'),
       S(1, '8:00 PM', 'Dinner'),
       S(1, '9:00 PM', 'Ladies\u2019 transport departs', 'Drops to home or station, arranged by the Transport team'),
-      S(1, '9:30 PM', 'Overnight stay & campfire night', 'Priority rooms for Platinum, then Gold'),
+      S(1, '9:30 PM', 'Overnight stay & campfire night', 'Rooms arranged by the Hospitality team'),
       S(2, '6:30 AM', 'Sunrise beach walk', 'Optional'),
       S(2, '8:30 AM', 'Breakfast'),
       S(2, '10:00 AM', 'What next?', 'Batch fund, WhatsApp groups, next reunion'),
-      S(2, '11:00 AM', 'Checkout & departures', 'Dedicated drops for Platinum guests')
+      S(2, '11:00 AM', 'Checkout & departures', 'Drops arranged by the Transport team')
     ],
     tasks: [
       T('overall', 'Weekly committee call', 'done'), T('overall', 'Fix the reunion date', 'doing'), T('overall', 'Confirm final venue after the poll'), T('overall', 'Agree contribution per head', 'doing'),
@@ -486,7 +486,7 @@ function publicState(voterId) {
       const passes = Object.fromEntries(['platinum', 'gold', 'silver'].map(p => [p, (base[p] || 0) + R.filter(r => r.pass === p).length]));
       return { male, female, total: male + female + R.filter(r => !r.gender).length, passes };
     })(),
-    myRsvp: myRsvp && { name: myRsvp.name, gender: myRsvp.gender, pass: myRsvp.pass || '', branch: myRsvp.branch, phone: myRsvp.phone, city: myRsvp.city, attend: myRsvp.attend, overnight: myRsvp.overnight, pickup: myRsvp.pickup, food: myRsvp.food }
+    myRsvp: myRsvp && { name: myRsvp.name, gender: myRsvp.gender, pass: myRsvp.pass || '', branch: myRsvp.branch, phone: myRsvp.phone, city: myRsvp.city, attend: myRsvp.attend, overnight: myRsvp.overnight, pickup: myRsvp.pickup, food: myRsvp.food, when: myRsvp.when || '', family: myRsvp.family || 'alone', spouse: !!myRsvp.spouse, kids: myRsvp.kids || [], others: myRsvp.others || 0, headcount: myRsvp.headcount || 1 }
   };
 }
 
@@ -847,7 +847,7 @@ function cleanRsvp(b) {
     name: str(b.name, 80), gender: b.gender === 'female' ? 'female' : b.gender === 'male' ? 'male' : '', branch: str(b.branch, 30), phone, city: str(b.city, 60),
     attend: b.attend === 'day1' ? 'day1' : 'both',
     pass: ['platinum', 'gold', 'silver'].includes(b.pass) ? b.pass : '',
-    overnight: !!b.overnight, pickup: str(b.pickup, 60), food: b.food === 'veg' ? 'veg' : 'nonveg'
+    overnight: !!b.overnight, pickup: str(b.pickup, 60), when: /^(\d{4}-(0[1-9]|1[0-2])|any)$/.test(String(b.when || '')) ? String(b.when) : '', food: b.food === 'veg' ? 'veg' : 'nonveg'
   };
   const kids = Array.isArray(b.kids) ? b.kids.slice(0, 8).map(a => Math.max(0, Math.min(17, Math.round(+a) || 0))) : [];
   r.family = b.family === 'family' ? 'family' : 'alone';
@@ -1351,6 +1351,20 @@ A.post('/chat/:id/message', (req, res) => {
   committeeMessage(req.params.id, text);
   saveDb(); res.json({ ok: true });
 });
+// one message to many signed-in batchmates, from Admin or from a signed-in account (e.g. the core committee Gmail) so people can reply
+A.post('/broadcast', (req, res) => {
+  const text = str(req.body.text, 500);
+  if (!text) return res.status(400).json({ error: 'Type a message' });
+  const from = req.body.from === COMMITTEE ? COMMITTEE : db.users[req.body.from] ? req.body.from : null;
+  if (!from) return res.status(400).json({ error: 'Choose who it is from' });
+  const to = ['unregistered', 'registered', 'all'].includes(req.body.to) ? req.body.to : 'unregistered';
+  const now = Date.now();
+  const list = Object.values(db.users).filter(u => u.id !== from && (u.approval || 'approved') === 'approved' && !(u.blockedUntil && u.blockedUntil > now))
+    .filter(u => to === 'all' || (to === 'registered') === !!rsvpOfUser(u.id));
+  if (from !== COMMITTEE) { const cu = (db.chat.users[from] ||= { consentAt: null, status: 'none', plan: null, limit: 0, used: 0, requestedAt: null }); if (!cu.consentAt) cu.consentAt = now; if (cu.status === 'revoked') cu.status = 'active'; }
+  list.forEach((u, i) => db.chat.messages.push({ id: newId(), from, to: u.id, text, t: now + i, read: false }));
+  saveDb(); res.json({ ok: true, sent: list.length });
+});
 A.delete('/chat/messages/:id', (req, res) => {
   db.chat.messages = db.chat.messages.filter(m => m.id !== req.params.id);
   saveDb(); res.json({ ok: true });
@@ -1451,6 +1465,27 @@ function applyVendorPolls() {
   db.vendorPolls = 2;
 }
 
+// the schedule no longer mentions passes (Platinum / Gold / Silver)
+const SCHED_FIX = {
+  'Platinum guests walk the red carpet with a personal announcement and photo wall': 'Walk the red carpet with a personal announcement and photo wall',
+  'Collect your badge and welcome kit. Gold guests get a personal welcome': 'Collect your badge and welcome kit',
+  'Lamp lighting and felicitation of our faculty. Platinum guests seated in the front row': 'Lamp lighting and felicitation of our faculty',
+  'Platinum guests share their journey and views on stage (5 minutes each)': 'Batchmates share their journey and views on stage (5 minutes each)',
+  'Platinum guests present the services they offer to society': 'Batchmates present the services they offer to society',
+  'Gold shout-outs on stage, then quick intros from everyone': 'Shout-outs on stage, then quick intros from everyone',
+  'Professional portraits for Platinum; photos with faculty for Gold': 'Professional portraits and photos with faculty',
+  'Front rows reserved for Platinum, next rows for Gold': 'Songs, dance and performances by batchmates',
+  'Priority rooms for Platinum, then Gold': 'Rooms arranged by the Hospitality team',
+  'Dedicated drops for Platinum guests': 'Drops arranged by the Transport team'
+};
+function applySchedNoPass() {
+  if (db.schedNoPass === 1) return;
+  for (const it of db.schedule || []) {
+    if (SCHED_FIX[it.note]) it.note = SCHED_FIX[it.note];
+    if (/platinum|gold|silver|pass/i.test(it.tag || '')) it.tag = '';
+  }
+  db.schedNoPass = 1; saveDb();
+}
 function applyApprovalInit() {
   if (db.approvalInit === 1) return;
   for (const u of Object.values(db.users)) if (!u.approval) u.approval = 'approved'; // everyone already in keeps access
@@ -1460,6 +1495,7 @@ function applyApprovalInit() {
 async function main() {
   db = await loadDb();
   applyApprovalInit();
+  applySchedNoPass();
   for (const e of db.elections) for (const c of e.candidates) if (c.video && c.video.status === 'processing') Object.assign(c.video, { status: 'failed', error: 'The server restarted while preparing this video. Please upload it again.' });
   applyVenueList();
   applyVendorPolls();
@@ -1473,4 +1509,4 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, async () => { try { if (db) await flush(); } finally { process.exit(0); } });
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { simulate, init: async () => { db = await loadDb(); applyApprovalInit(); applyVenueList(); applyVendorPolls(); return db; }, getDb: () => db };
+module.exports = { simulate, init: async () => { db = await loadDb(); applyApprovalInit(); applySchedNoPass(); applyVenueList(); applyVendorPolls(); return db; }, getDb: () => db };
