@@ -716,7 +716,7 @@ function homePage() {
 function votePage() {
   const live = S.elections.filter(isLive);
   const vids = S.elections.filter(isLive).flatMap(e => e.candidates.filter(c => c.video).map(c => ({ e, c })));
-  const thumb = v => { const m = v.kind === 'youtube' && v.url.match(/youtu\.be\/([A-Za-z0-9_-]+)/); return m ? `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg` : ''; };
+  const thumb = v => { if (v.poster) return v.poster; const m = v.kind === 'youtube' && v.url && v.url.match(/youtu\.be\/([A-Za-z0-9_-]+)/); return m ? `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg` : ''; };
   const camp = vids.length ? `<div class="sec"><h2 class="d">Campaign videos</h2></div>
     <div class="cv-row">${vids.map(({ e, c }) => `<div class="cv">
       <button type="button" class="cv-th" data-watch="${esc(e.id)}|${esc(c.id)}" aria-label="Play ${esc(c.name)}'s video">${thumb(c.video) ? `<img src="${esc(thumb(c.video))}" alt="" loading="lazy">` : ''}<span class="cv-pl">${svg(P.play, 22)}</span></button>
@@ -1155,9 +1155,10 @@ document.addEventListener('click', e => {
   if (wv) {
     const [eid, cid] = wv.dataset.watch.split('|');
     const c = S.elections.find(x => x.id === eid).candidates.find(x => x.id === cid);
-    const portrait = c.video.kind === 'youtube' && /shorts/.test(c.video.url) || c.video.kind === 'drive';
+    if (c.video.src) { $('vidBox').style.paddingTop = '0'; $('vidBox').innerHTML = `<video src="${esc(c.video.src)}" ${c.video.poster ? `poster="${esc(c.video.poster)}"` : ''} controls playsinline autoplay style="display:block;width:100%;max-height:76vh;background:#000"></video>`; }
+    else { const portrait = c.video.kind === 'youtube' && /shorts/.test(c.video.url) || c.video.kind === 'drive';
     $('vidBox').style.paddingTop = portrait ? '150%' : '56.25%';
-    $('vidBox').innerHTML = `<iframe src="${esc(c.video.embed)}" title="Campaign video" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>`;
+    $('vidBox').innerHTML = `<iframe src="${esc(c.video.embed)}" title="Campaign video" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>`; }
     $('vidName').innerHTML = `${esc(c.name)} <button type="button" class="cv-like ${c.video.liked ? 'on' : ''}" style="position:static;margin-left:8px" data-like="${esc(eid)}|${esc(cid)}" aria-label="Like">${svg(HEART, 15)}<span>${c.video.likes}</span></button>`; $('vidDlg').showModal(); return;
   }
   const lk = e.target.closest('[data-like]'); if (lk) { const [eid, cid] = lk.dataset.like.split('|'); (async () => { try { const d = await api2('/api/campaign/like', { electionId: eid, candidateId: cid });

@@ -220,9 +220,11 @@ Kiran Kumar">${esc((e.team || []).join('\n'))}</textarea></div>` : ''}
       <div class="row acts"><button class="btn s" data-adj="${c.id}|-10">−10</button><button class="btn s" data-adj="${c.id}|-1">−1</button><button class="btn s" data-adj="${c.id}|1">+1</button><button class="btn s" data-adj="${c.id}|10">+10</button>${c.offset ? `<button class="btn s" data-clr="${c.id}">Clear</button>` : ''}<button class="btn s r" data-delc="${c.id}">Remove</button></div>
       ${e.kind === 'venue' ? `<div style="grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px"><input type="text" value="${esc((c.info && c.info.photo) || '')}" placeholder="Photo link (https://…) for this venue" data-cphoto="${c.id}" style="max-width:420px"><span class="sub">press Enter to save · use only photos you own or have permission for</span></div>` : ''}
       <div style="grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">
-        ${c.videoInfo ? `<span class="pill ${c.videoInfo.status === 'approved' ? 'g' : 'o'}">Video ${c.videoInfo.status === 'approved' ? 'live' : 'waiting for approval'}</span><a href="${esc(c.videoInfo.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Open video ↗</a>
-          ${c.videoInfo.status !== 'approved' ? `<button class="btn s p" data-vapprove="${c.id}">Approve</button>` : ''}<button class="btn s r" data-vremove="${c.id}">Remove video</button>`
-        : `<input type="text" placeholder="Campaign video link (YouTube or Google Drive)" data-vset="${c.id}" style="max-width:380px"><span class="sub">press Enter to add</span>`}
+        ${c.videoInfo && c.videoInfo.status === 'processing' ? `<span class="pill o">Preparing video… (a few minutes)</span><button class="btn s r" data-vremove="${c.id}">Cancel</button>`
+        : c.videoInfo && c.videoInfo.status === 'failed' ? `<span class="pill r">Video failed: ${esc(c.videoInfo.error || 'please try again')}</span><button class="btn s r" data-vremove="${c.id}">Clear</button>`
+        : c.videoInfo ? `<span class="pill ${c.videoInfo.status === 'approved' ? 'g' : 'o'}">Video ${c.videoInfo.status === 'approved' ? 'live' : 'waiting for approval'}</span>${c.videoInfo.fileId ? `<span class="sub">${Math.round((c.videoInfo.size || 0) / 104857.6) / 10} MB</span>` : `<a href="${esc(c.videoInfo.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Open video ↗</a>`}
+          ${c.videoInfo.status !== 'approved' ? `<button class="btn s p" data-vapprove="${c.id}">Approve</button>` : ''}<label class="btn s" style="cursor:pointer">Replace<input type="file" accept="video/*" data-vfile="${c.id}" hidden></label><button class="btn s r" data-vremove="${c.id}">Remove video</button>`
+        : `<label class="btn s p" style="cursor:pointer">Upload video (MP4)<input type="file" accept="video/*" data-vfile="${c.id}" hidden></label><span class="sub">or</span><input type="text" placeholder="paste a YouTube / Google Drive link" data-vset="${c.id}" style="max-width:300px">`}
       </div>
     </div>`).join('') : '<p class="hint">No candidates yet. The app shows "Nominations open".</p>'}
     <form id="newC" class="f3 mt" style="align-items:end"><div><label>Candidate name</label><input type="text" name="name" required></div><div><label>Note (optional)</label><input type="text" name="note" placeholder="e.g. ECE, Hyderabad"></div><div><button class="btn d">Add candidate</button></div></form>
@@ -266,6 +268,7 @@ function rsvps() {
 }
 
 // ------------------------------------------------------------ signed-in accounts
+setInterval(() => { if (S && S.elections && S.elections.some(x => x.candidates.some(c => c.videoInfo && c.videoInfo.status === 'processing'))) load(); }, 15000);
 function accountsCard() {
   const A = (S.accountList || []).slice().sort((a, b) => (a.approval === 'pending' ? 0 : 1) - (b.approval === 'pending' ? 0 : 1)), reg = A.filter(a => a.registered).length, pend = A.filter(a => a.approval === 'pending').length;
   return `<section class="card" style="margin-bottom:16px">
@@ -468,6 +471,16 @@ document.addEventListener('click', run(async e => {
 }));
 
 document.addEventListener('change', run(async e => {
+  if (e.target.dataset && e.target.dataset.vfile && e.target.files[0]) {
+    const f = e.target.files[0], cid = e.target.dataset.vfile;
+    if (f.size > 400 * 1048576) return toast('File is too big (max 400 MB)');
+    const x = new XMLHttpRequest(); x.open('POST', `/api/admin/elections/${selE}/candidates/${cid}/videofile`);
+    x.setRequestHeader('x-admin-password', PW); x.setRequestHeader('Content-Type', f.type || 'video/mp4');
+    x.upload.onprogress = ev => { if (ev.lengthComputable) toast(`Uploading video… ${Math.round(ev.loaded / ev.total * 100)}%`); };
+    x.onload = () => { let d = {}; try { d = JSON.parse(x.responseText); } catch {} if (x.status >= 400) return toast(d.error || 'Upload failed'); toast('Uploaded. Preparing the video — it goes live in a few minutes.'); load(); };
+    x.onerror = () => toast('Upload failed. Check your connection and try again.');
+    x.send(f); return;
+  }
   const t = e.target;
   if (t.dataset.cphoto) { await api(`/elections/${selE}/candidates/${t.dataset.cphoto}`, { method:'PUT', json:{ photo:t.value.trim(), credit: t.value.trim() ? 'Photo added by admin' : '' } }); toast('Photo saved'); return load(); }
   if (t.dataset.cname) { await api(`/elections/${selE}/candidates/${t.dataset.cname}`, { method:'PUT', json:{ name:t.value } }); toast('Name saved'); return load(); }

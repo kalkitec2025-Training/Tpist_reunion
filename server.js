@@ -180,6 +180,7 @@ async function loadDb() {
   let data = null;
   if (pool) {
     await pool.query('create table if not exists app_state (id int primary key, data jsonb not null, updated_at timestamptz default now())');
+    await pool.query('create table if not exists videos (id text primary key, data bytea not null, poster bytea, created_at timestamptz default now())');
     await pool.query('create table if not exists photos (id text primary key, thumb bytea not null, full_img bytea not null, created_at timestamptz default now())');
     const r = await pool.query('select data from app_state where id = 1');
     data = r.rows[0] ? r.rows[0].data : null;
@@ -440,7 +441,7 @@ function electionView(e, voterId, slot, admin = false) {
   for (const c of candidates) {
     const v = byId[c.id] && byId[c.id].video;
     if (admin) c.videoInfo = v || null;
-    else if (v && v.status === 'approved' && isLiveNow) c.video = { kind: v.kind, embed: v.embed, url: v.url, likes: videoLikes(v, c.id), liked: !!(v.likers && v.likers[voterId]) };
+    else if (v && v.status === 'approved' && isLiveNow) c.video = { kind: v.kind, embed: v.embed, url: v.url, src: v.fileId ? `/api/video/${v.fileId}` : undefined, poster: v.fileId ? `/api/video/${v.fileId}/poster` : undefined, likes: videoLikes(v, c.id), liked: !!(v.likers && v.likers[voterId]) };
   }
   if (!admin && !isLiveNow && !OPTION_POLL(e)) {
     for (const c of candidates) { c.name = mask(c.name); c.note = ''; delete c.video; }
@@ -864,6 +865,59 @@ app.post('/api/rsvp', (req, res) => {
   res.json(publicState(vid));
 });
 
+// ---- campaign video files uploaded by the admin: compressed to a small phone-friendly MP4 before saving
+const VIDEO_DIR = path.join(DATA_DIR, 'videos');
+let FFMPEG = null; try { FFMPEG = require('ffmpeg-static'); } catch {}
+async function videoPut(id, data, poster) {
+  if (pool) return pool.query('insert into videos (id, data, poster) values ($1, $2, $3) on conflict (id) do update set data = $2, poster = $3', [id, data, poster]);
+  fs.mkdirSync(VIDEO_DIR, { recursive: true });
+  fs.writeFileSync(path.join(VIDEO_DIR, id + '.mp4'), data); if (poster) fs.writeFileSync(path.join(VIDEO_DIR, id + '.jpg'), poster);
+}
+async function videoDel(id) {
+  if (pool) return pool.query('delete from videos where id = $1', [id]).catch(() => {});
+  for (const x of ['.mp4', '.jpg']) try { fs.unlinkSync(path.join(VIDEO_DIR, id + x)); } catch {}
+}
+async function videoLen(id) {
+  if (pool) { const r = await pool.query('select octet_length(data) as n from videos where id = $1', [id]); return r.rows[0] ? +r.rows[0].n : 0; }
+  try { return fs.statSync(path.join(VIDEO_DIR, id + '.mp4')).size; } catch { return 0; }
+}
+async function videoSlice(id, start, len) {
+  if (pool) { const r = await pool.query('select substring(data from $2 for $3) as b from videos where id = $1', [id, start + 1, len]); return r.rows[0] ? r.rows[0].b : null; }
+  const fd = fs.openSync(path.join(VIDEO_DIR, id + '.mp4'), 'r'); const b = Buffer.alloc(len); fs.readSync(fd, b, 0, len, start); fs.closeSync(fd); return b;
+}
+async function videoPoster(id) {
+  if (pool) { const r = await pool.query('select poster from videos where id = $1', [id]); return r.rows[0] ? r.rows[0].poster : null; }
+  try { return fs.readFileSync(path.join(VIDEO_DIR, id + '.jpg')); } catch { return null; }
+}
+function run(bin, args) { return new Promise((ok, no) => { const p = require('child_process').execFile(bin, args, { maxBuffer: 1 << 20, timeout: 20 * 60 * 1000 }, err => err ? no(err) : ok()); }); }
+async function processVideo(c, id, src) {
+  const out = path.join(require('os').tmpdir(), id + '.mp4'), jpg = path.join(require('os').tmpdir(), id + '.jpg');
+  try {
+    if (!FFMPEG) throw new Error('Video tool missing on the server');
+    await run(FFMPEG, ['-y', '-i', src, '-t', '240', '-vf', "scale='if(gt(iw,ih),min(854,iw),-2)':'if(gt(iw,ih),-2,min(854,ih))'", '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '30', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', '-threads', '1', out]);
+    await run(FFMPEG, ['-y', '-ss', '1', '-i', out, '-frames:v', '1', '-vf', 'scale=480:-2', '-q:v', '5', jpg]).catch(() => {});
+    const data = fs.readFileSync(out); if (data.length > 60 * 1048576) throw new Error('Video is too long. Please keep it under 3 minutes.');
+    await videoPut(id, data, fs.existsSync(jpg) ? fs.readFileSync(jpg) : null);
+    if (c.video && c.video.fileId === id) Object.assign(c.video, { status: 'approved', size: data.length, ready: Date.now() });
+  } catch (e) {
+    console.error('video processing failed', e.message);
+    if (c.video && c.video.fileId === id) Object.assign(c.video, { status: 'failed', error: String(e.message).slice(0, 160) });
+  } finally { for (const f of [src, out, jpg]) try { fs.unlinkSync(f); } catch {} saveDb(); }
+}
+app.get('/api/video/:id/poster', async (req, res) => { const b = await videoPoster(req.params.id).catch(() => null); if (!b) return res.status(404).end(); res.set('Cache-Control', 'private, max-age=86400').type('jpeg').send(b); });
+app.get('/api/video/:id', async (req, res) => {
+  const id = req.params.id; if (!/^[0-9a-f]{12}$/.test(id)) return res.status(404).end();
+  const total = await videoLen(id).catch(() => 0); if (!total) return res.status(404).end();
+  const m = /bytes=(\d*)-(\d*)/.exec(req.headers.range || '');
+  let start = 0, end = total - 1;
+  if (m) { if (m[1]) start = +m[1]; if (m[2]) end = Math.min(+m[2], total - 1); if (!m[1] && m[2]) { start = Math.max(0, total - +m[2]); end = total - 1; } }
+  if (m) end = Math.min(end, start + 2 * 1048576 - 1); // a range request gets at most 2 MB at a time
+  if (start >= total || start > end) return res.status(416).set('Content-Range', `bytes */${total}`).end();
+  const b = await videoSlice(id, start, end - start + 1);
+  res.status(m ? 206 : 200).set({ 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Content-Length': b.length, 'Cache-Control': 'private, max-age=86400', ...(m ? { 'Content-Range': `bytes ${start}-${end}/${total}` } : {}) });
+  res.end(b);
+});
+
 // ---- reunion album: highlights stored in the app (compressed in the browser); the full album lives on Google Photos
 const PHOTO_DIR = path.join(DATA_DIR, 'photos');
 const ALBUM_MAX = 1500, ALBUM_PER_USER = 25;
@@ -1113,7 +1167,7 @@ A.post('/elections/:id/candidates/:cid/video', (req, res) => {
   if (!c) return res.status(404).json({ error: 'Not found' });
   const a = req.body.action;
   if (a === 'approve' && c.video) c.video.status = 'approved';
-  else if (a === 'remove') delete c.video;
+  else if (a === 'remove') { if (c.video && c.video.fileId) videoDel(c.video.fileId); delete c.video; }
   else if (a === 'set') { const v = embedOf(req.body.url); if (!v) return res.status(400).json({ error: 'Paste a YouTube or Google Drive video link' }); c.video = { ...v, status: 'approved', by: 'admin', at: Date.now() }; }
   else return res.status(400).json({ error: 'Unknown action' });
   saveDb(); res.json({ ok: true });
@@ -1131,6 +1185,24 @@ A.delete('/elections/:id/candidates/:cid', (req, res) => {
 
 // RSVPs
 A.get('/ping', (req, res) => res.json({ ok: true }));
+A.post('/elections/:id/candidates/:cid/videofile', (req, res) => {
+  const e = findElection(req.params.id), c = e && e.candidates.find(x => x.id === req.params.cid);
+  if (!c) return res.status(404).json({ error: 'Candidate not found' });
+  if (+req.headers['content-length'] > 400 * 1048576) return res.status(413).json({ error: 'File is too big (max 400 MB)' });
+  const id = newId(), src = path.join(require('os').tmpdir(), id + '-in');
+  const ws = fs.createWriteStream(src); let n = 0, tooBig = false;
+  req.on('data', d => { n += d.length; if (n > 400 * 1048576) { tooBig = true; req.destroy(); } });
+  req.pipe(ws);
+  ws.on('finish', () => {
+    if (tooBig || n < 1000) { try { fs.unlinkSync(src); } catch {} return res.status(400).json({ error: 'That file could not be uploaded' }); }
+    const old = c.video && c.video.fileId;
+    c.video = { kind: 'file', fileId: id, status: 'processing', by: 'admin', at: Date.now() };
+    saveDb(); res.json({ ok: true, processing: true });
+    if (old) videoDel(old);
+    processVideo(c, id, src);
+  });
+  ws.on('error', () => res.status(500).json({ error: 'Upload failed' }));
+});
 A.post('/accounts/:id/approval', (req, res) => {
   const u = db.users[req.params.id];
   if (!u) return res.status(404).json({ error: 'Account not found' });
@@ -1349,6 +1421,7 @@ function applyApprovalInit() {
 async function main() {
   db = await loadDb();
   applyApprovalInit();
+  for (const e of db.elections) for (const c of e.candidates) if (c.video && c.video.status === 'processing') Object.assign(c.video, { status: 'failed', error: 'The server restarted while preparing this video. Please upload it again.' });
   applyVenueList();
   applyVendorPolls();
   await flush();
