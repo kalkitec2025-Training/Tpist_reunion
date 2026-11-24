@@ -603,9 +603,20 @@ app.get('/api/state', (req, res) => res.json(publicState(voterIdOf(req, res))));
 
 app.get('/api/members', (req, res) => {
   const key = voterIdOf(req, res);
-  const list = Object.values(db.rsvps).sort((a, b) => (b.voterId === key) - (a.voterId === key) || b.createdAt - a.createdAt)
-    .map(r => ({ name: maskFull(r.name, r.id), you: r.voterId === key }));
-  res.json({ total: list.length, members: list });
+  const hiddenUid = uid => !!(db.users[uid] && db.users[uid].hidden);
+  const seen = new Set(), list = [];
+  for (const r of Object.values(db.rsvps)) {
+    const uid = r.voterId && r.voterId.startsWith('u:') ? r.voterId.slice(2) : null;
+    if (uid) { seen.add(uid); if (hiddenUid(uid) && r.voterId !== key) continue; }
+    list.push({ name: r.name, you: r.voterId === key, google: !!(uid && db.users[uid]), locked: !(uid && db.users[uid]), t: r.createdAt });
+  }
+  // Gmail accounts that signed in but haven't registered yet
+  for (const u of Object.values(db.users)) {
+    if (seen.has(u.id) || (u.approval && u.approval !== 'approved') || (u.hidden && 'u:' + u.id !== key)) continue;
+    list.push({ name: u.name || 'Batchmate', you: 'u:' + u.id === key, google: true, locked: false, notRegistered: true, t: u.createdAt });
+  }
+  list.sort((a, b) => (b.you - a.you) || (a.locked - b.locked) || (b.t - a.t));
+  res.json({ total: Object.keys(db.rsvps).length, members: list.map(({ t, ...x }) => x) });
 });
 
 // ---- campaign videos (links to YouTube or Google Drive; approved by admin; never change vote counts)
@@ -780,15 +791,17 @@ app.get('/api/chat/people', (req, res) => {
   if (!me.u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
   const my = me.user.id, seen = new Set(), list = [];
   const chatOk = uid => { const x = db.chat.users[uid]; return !!(uid && db.users[uid] && x && x.consentAt && x.status !== 'revoked'); };
+  const hid = uid => uid !== my && !!(db.users[uid] && db.users[uid].hidden);
   for (const r of Object.values(db.rsvps)) {
     const uid = r.voterId && r.voterId.startsWith('u:') ? r.voterId.slice(2) : null;
     if (uid) seen.add(uid);
+    if (uid && hid(uid)) continue;
     const ok = uid !== my && chatOk(uid);
     const on = ok || (uid !== my && showOnline(r.id));
     list.push({ id: uid === my ? null : (ok ? uid : on ? 'r:' + r.id : null), name: uid === my ? r.name : maskFull(r.name, r.id), canChat: on, online: on, you: uid === my, t: r.createdAt });
   }
   for (const uid of Object.keys(db.chat.users)) {
-    if (seen.has(uid) || !db.users[uid]) continue;
+    if (seen.has(uid) || !db.users[uid] || hid(uid)) continue;
     const ok = uid !== my && chatOk(uid);
     list.push({ id: uid === my ? null : (ok ? uid : null), name: uid === my ? displayName(uid) : maskFull(displayName(uid), uid), canChat: ok, online: ok, you: uid === my, t: db.users[uid].createdAt });
   }
@@ -1024,7 +1037,7 @@ A.get('/state', (req, res) => {
     album: (db.album || []).slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, size: p.size || 0 })),
     accountList: Object.values(db.users).map(u => {
       const r = Object.values(db.rsvps).find(x => x.voterId === 'u:' + u.id);
-      return { id: u.id, approval: u.approval || 'approved', blockedUntil: u.blockedUntil && u.blockedUntil > Date.now() ? u.blockedUntil : null, name: u.name || '', email: u.email || '', picture: u.picture || '', createdAt: u.createdAt, lastSeen: u.lastSeen || u.createdAt, registered: !!r, rsvpName: r ? r.name : '', chat: !!(db.chat.users[u.id] && db.chat.users[u.id].consentAt) };
+      return { id: u.id, hidden: !!u.hidden, approval: u.approval || 'approved', blockedUntil: u.blockedUntil && u.blockedUntil > Date.now() ? u.blockedUntil : null, name: u.name || '', email: u.email || '', picture: u.picture || '', createdAt: u.createdAt, lastSeen: u.lastSeen || u.createdAt, registered: !!r, rsvpName: r ? r.name : '', chat: !!(db.chat.users[u.id] && db.chat.users[u.id].consentAt) };
     }).sort((a, b) => b.createdAt - a.createdAt),
     chat: {
       plans: PLANS,
@@ -1205,6 +1218,11 @@ A.post('/elections/:id/candidates/:cid/videofile', (req, res) => {
     processVideo(c, id, src);
   });
   ws.on('error', () => res.status(500).json({ error: 'Upload failed' }));
+});
+A.post('/accounts/:id/hidden', (req, res) => {
+  const u = db.users[req.params.id];
+  if (!u) return res.status(404).json({ error: 'Account not found' });
+  u.hidden = !!req.body.hidden; saveDb(); res.json({ ok: true });
 });
 A.post('/accounts/:id/block', (req, res) => {
   const u = db.users[req.params.id];

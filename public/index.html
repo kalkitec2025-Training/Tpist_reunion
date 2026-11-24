@@ -112,6 +112,7 @@
   .cv-m { padding:10px 12px 12px; padding-right:72px; } .cv-m b { display:block; font-size:14.5px; } .cv-m small { display:block; font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cv-like { position:absolute; right:10px; bottom:12px; display:inline-flex; align-items:center; gap:5px; height:32px; padding:0 10px; border-radius:99px; border:1px solid var(--line); background:#fff; color:var(--muted); font-weight:700; font-size:13px; cursor:pointer; }
   .cv-like.on { color:#E11D48; border-color:#FECDD3; background:#FFF1F2; } .cv-like.on svg { fill:#E11D48; }
+  .g-badge { width:22px; height:22px; border-radius:50%; background:#fff; border:1px solid var(--line); display:grid; place-items:center; font-size:12px; font-weight:800; color:#4285F4; flex-shrink:0; }
   .act-dot { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#DC2626; white-space:nowrap; }
   .act-dot:before { content:''; width:8px; height:8px; border-radius:50%; background:#DC2626; animation:redpulse 1.6s infinite; }
   @keyframes redpulse { 0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)} 70%{box-shadow:0 0 0 7px rgba(220,38,38,0)} 100%{box-shadow:0 0 0 0 rgba(220,38,38,0)} }
@@ -815,8 +816,8 @@ const passName = id => (passList().find(p => p.id === id) || { name: 'To be assi
 let MEM = null;
 function membersPage() {
   if (!MEM) { api2('/api/members').then(d => { MEM = d; if (route()[0] === 'members') render(); }).catch(e => toast(e.message)); return '<div class="loading">Loading…</div>'; }
-  const rows = MEM.members.map(m => `<div class="conv" style="${m.you ? 'background:var(--ok-soft);border-radius:12px;padding:12px;margin:0 -6px;border-top:0' : ''}">${avatar(m.name)}<div class="m"><div class="n">${masked(m.name)}</div></div>
-    ${m.you ? youTag : ''}</div>`).join('');
+  const rows = MEM.members.map(m => `<div class="conv" style="${m.you ? 'background:var(--ok-soft);border-radius:12px;padding:12px;margin:0 -6px;border-top:0' : ''}">${avatar(m.name)}<div class="m"><div class="n">${masked(m.name)}</div>${m.notRegistered ? '<div class="l" style="font-size:12px;color:var(--muted)">Signed in · not registered yet</div>' : ''}</div>
+    ${m.you ? youTag : m.locked ? `<span style="color:#A3A8BA" aria-label="Not on the app yet">${svg(P.lock, 18)}</span>` : `<span class="g-badge" aria-label="Signed in with Google">G</span>`}</div>`).join('');
   return `<a class="back" href="#home">‹ Home</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">Registered batchmates</h1>
     <p class="sub">${MEM.total} registered so far.</p></div>
     <div class="card" style="margin-top:14px">${rows || '<div class="empty">No registrations yet.</div>'}</div>${footer()}`;
