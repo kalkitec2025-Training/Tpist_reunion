@@ -580,6 +580,7 @@ app.use('/api', (req, res, next) => {
   const u = sessionUser(req);
   if (!u) return res.status(401).json({ error: 'Please sign in', signin: true });
   if (u.approval && u.approval !== 'approved') return res.status(403).json({ error: 'Waiting for approval', approval: u.approval, name: u.name || '', email: u.email || '' });
+  if (u.blockedUntil && u.blockedUntil > Date.now()) return res.status(403).json({ error: 'Access paused', approval: 'blocked', until: u.blockedUntil, name: u.name || '', email: u.email || '' });
   next();
 });
 
@@ -1022,7 +1023,7 @@ A.get('/state', (req, res) => {
     album: (db.album || []).slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, size: p.size || 0 })),
     accountList: Object.values(db.users).map(u => {
       const r = Object.values(db.rsvps).find(x => x.voterId === 'u:' + u.id);
-      return { id: u.id, approval: u.approval || 'approved', name: u.name || '', email: u.email || '', picture: u.picture || '', createdAt: u.createdAt, lastSeen: u.lastSeen || u.createdAt, registered: !!r, rsvpName: r ? r.name : '', chat: !!(db.chat.users[u.id] && db.chat.users[u.id].consentAt) };
+      return { id: u.id, approval: u.approval || 'approved', blockedUntil: u.blockedUntil && u.blockedUntil > Date.now() ? u.blockedUntil : null, name: u.name || '', email: u.email || '', picture: u.picture || '', createdAt: u.createdAt, lastSeen: u.lastSeen || u.createdAt, registered: !!r, rsvpName: r ? r.name : '', chat: !!(db.chat.users[u.id] && db.chat.users[u.id].consentAt) };
     }).sort((a, b) => b.createdAt - a.createdAt),
     chat: {
       plans: PLANS,
@@ -1203,6 +1204,13 @@ A.post('/elections/:id/candidates/:cid/videofile', (req, res) => {
     processVideo(c, id, src);
   });
   ws.on('error', () => res.status(500).json({ error: 'Upload failed' }));
+});
+A.post('/accounts/:id/block', (req, res) => {
+  const u = db.users[req.params.id];
+  if (!u) return res.status(404).json({ error: 'Account not found' });
+  const h = +req.body.hours;
+  if (!h) delete u.blockedUntil; else u.blockedUntil = h < 0 ? 8640000000000000 : Date.now() + Math.min(h, 24 * 365) * HOUR;
+  saveDb(); res.json({ ok: true });
 });
 A.delete('/accounts/:id', (req, res) => {
   const id = req.params.id, u = db.users[id];

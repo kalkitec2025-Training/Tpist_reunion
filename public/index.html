@@ -983,7 +983,8 @@ async function finishSignin(credential) {
 }
 function showWaiting(d) {
   document.body.classList.add('signin');
-  const no = d.approval === 'declined';
+  const no = d.approval === 'declined', bl = d.approval === 'blocked';
+  if (bl) { $('view').innerHTML = `<section class="si-hero"><h1 class="d">Silver Jubilee Reunion</h1></section><div class="card" style="text-align:center;padding:26px 20px"><div style="width:56px;height:56px;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;background:#FEE2E2;color:#B91C1C">${svg(P.lock, 26)}</div><h2 style="margin:0;font-size:20px">Access paused</h2><p style="color:var(--muted);line-height:1.55;margin:10px 0 0">The admin has paused your access ${d.until > 8e15 ? 'for now' : 'until <b style="color:var(--ink)">' + new Date(d.until).toLocaleString('en-IN', { day:'numeric', month:'short', hour:'numeric', minute:'2-digit' }) + '</b>'}. Please contact the organising committee if you have questions.</p><div style="display:flex;gap:10px;justify-content:center;margin-top:18px"><button type="button" class="btn acc" data-recheck>Check again</button><button type="button" class="btn ghost" data-signout>Sign out</button></div></div>`; document.body.classList.add('signin'); return; }
   $('view').innerHTML = `<section class="si-hero"><div class="k" style="font-size:11px;letter-spacing:.14em;font-weight:700;color:#5EEAD4">25 YEARS · REUNION</div><h1 class="d">Silver Jubilee Reunion</h1></section>
     <div class="card" style="text-align:center;padding:26px 20px">
       <div style="width:56px;height:56px;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;background:${no ? '#FEE2E2' : 'var(--accent-soft)'};color:${no ? '#B91C1C' : 'var(--accent)'}">${svg(no ? P.lock : HOUR_IC, 26)}</div>
