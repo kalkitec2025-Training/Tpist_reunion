@@ -456,7 +456,7 @@ const P = {
   play: '<polygon points="7 4 20 12 7 20" fill="currentColor" stroke="none"/>',
   video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/>'
 };
-const masked = n => `<span style="font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em">${esc(n)}</span>`;
+const masked = n => esc(n);
 const youTag = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--ok);background:var(--ok-soft);padding:5px 10px;border-radius:99px">${'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/></svg>'}You</span>`;
 const lockNote = (t = 'Names are visible to the admin only.') => `<div class="note-bar" style="background:var(--track);border-color:var(--line);color:var(--muted)">${svg(P.lock, 18)}<span>${t}</span></div>`;
 const ICONS = {
@@ -816,10 +816,9 @@ let MEM = null;
 function membersPage() {
   if (!MEM) { api2('/api/members').then(d => { MEM = d; if (route()[0] === 'members') render(); }).catch(e => toast(e.message)); return '<div class="loading">Loading…</div>'; }
   const rows = MEM.members.map(m => `<div class="conv" style="${m.you ? 'background:var(--ok-soft);border-radius:12px;padding:12px;margin:0 -6px;border-top:0' : ''}">${avatar(m.name)}<div class="m"><div class="n">${masked(m.name)}</div></div>
-    ${m.you ? youTag : `<span style="color:#A3A8BA" aria-label="Locked">${svg(P.lock, 18)}</span>`}</div>`).join('');
+    ${m.you ? youTag : ''}</div>`).join('');
   return `<a class="back" href="#home">‹ Home</a><div class="pad" style="padding-top:8px"><h1 class="h1 d">Registered batchmates</h1>
-    <p class="sub">${MEM.total} registered so far. Names are hidden for privacy.</p></div>
-    ${lockNote('Full names are visible to the organising committee only.')}
+    <p class="sub">${MEM.total} registered so far.</p></div>
     <div class="card" style="margin-top:14px">${rows || '<div class="empty">No registrations yet.</div>'}</div>${footer()}`;
 }
 function passesPage() {
@@ -945,7 +944,7 @@ function privacyPage(signedIn) {
     <h2>Why</h2><p>Only to organise the reunion: headcounts, food, rooms, transport, elections and chat between batchmates.</p>
     <h2>Who can see it</h2>
     <ul><li>The organising committee can see registrations, votes, chat messages and app usage.</li>
-    <li>Other batchmates only see names of nominees while a poll is live. Everywhere else, including chat, people appear only as counts or as an initial with hidden letters. Your mobile number and email are never shown to other batchmates.</li></ul>
+    <li>Signed-in batchmates can see your name in the registered list and in chat. Your mobile number and email are never shown to other batchmates.</li></ul>
     <h2>Where it is stored</h2><p>On the app's hosting service and database. We never sell or share your data with anyone outside the committee.</p>
     <h2>Your choices</h2><p>You can edit your registration at any time and sign out from the RSVP page. To have your data deleted, ask the organising committee. All data will be deleted after the reunion.</p>
   </div>${footer()}`;
@@ -1070,7 +1069,7 @@ function paintInbox(v) {
   const convs = C.conversations.map(c => `<a class="wr ${c.unread ? 'unread' : ''}" href="#chat/${esc(c.id)}">${c.committee ? `<div class="wav adm">${svg(P.info, 20)}</div>` : wav(c.name)}
     <div class="m"><div class="n"><span>${c.committee ? esc(c.name) : masked(c.name)}</span><small>${ago(c.t)}</small></div><div class="l"><span>${c.mine ? '<span class="tick">✓✓</span>' : ''}${esc(c.last)}</span>${c.unread ? `<span class="ub">${c.unread}</span>` : ''}</div></div></a>`).join('');
   const q = peopleQ.trim().toLowerCase();
-  const list = (people || []).filter(p => !q || p.name.toLowerCase().replace(/\*/g, '').startsWith(q.charAt(0)));
+  const list = (people || []).filter(p => !q || p.name.toLowerCase().includes(q));
   const row = p => p.you
     ? `<div class="wr">${wav(p.name)}<div class="m"><div class="n"><span>${esc(p.name)} <span class="me">(You)</span></span></div><div class="l"><span>Your account</span></div></div></div>`
     : p.canChat

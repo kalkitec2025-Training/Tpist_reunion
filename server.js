@@ -14,6 +14,7 @@ const newId = () => crypto.randomBytes(6).toString('hex');
 const mask = name => (String(name || '?').trim().charAt(0).toUpperCase() || '?') + '*'.repeat(10);
 // registration list format: first initial + 6 stars + second initial + 5 stars, e.g. Ravi Kumar -> R******K*****
 function maskFull(name, key = '') {
+  return String(name || '').trim() || 'Batchmate'; // names are shown in full now (the old masked format is kept below, unused)
   const w = String(name || '').trim().split(/\s+/).filter(Boolean);
   if (!w.length) return '?************';
   const a = w[0].charAt(0).toUpperCase();
