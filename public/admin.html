@@ -279,7 +279,7 @@ function accountsCard() {
       ${a.picture ? `<img src="${esc(a.picture)}" alt="" referrerpolicy="no-referrer">` : `<span class="av">${esc((a.name || a.email || '?')[0].toUpperCase())}</span>`}
       <div style="min-width:0"><b>${esc(a.name || '—')}</b><div class="sub" style="overflow:hidden;text-overflow:ellipsis">${esc(a.email)}</div>
         <div class="sub">First sign-in ${when(a.createdAt)}${a.lastSeen && a.lastSeen !== a.createdAt ? ` · last ${when(a.lastSeen)}` : ''}</div></div>
-      <div style="text-align:right">${a.approval === 'pending' ? `<div style="display:flex;gap:6px;justify-content:flex-end;margin-bottom:4px"><button class="btn s p" data-appr="${a.id}|approved">Approve</button><button class="btn s r" data-appr="${a.id}|declined">Decline</button></div>` : a.approval === 'declined' ? `<div style="margin-bottom:4px"><span class="pill r">Declined</span> <button class="btn s" data-appr="${a.id}|approved">Approve</button></div>` : ''}${a.registered ? `<span class="pill g">Registered</span>${a.rsvpName && a.rsvpName !== a.name ? `<div class="sub">as ${esc(a.rsvpName)}</div>` : ''}` : '<span class="pill o">Not registered</span>'}${a.chat ? '<div class="sub">Chat on</div>' : ''}</div>
+      <div style="text-align:right">${a.approval === 'pending' ? `<div style="display:flex;gap:6px;justify-content:flex-end;margin-bottom:4px"><button class="btn s p" data-appr="${a.id}|approved">Approve</button><button class="btn s r" data-appr="${a.id}|declined">Decline</button></div>` : a.approval === 'declined' ? `<div style="margin-bottom:4px"><span class="pill r">Declined</span> <button class="btn s" data-appr="${a.id}|approved">Approve</button></div>` : ''}${a.registered ? `<span class="pill g">Registered</span>${a.rsvpName && a.rsvpName !== a.name ? `<div class="sub">as ${esc(a.rsvpName)}</div>` : ''}` : '<span class="pill o">Not registered</span>'}${a.chat ? '<div class="sub">Chat on</div>' : ''}<button class="btn s r" style="margin-top:6px" data-delacc="${a.id}|${esc(a.email)}|${a.registered ? 1 : 0}">Delete</button></div>
     </div>`).join('')}</div></details></section>`;
 }
 
@@ -447,6 +447,10 @@ document.addEventListener('click', run(async e => {
   const s = t.closest('[data-sel]'); if (s) { selE = s.dataset.sel; render(); return; }
   const adj = t.closest('[data-adj]'); if (adj) { const [cid, d] = adj.dataset.adj.split('|'); await api(`/elections/${selE}/candidates/${cid}`, { method:'PUT', json:{ delta:+d } }); return load(); }
   const clr = t.closest('[data-clr]'); if (clr) { await api(`/elections/${selE}/candidates/${clr.dataset.clr}`, { method:'PUT', json:{ clear:true } }); return load(); }
+  const da = t.closest('[data-delacc]'); if (da) { const [id, email, reg] = da.dataset.delacc.split('|');
+    if (!confirm(`Delete the account ${email}?\n\nThis removes their sign-in, chat messages, activity and any votes they cast. It cannot be undone. If they sign in again they will need your approval.`)) return;
+    const alsoRsvp = reg === '1' && confirm('Also delete their registration (RSVP)?\n\nOK = delete the registration too\nCancel = keep the registration');
+    await api(`/accounts/${id}${alsoRsvp ? '?rsvp=1' : ''}`, { method:'DELETE' }); toast('Account deleted'); return load(); }
   const ap = t.closest('[data-appr]'); if (ap) { const [id, action] = ap.dataset.appr.split('|'); await api(`/accounts/${id}/approval`, { method:'POST', json:{ action } }); toast(action === 'approved' ? 'Approved — they can now use the app' : 'Declined'); return load(); }
   const dp = t.closest('[data-delphoto]'); if (dp) { if (!confirm('Remove this photo from the album?')) return; await api(`/album/${dp.dataset.delphoto}`, { method:'DELETE' }); toast('Photo removed'); return load(); }
   const dc = t.closest('[data-delc]'); if (dc) { if (!confirm('Remove this candidate and their votes?')) return; await api(`/elections/${selE}/candidates/${dc.dataset.delc}`, { method:'DELETE' }); return load(); }

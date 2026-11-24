@@ -1204,6 +1204,17 @@ A.post('/elections/:id/candidates/:cid/videofile', (req, res) => {
   });
   ws.on('error', () => res.status(500).json({ error: 'Upload failed' }));
 });
+A.delete('/accounts/:id', (req, res) => {
+  const id = req.params.id, u = db.users[id];
+  if (!u) return res.status(404).json({ error: 'Account not found' });
+  const vid = 'u:' + id;
+  delete db.users[id];
+  if (db.activity) delete db.activity[id];
+  if (db.chat) { delete db.chat.users[id]; db.chat.messages = db.chat.messages.filter(m => m.from !== id && m.to !== id); }
+  for (const box of Object.values(db.votes || {})) delete box[vid];                    // their real votes go too
+  for (const r of Object.values(db.rsvps)) if (r.voterId === vid) { if (req.query.rsvp === '1') delete db.rsvps[r.id]; else r.voterId = null; } // keep or remove their registration
+  saveDb(); res.json({ ok: true });
+});
 A.post('/accounts/:id/approval', (req, res) => {
   const u = db.users[req.params.id];
   if (!u) return res.status(404).json({ error: 'Account not found' });
