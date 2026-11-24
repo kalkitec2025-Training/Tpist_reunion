@@ -152,8 +152,8 @@ function overview() {
         <div class="kpi"><b>${R.reduce((t, r) => t + (r.kids || []).length, 0)}</b><span>Kids (${R.flatMap(r => r.kids || []).filter(a => a < 5).length} under 5)</span></div>
         <div class="kpi"><b>${n(r => r.callStatus === 'confirmed')}</b><span>Confirmed by call</span></div>
       </div>
-      <h2 style="margin-top:16px;font-size:15px">Preferred month for the reunion</h2>
-      <div class="row mt">${(() => { const c = {}; R.forEach(r => { if (r.when) c[r.when] = (c[r.when] || 0) + 1; }); const e = Object.entries(c).sort((a, b) => b[1] - a[1]); return e.length ? e.map(([w, v], i) => `<span class="pill ${i ? 'b' : 'g'}">${esc(whenNm(w))}: ${v}</span>`).join('') : '<span class="hint">No preferences yet</span>'; })()}</div>
+      <h2 style="margin-top:16px;font-size:15px">Preferred month for the reunion</h2><p class="hint">From registrations and from the Reunion month poll on the Polls tab.</p>
+      <div class="row mt">${(() => { const c = (S.monthPoll || {}).counts || {}; const e = Object.entries(c).sort((a, b) => b[1] - a[1]); return e.length ? e.map(([w, v], i) => `<span class="pill ${i ? 'b' : 'g'}">${esc(whenNm(w))}: ${v}</span>`).join('') : '<span class="hint">No preferences yet</span>'; })()}</div>
       <div class="row mt">${Object.entries(pick).map(([k, v]) => `<span class="pill b">${esc(k)}: ${v}</span>`).join('')}</div>
     </section>
     <section class="card"><h2>Elections</h2><p class="hint">Current leader in each.</p>

@@ -457,6 +457,18 @@ function electionView(e, voterId, slot, admin = false) {
   return out;
 }
 
+// reunion month: preferences from registrations plus picks from signed-in batchmates who have not registered yet
+const WHEN_RE = /^(\d{4}-(0[1-9]|1[0-2])|any)$/;
+function monthPoll(uid) {
+  const counts = {}, reg = new Set(); let mine = '';
+  const add = w => { if (w) counts[w] = (counts[w] || 0) + 1; };
+  for (const r of Object.values(db.rsvps)) {
+    const u = r.voterId && r.voterId.startsWith('u:') ? r.voterId.slice(2) : null;
+    add(r.when); if (u) { reg.add(u); if (u === uid) mine = r.when || ''; }
+  }
+  for (const [u, w] of Object.entries(db.monthVotes || {})) { if (reg.has(u) || !db.users[u]) continue; add(w); if (u === uid) mine = w; }
+  return { counts, total: Object.values(counts).reduce((a, b) => a + b, 0), mine };
+}
 function publicState(voterId) {
   const slot = currentSlot();
   const interval = db.auto.intervalMin * 60 * 1000;
@@ -471,6 +483,7 @@ function publicState(voterId) {
   const acct = uid && db.users[uid];
   return {
     me: acct ? { name: acct.name, email: acct.email, picture: acct.picture } : null,
+    monthPoll: monthPoll(uid),
     chatUnread: uid ? db.chat.messages.filter(m => m.to === uid && !m.read).length : 0,
     settings: db.settings,
     updatedAt: db.auto.startAt + slot * interval,
@@ -658,6 +671,17 @@ app.post('/api/campaign', (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/month-vote', (req, res) => {
+  const vid = voterIdOf(req, res);
+  const uid = typeof vid === 'string' && vid.startsWith('u:') ? vid.slice(2) : null;
+  if (!uid || !db.users[uid]) return res.status(401).json({ error: 'Please sign in' });
+  const w = String(req.body.when || '');
+  if (!WHEN_RE.test(w)) return res.status(400).json({ error: 'Choose a month' });
+  const r = rsvpOfUser(uid);
+  if (r) { r.when = w; r.updatedAt = Date.now(); } else (db.monthVotes ||= {})[uid] = w;
+  saveDb();
+  res.json(publicState(vid));
+});
 app.post('/api/vote', (req, res) => {
   const vid = voterIdOf(req, res);
   if (!db.settings.votingOpen) return res.status(403).json({ error: 'Voting is closed' });
@@ -798,12 +822,12 @@ app.get('/api/chat/people', (req, res) => {
     if (uid && hid(uid)) continue;
     const ok = uid !== my && chatOk(uid);
     const on = ok || (uid !== my && showOnline(r.id));
-    list.push({ id: uid === my ? null : (ok ? uid : on ? 'r:' + r.id : null), name: uid === my ? r.name : maskFull(r.name, r.id), canChat: on, online: on, you: uid === my, t: r.createdAt });
+    list.push({ id: uid === my ? null : (ok ? uid : on ? 'r:' + r.id : null), name: uid === my ? r.name : maskFull(r.name, r.id), canChat: on, online: on, you: uid === my, reg: true, t: r.createdAt });
   }
-  for (const uid of Object.keys(db.chat.users)) {
-    if (seen.has(uid) || !db.users[uid] || hid(uid)) continue;
+  for (const uid of Object.keys(db.users)) {
+    if (seen.has(uid) || hid(uid) || (uid !== my && (db.users[uid].approval || 'approved') !== 'approved')) continue;
     const ok = uid !== my && chatOk(uid);
-    list.push({ id: uid === my ? null : (ok ? uid : null), name: uid === my ? displayName(uid) : maskFull(displayName(uid), uid), canChat: ok, online: ok, you: uid === my, t: db.users[uid].createdAt });
+    list.push({ id: uid === my ? null : (ok ? uid : null), name: uid === my ? displayName(uid) : maskFull(displayName(uid), uid), canChat: ok, online: ok, you: uid === my, reg: false, t: db.users[uid].createdAt });
   }
   list.sort((a, b) => (b.you - a.you) || (b.online - a.online) || (b.t - a.t));
   res.json(list.map(({ t, ...x }) => x));
@@ -847,7 +871,7 @@ function cleanRsvp(b) {
     name: str(b.name, 80), gender: b.gender === 'female' ? 'female' : b.gender === 'male' ? 'male' : '', branch: str(b.branch, 30), phone, city: str(b.city, 60),
     attend: b.attend === 'day1' ? 'day1' : 'both',
     pass: ['platinum', 'gold', 'silver'].includes(b.pass) ? b.pass : '',
-    overnight: !!b.overnight, pickup: str(b.pickup, 60), when: /^(\d{4}-(0[1-9]|1[0-2])|any)$/.test(String(b.when || '')) ? String(b.when) : '', food: b.food === 'veg' ? 'veg' : 'nonveg'
+    overnight: !!b.overnight, pickup: str(b.pickup, 60), when: WHEN_RE.test(String(b.when || '')) ? String(b.when) : '', food: b.food === 'veg' ? 'veg' : 'nonveg'
   };
   const kids = Array.isArray(b.kids) ? b.kids.slice(0, 8).map(a => Math.max(0, Math.min(17, Math.round(+a) || 0))) : [];
   r.family = b.family === 'family' ? 'family' : 'alone';
@@ -869,6 +893,9 @@ app.post('/api/rsvp', (req, res) => {
   try { data = cleanRsvp(req.body); } catch (e) { return res.status(400).json({ error: e.message }); }
   delete data.pass;
   let existing = Object.values(db.rsvps).find(r => r.voterId === vid);
+  // the month is voted on the Polls tab, not in the form: keep the existing pick, or carry over a pick made before registering
+  const mv = typeof vid === 'string' && vid.startsWith('u:') ? (db.monthVotes || {})[vid.slice(2)] : '';
+  if (!data.when) data.when = (existing && existing.voterId === vid && existing.when) || mv || '';
   // someone imported earlier (e.g. from the WhatsApp group) registers with the same number: take over that entry
   if (!existing) existing = Object.values(db.rsvps).find(r => !(r.voterId || '').startsWith('u:') && r.phone && r.phone.slice(-10) === data.phone.slice(-10));
   if (existing) Object.assign(existing, data, { voterId: vid, updatedAt: Date.now() });
@@ -1035,6 +1062,7 @@ A.get('/state', (req, res) => {
     accounts: Object.keys(db.users).length,
     activity: activityReport(),
     album: (db.album || []).slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, size: p.size || 0 })),
+    monthPoll: monthPoll(null),
     accountList: Object.values(db.users).map(u => {
       const r = Object.values(db.rsvps).find(x => x.voterId === 'u:' + u.id);
       return { id: u.id, hidden: !!u.hidden, approval: u.approval || 'approved', blockedUntil: u.blockedUntil && u.blockedUntil > Date.now() ? u.blockedUntil : null, name: u.name || '', email: u.email || '', picture: u.picture || '', createdAt: u.createdAt, lastSeen: u.lastSeen || u.createdAt, registered: !!r, rsvpName: r ? r.name : '', chat: !!(db.chat.users[u.id] && db.chat.users[u.id].consentAt) };

@@ -209,6 +209,30 @@
   .vc .bar, .vc .l3 { margin-left:52px; }
   .vc .l3 { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px; font-size:12.5px; color:var(--muted); }
   .vc .lk { color:var(--accent); font-weight:600; text-decoration:none; margin-right:10px; white-space:nowrap; }
+  .mp { padding:14px 16px; margin-top:0; }
+  .mp-city, .mp-ven { display:flex; align-items:center; gap:12px; padding:4px 0 12px; border-bottom:1px solid var(--line); color:var(--ink); text-decoration:none; }
+  .mp-ven { padding:12px 0; }
+  .mp-city > svg { color:var(--accent); flex-shrink:0; } .mp-city > div, .mp-ven > div { flex:1; min-width:0; }
+  .mp-city small, .mp-ven small { display:block; font-size:12px; color:var(--muted); } .mp-city b, .mp-ven b { font-size:15px; font-weight:600; }
+  .mp-fx { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--accent); background:var(--accent-soft); border-radius:99px; padding:4px 10px; }
+  .mp-go { display:inline-flex; align-items:center; gap:2px; font-size:13.5px; font-weight:700; color:#fff; background:var(--accent); border-radius:99px; padding:7px 12px; white-space:nowrap; }
+  .mp-h { margin-top:12px; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .mp-s { margin:0 0 6px; font-size:13px; color:var(--muted); }
+  .mp-r { display:block; width:100%; text-align:left; background:none; border:0; border-top:1px solid var(--line); padding:11px 0; font:inherit; color:inherit; cursor:pointer; }
+  .mp-r:first-of-type { border-top:0; }
+  .mp-t { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:14.5px; font-weight:600; }
+  .mp-t b { font-size:14px; } .mp-t small { color:var(--muted); font-weight:500; }
+  .mp-t em, .mp-t i { font-style:normal; font-size:11px; font-weight:700; border-radius:99px; padding:2px 8px; margin-left:8px; vertical-align:2px; }
+  .mp-t em { background:var(--accent-soft); color:var(--accent); } .mp-t i { background:#111827; color:#fff; }
+  .mp-r .bar div { background:#A3A8BA; } .mp-r.lead .bar div { background:var(--accent); } .mp-r.me .bar div { background:var(--accent); }
+  .mp-any { font-size:13.5px; color:var(--muted); padding:10px 0 2px; border-top:1px solid var(--line); } .mp-any.me { color:var(--accent); }
+  .mp-pick { margin-top:10px; } .mp-pick select { width:100%; height:44px; border:1px solid var(--line); border-radius:12px; padding:0 12px; font:inherit; background:#fff; color:var(--ink); }
+  .mp-f { margin-top:10px; font-size:12px; color:var(--muted); text-align:center; }
+  .ch-f { display:flex; gap:8px; padding:0 16px 10px; overflow-x:auto; }
+  .ch-f button { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:99px; padding:6px 12px; font:inherit; font-size:13px; white-space:nowrap; cursor:pointer; }
+  .ch-f button b { color:var(--muted); font-weight:600; margin-left:2px; }
+  .ch-f button.on { background:var(--accent-soft); border-color:var(--accent); color:var(--accent); } .ch-f button.on b { color:var(--accent); }
+  .wr .l .rg { color:var(--accent); font-size:12.5px; } .wr .l .si { color:var(--muted); font-size:12.5px; }
   .bar { height:7px; background:var(--track); border-radius:99px; margin-top:7px; overflow:hidden; }
   .bar div { height:7px; border-radius:99px; background:#A3A8BA; transition:width .7s ease; }
   .cand.lead .bar div, .vc.lead .bar div { background:var(--live); } .cand.win .bar div { background:var(--ok); }
@@ -362,7 +386,8 @@
   .wr .onl { color:#008069; }
   .wr .me { color:#667781; font-weight:400; }
   .wr .wic { color:#00A884; display:flex; }
-  a.wr .m { display:flex; align-items:center; justify-content:space-between; min-height:47px; box-sizing:content-box; }
+  a.wr .m { display:flex; flex-direction:column; justify-content:center; min-height:47px; box-sizing:content-box; }
+  .wr .n .gdot { align-self:center; }
   .wr .gdot { width:10px; height:10px; border-radius:50%; background:#25D366; flex-shrink:0; margin-right:6px; }
   @keyframes gblink { 0%{box-shadow:0 0 0 0 rgba(37,211,102,.55)} 70%{box-shadow:0 0 0 8px rgba(37,211,102,0)} 100%{box-shadow:0 0 0 0 rgba(37,211,102,0)} }
   .wr .wic svg { width:18px; height:18px; } .wr .wic.lk { color:#AEBAC1; }
@@ -482,7 +507,7 @@ function icon(e) {
 
 let S = null, day = 1, pending = null, form = null, nomOpen = null;
 let keepForm = false;
-let C = null, people = null, thread = null, showPlans = false, peopleQ = '', draft = '';
+let C = null, people = null, thread = null, showPlans = false, peopleQ = '', draft = '', peopleF = 'all';
 function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
 async function load() {
   try {
@@ -713,8 +738,29 @@ function homePage() {
 }
 
 // ------------------------------------------------------------------ vote
+function monthCard() {
+  const m = S.monthPoll; if (!m || !S.me) return '';
+  const rows = Object.entries(m.counts).filter(([w]) => w !== 'any').sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const any = m.counts.any || 0, top = rows.length ? rows[0][1] : 0, pc = n => m.total ? Math.round(n / m.total * 100) : 0;
+  const row = ([w, n], i) => `<button type="button" class="mp-r ${m.mine === w ? 'me' : ''} ${n === top && i === 0 ? 'lead' : ''}" data-month="${w}">
+    <div class="mp-t"><span>${esc(whenName(w))}${m.mine === w ? '<em>Your pick</em>' : ''}${n === top && i === 0 ? '<i>Leading</i>' : ''}</span><b>${n} <small>· ${pc(n)}%</small></b></div>
+    <div class="bar"><div style="width:${top ? Math.max(4, Math.round(n / top * 100)) : 0}%"></div></div></button>`;
+  const others = whenOpts().filter(w => !m.counts[w]);
+  const ven = S.elections.find(e => e.id === 'venue'), vl = ven && ven.candidates[0];
+  return `<div class="sec"><h2 class="d">Where and when</h2></div>
+  <div class="card mp">
+    <div class="mp-city">${svg(P.pin, 20)}<div><small>City</small><b>Visakhapatnam</b></div><span class="mp-fx">${svg(P.check, 13)}Fixed</span></div>
+    ${ven ? `<a class="mp-ven" href="#vote/venue"><div><small>Venue · choose from ${ven.candidates.length} options</small><b>${vl && ven.total ? `${esc(vl.name)} leads · ${pct(vl.votes, ven.total)}%` : 'No votes yet'}</b></div><span class="mp-go">${ven.myVote ? 'Change' : 'Vote'} ${svg(P.chevR, 15)}</span></a>` : ''}
+    <div class="mp-h">Month</div>
+    <p class="mp-s">Which month suits you? Tap a month to vote. The committee fixes the date with the most votes.</p>
+    ${rows.map(row).join('') || '<div class="empty" style="padding:14px 4px">No picks yet. Be the first to choose.</div>'}
+    ${any ? `<div class="mp-any ${m.mine === 'any' ? 'me' : ''}">Any month works · <b>${any}</b></div>` : ''}
+    <div class="mp-pick"><select data-monthsel aria-label="Pick another month"><option value="">${m.mine ? 'Change to another month…' : 'Pick another month…'}</option>${others.map(w => `<option value="${w}">${whenName(w)}</option>`).join('')}${m.mine !== 'any' ? '<option value="any">Any month works for me</option>' : ''}</select></div>
+    <div class="mp-f">${m.total} ${m.total === 1 ? 'person has' : 'people have'} picked a month</div>
+  </div>`;
+}
 function votePage() {
-  const live = S.elections.filter(isLive);
+  const live = S.elections.filter(e => isLive(e) && !(e.id === 'venue' && S.me));
   const vids = S.elections.filter(isLive).flatMap(e => e.candidates.filter(c => c.video).map(c => ({ e, c })));
   const thumb = v => { if (v.poster) return v.poster; const m = v.kind === 'youtube' && v.url && v.url.match(/youtu\.be\/([A-Za-z0-9_-]+)/); return m ? `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg` : ''; };
   const camp = vids.length ? `<div class="sec"><h2 class="d">Campaign videos</h2></div>
@@ -723,7 +769,7 @@ function votePage() {
       <div class="cv-m"><b>${esc(c.name)}</b><small>${esc(e.title)}</small></div>
       <button type="button" class="cv-like ${c.video.liked ? 'on' : ''}" data-like="${esc(e.id)}|${esc(c.id)}" aria-pressed="${c.video.liked}" aria-label="Like">${svg(HEART, 16)}<span>${c.video.likes}</span></button>
     </div>`).join('')}</div>` : '';
-  return `${ticker()}${camp}
+  return `${ticker()}${monthCard()}${camp}
   <div class="${vids.length ? 'sec' : ''}">${vids.length ? '<h2 class="d">Polls</h2>' : ''}</div>
   <div class="card" style="padding:2px 16px;margin-top:${vids.length ? 0 : 16}px">${live.map(resultRow).join('') || '<div class="empty">No polls are running right now.<br>New polls will appear here as soon as they start.</div>'}</div>
   ${footer()}`;
@@ -891,7 +937,7 @@ function rsvpPage() {
     <div class="rv-h">Personal</div>
     <div class="card rv-card">${row('Name', esc(me.name))}${row('Gender', me.gender === 'female' ? 'Female' : me.gender === 'male' ? 'Male' : '—')}${row('Branch', esc(me.branch || '—'))}${row('Mobile', esc(me.phone))}${row('City', esc(me.city || '—'))}</div>
     <div class="rv-h">Attendance</div>
-    <div class="card rv-card">${row('Attending', me.attend === 'both' ? 'Both days' : 'Day 1 only')}${row('Preferred month', whenName(me.when))}${row('Coming with', me.family === 'family' ? [me.spouse ? 'Spouse' : '', (me.kids || []).length ? `${me.kids.length} kid${me.kids.length === 1 ? '' : 's'} (${me.kids.map(a => a + 'y').join(', ')})` : '', me.others ? `${me.others} other${me.others === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ') || 'Family' : 'Just me')}${row('Total people', String(me.headcount || 1))}${row('Overnight stay', me.overnight ? 'Yes' : 'No')}${row('Transport', me.pickup ? 'Pickup from ' + esc(me.pickup) : 'Coming on my own')}${row('Food', me.food === 'veg' ? 'Vegetarian' : 'Non-vegetarian')}${row('Pass', me.pass ? esc(passName(me.pass)) : 'To be assigned')}</div>
+    <div class="card rv-card">${row('Attending', me.attend === 'both' ? 'Both days' : 'Day 1 only')}${row('Coming with', me.family === 'family' ? [me.spouse ? 'Spouse' : '', (me.kids || []).length ? `${me.kids.length} kid${me.kids.length === 1 ? '' : 's'} (${me.kids.map(a => a + 'y').join(', ')})` : '', me.others ? `${me.others} other${me.others === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ') || 'Family' : 'Just me')}${row('Total people', String(me.headcount || 1))}${row('Overnight stay', me.overnight ? 'Yes' : 'No')}${row('Transport', me.pickup ? 'Pickup from ' + esc(me.pickup) : 'Coming on my own')}${row('Food', me.food === 'veg' ? 'Vegetarian' : 'Non-vegetarian')}${row('Pass', me.pass ? esc(passName(me.pass)) : 'To be assigned')}</div>
     <div style="margin:16px 20px 0"><button type="button" class="btn" style="width:100%;background:#fff;color:var(--ink);border:1px solid var(--line)" data-edit>Edit details</button></div>
     ${footer()}`;
   }
@@ -910,7 +956,6 @@ function rsvpPage() {
      <div class="fl"><label for="f-phone">Mobile number</label><input id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="14" value="${esc(form.phone)}" required><div class="hint">Only the organising committee sees this.</div></div>
      <div class="fl"><label for="f-city">Current city</label><input id="f-city" name="city" autocomplete="address-level2" value="${esc(form.city)}"></div>`,
     `<div class="fl"><div class="lb">Which days are you attending?</div><div class="pills">${pill('attend', 'both', 'Both days')}${pill('attend', 'day1', 'Day 1 only')}</div></div>
-     <div class="fl"><label for="f-when">Which month and year suit you for the reunion?</label><select id="f-when" name="when"><option value="">Select month and year</option>${whenOpts().map(w => `<option value="${w}" ${form.when === w ? 'selected' : ''}>${whenName(w)}</option>`).join('')}<option value="any" ${form.when === 'any' ? 'selected' : ''}>Any month works for me</option></select><div class="hint">Helps the committee pick a date that suits most people.</div></div>
      <div class="fl"><label for="f-pickup">Transport</label><select id="f-pickup" name="pickup"><option value="">I'll come on my own</option>${st.pickupPoints.map(p => `<option value="${esc(p)}" ${form.pickup === p ? 'selected' : ''}>Pickup from ${esc(p)}</option>`).join('')}</select></div>`,
     `<div class="fl"><div class="lb">Who's coming with you?</div><div class="pills">${pill('family', 'alone', 'Just me')}${pill('family', 'family', 'With family')}</div></div>
      ${fam ? `<div class="fl"><div class="lb">Spouse coming?</div><div class="pills">${pill('spouse', true, 'Yes')}${pill('spouse', false, 'No')}</div></div>
@@ -922,7 +967,7 @@ function rsvpPage() {
       : `<div class="empty" style="padding:18px 6px">You're attending Day 1 only, so no overnight stay is needed.</div>`,
     `<div class="fl"><div class="lb">Food preference</div><div class="pills">${pill('food', 'nonveg', 'Non-veg')}${pill('food', 'veg', 'Veg')}</div></div>`,
     `<div class="rv-card" style="padding:0">${[['Name', esc(form.name)], ['Gender', form.gender === 'female' ? 'Female' : form.gender === 'male' ? 'Male' : '—'], ['Branch', esc(form.branch || '—')], ['Mobile', esc(form.phone)], ['City', esc(form.city || '—')],
-      ['Attending', form.attend === 'both' ? 'Both days' : 'Day 1 only'], ['Preferred month', whenName(form.when)], ['Coming with', fam ? [form.spouse ? 'Spouse' : '', form.kids.length ? `${form.kids.length} kid${form.kids.length === 1 ? '' : 's'} (${form.kids.map(a => a + 'y').join(', ')})` : '', +form.others ? `${form.others} other${+form.others === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ') || 'Family' : 'Just me'], ['Total people', String(heads)], ['Transport', form.pickup ? 'Pickup from ' + esc(form.pickup) : 'Coming on my own'], ['Overnight stay', yesno(form.overnight)], ['Food', form.food === 'veg' ? 'Vegetarian' : 'Non-vegetarian']]
+      ['Attending', form.attend === 'both' ? 'Both days' : 'Day 1 only'], ['Coming with', fam ? [form.spouse ? 'Spouse' : '', form.kids.length ? `${form.kids.length} kid${form.kids.length === 1 ? '' : 's'} (${form.kids.map(a => a + 'y').join(', ')})` : '', +form.others ? `${form.others} other${+form.others === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ') || 'Family' : 'Just me'], ['Total people', String(heads)], ['Transport', form.pickup ? 'Pickup from ' + esc(form.pickup) : 'Coming on my own'], ['Overnight stay', yesno(form.overnight)], ['Food', form.food === 'veg' ? 'Vegetarian' : 'Non-vegetarian']]
       .map(([a, b]) => `<div class="rv-row"><span>${a}</span><span>${b}</span></div>`).join('')}</div>`
   ][k];
   return `${meBar}
@@ -1014,6 +1059,10 @@ function ago(t) {
   const d = new Date(t), now = new Date();
   return d.toDateString() === now.toDateString() ? time(t) : d.toLocaleDateString('en-IN', { day:'numeric', month:'short' });
 }
+async function pickMonth(w) {
+  if (S.monthPoll && S.monthPoll.mine === w) { toast('That is already your pick'); return; }
+  try { S = await api2('/api/month-vote', { when: w }); render(); toast(`Your pick: ${whenName(w)}`); } catch (err) { toast(err.message); }
+}
 async function api2(url, body) {
   const r = await fetch(url, body ? { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) } : { cache:'no-store' });
   const d = await r.json().catch(() => ({}));
@@ -1073,16 +1122,20 @@ function paintInbox(v) {
   const convs = C.conversations.map(c => `<a class="wr ${c.unread ? 'unread' : ''}" href="#chat/${esc(c.id)}">${c.committee ? `<div class="wav adm">${svg(P.info, 20)}</div>` : wav(c.name)}
     <div class="m"><div class="n"><span>${c.committee ? esc(c.name) : masked(c.name)}</span><small>${ago(c.t)}</small></div><div class="l"><span>${c.mine ? '<span class="tick">✓✓</span>' : ''}${esc(c.last)}</span>${c.unread ? `<span class="ub">${c.unread}</span>` : ''}</div></div></a>`).join('');
   const q = peopleQ.trim().toLowerCase();
-  const list = (people || []).filter(p => !q || p.name.toLowerCase().includes(q));
+  const all = people || [], nReg = all.filter(p => p.reg).length;
+  const list = all.filter(p => (!q || p.name.toLowerCase().includes(q)) && (peopleF === 'all' || (peopleF === 'reg') === !!p.reg));
+  const sub = p => p.reg ? '<span class="rg">Registered</span>' : '<span class="si">Signed in · not registered</span>';
+  const chip = (k, l, n) => `<button type="button" class="${peopleF === k ? 'on' : ''}" data-pf="${k}">${l} <b>${n}</b></button>`;
   const row = p => p.you
-    ? `<div class="wr">${wav(p.name)}<div class="m"><div class="n"><span>${esc(p.name)} <span class="me">(You)</span></span></div><div class="l"><span>Your account</span></div></div></div>`
+    ? `<div class="wr">${wav(p.name)}<div class="m"><div class="n"><span>${esc(p.name)} <span class="me">(You)</span></span></div><div class="l">${sub(p)}</div></div></div>`
     : p.canChat
-    ? `<a class="wr" href="#chat/${esc(p.id)}">${wav(p.name)}<div class="m"><div class="n"><span>${masked(p.name)}</span></div><span class="gdot" aria-label="Online"></span></div></a>`
-    : `<div class="wr off">${wav(p.name)}<div class="m"><div class="n"><span>${masked(p.name)}</span></div><div class="l"><span>Not on chat yet</span><span class="wic lk">${svg(P.lock, 16)}</span></div></div></div>`;
+    ? `<a class="wr" href="#chat/${esc(p.id)}">${wav(p.name)}<div class="m"><div class="n"><span>${masked(p.name)}</span><span class="gdot" aria-label="Online"></span></div><div class="l">${sub(p)}</div></div></a>`
+    : `<div class="wr off">${wav(p.name)}<div class="m"><div class="n"><span>${masked(p.name)}</span></div><div class="l">${sub(p)}<span class="wic lk">${svg(P.lock, 16)}</span></div></div></div>`;
   v.innerHTML = `<div class="chx">
     <label class="ch-search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="pq" placeholder="Search" value="${esc(peopleQ)}" aria-label="Search batchmates"></label>
     ${convs && !q ? `<div class="ch-list">${convs}</div>` : ''}
     <div class="ch-sec">Batchmates</div>
+    <div class="ch-f">${chip('all', 'All', all.length)}${chip('reg', 'Registered', nReg)}${chip('si', 'Signed in', all.length - nReg)}</div>
     <div class="ch-list">${list.map(row).join('') || `<div class="empty">${people ? 'No batchmates found.' : 'Loading…'}</div>`}</div>
     </div>${footer()}`;
 }
@@ -1110,10 +1163,12 @@ function paintThread(v, id) {
 // ------------------------------------------------------------------ events
 function syncForm() {
   const f = $('rsvpForm'); if (!f || !form) return;
-  for (const k of ['name', 'branch', 'phone', 'city', 'pickup', 'when']) if (f.elements[k]) form[k] = f.elements[k].value;
+  for (const k of ['name', 'branch', 'phone', 'city', 'pickup']) if (f.elements[k]) form[k] = f.elements[k].value;
 }
 document.addEventListener('click', e => {
   const d = e.target.closest('[data-day]'); if (d) { day = +d.dataset.day; render(); return; }
+  const pf = e.target.closest('[data-pf]'); if (pf) { peopleF = pf.dataset.pf; paintChat(route()[1]); return; }
+  const mo = e.target.closest('[data-month]'); if (mo) { pickMonth(mo.dataset.month); return; }
   if (e.target.closest('[data-import]')) { impStart(); return; }
   const tm = e.target.closest('[data-team]'); if (tm) { const t = S.elections.find(x => x.id === tm.dataset.team); if (t) { const n = teamNames(t);
     $('tmBox').innerHTML = `<div style="display:flex;gap:12px;align-items:center">${icon(t)}<h3 id="tmT" style="margin:0">${esc(t.title)}</h3></div>
@@ -1253,6 +1308,7 @@ addEventListener('hashchange', () => {
   track('page');
 });
 document.addEventListener('change', e => {
+  if (e.target.dataset && e.target.dataset.monthsel !== undefined && e.target.value) { pickMonth(e.target.value); return; }
   if (e.target.dataset && e.target.dataset.kid !== undefined && form) { form.kids[+e.target.dataset.kid] = +e.target.value; return; }
   if (e.target.id === 'alFile' && e.target.files.length) { uploadPhotos([...e.target.files]); return; }
   if (e.target.id === 'impFile' && e.target.files[0]) { (async () => {
