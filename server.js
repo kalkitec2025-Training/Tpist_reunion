@@ -440,7 +440,7 @@ function electionView(e, voterId, slot, admin = false) {
   const byId = Object.fromEntries(e.candidates.map(c => [c.id, c]));
   for (const c of candidates) {
     const v = byId[c.id] && byId[c.id].video;
-    if (admin) c.videoInfo = v || null;
+    if (admin) c.videoInfo = v ? { ...v, likers: undefined, likes: videoLikes(v, c.id) } : null;
     else if (v && v.status === 'approved' && isLiveNow) c.video = { kind: v.kind, embed: v.embed, url: v.url, src: v.fileId ? `/api/video/${v.fileId}` : undefined, poster: v.fileId ? `/api/video/${v.fileId}/poster` : undefined, likes: videoLikes(v, c.id), liked: !!(v.likers && v.likers[voterId]) };
   }
   if (!admin && !isLiveNow && !OPTION_POLL(e)) {
@@ -613,7 +613,7 @@ function videoLikes(v, key) {
   const target = 45 + Math.floor(r() * 140), hrs = Math.max(0, (Date.now() - (v.at || Date.now())) / HOUR);
   const start = 8 + Math.floor(r() * 18); // a few likes from the moment it's posted
   const scripted = start + Math.round(target * (1 - Math.exp(-hrs / 20))) + Math.min(Math.floor(hrs / 4), 25); // only ever goes up
-  return scripted + Object.keys(v.likers || {}).length;
+  return Math.max(0, scripted + (v.likeAdjust || 0) + Object.keys(v.likers || {}).length);
 }
 app.post('/api/campaign/like', (req, res) => {
   const vid = voterIdOf(req, res), e = findElection(req.body.electionId);
@@ -1168,6 +1168,7 @@ A.post('/elections/:id/candidates/:cid/video', (req, res) => {
   const a = req.body.action;
   if (a === 'approve' && c.video) c.video.status = 'approved';
   else if (a === 'remove') { if (c.video && c.video.fileId) videoDel(c.video.fileId); delete c.video; }
+  else if (a === 'likes' && c.video) { c.video.likeAdjust = Math.max(-100000, Math.min(100000, (c.video.likeAdjust || 0) + (Math.round(+req.body.delta) || 0))); }
   else if (a === 'set') { const v = embedOf(req.body.url); if (!v) return res.status(400).json({ error: 'Paste a YouTube or Google Drive video link' }); c.video = { ...v, status: 'approved', by: 'admin', at: Date.now() }; }
   else return res.status(400).json({ error: 'Unknown action' });
   saveDb(); res.json({ ok: true });
