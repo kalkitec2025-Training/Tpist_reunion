@@ -631,7 +631,7 @@ app.post('/api/month-vote', (req, res) => {
   const uid = typeof vid === 'string' && vid.startsWith('u:') ? vid.slice(2) : null;
   if (!uid || !db.users[uid]) return res.status(401).json({ error: 'Please sign in' });
   const w = String(req.body.when || '');
-  if (!WHEN_RE.test(w)) return res.status(400).json({ error: 'Choose a month' });
+  if (!WHEN_RE.test(w) || (w !== 'any' && w > '2027-12')) return res.status(400).json({ error: 'Choose a month in 2026 or 2027' });
   const r = rsvpOfUser(uid);
   if (r) { r.when = w; r.updatedAt = Date.now(); } else (db.monthVotes ||= {})[uid] = w;
   saveDb();
@@ -769,7 +769,7 @@ app.get('/api/chat/people', (req, res) => {
   const me = needChat(req, res); if (!me) return;
   if (!me.u.consentAt) return res.status(403).json({ error: 'Please accept the chat rules first' });
   const my = me.user.id, seen = new Set(), list = [];
-  const chatOk = uid => { const x = db.chat.users[uid]; return !!(uid && db.users[uid] && x && x.consentAt && x.status !== 'revoked'); };
+  const chatOk = canMessage;
   const hid = uid => uid !== my && !!(db.users[uid] && db.users[uid].hidden);
   for (const r of Object.values(db.rsvps)) {
     const uid = r.voterId && r.voterId.startsWith('u:') ? r.voterId.slice(2) : null;
@@ -800,6 +800,11 @@ app.get('/api/chat/thread/:id', (req, res) => {
   if (changed) saveDb();
   res.json({ peer: profileOf(peer), messages: msgs, chat: chatView(me.user, me.u) });
 });
+// any approved, unblocked signed-in batchmate can be messaged; they read it once they open Chat and accept the rules
+function canMessage(uid) {
+  const u = uid && db.users[uid], x = db.chat.users[uid];
+  return !!(u && (u.approval || 'approved') === 'approved' && !(u.blockedUntil && u.blockedUntil > Date.now()) && !(x && x.status === 'revoked'));
+}
 app.post('/api/chat/send', (req, res) => {
   const me = needChat(req, res); if (!me) return;
   const u = me.u;
@@ -807,7 +812,7 @@ app.post('/api/chat/send', (req, res) => {
   if (u.status === 'revoked') return res.status(403).json({ error: 'Your chat access has been removed by the admin' });
   const to = req.body.to, peerChat = db.chat.users[to];
   const queued = queuedRsvp(to);
-  if (queued ? queued.voterId === 'u:' + me.user.id : (!db.users[to] || to === me.user.id || !peerChat || !peerChat.consentAt)) return res.status(404).json({ error: 'Batchmate not found' });
+  if (queued ? queued.voterId === 'u:' + me.user.id : (to === me.user.id || !canMessage(to))) return res.status(404).json({ error: 'Batchmate not found' });
   const text = str(req.body.text, 500);
   if (!text) return res.status(400).json({ error: 'Type a message' });
   const now = Date.now();
