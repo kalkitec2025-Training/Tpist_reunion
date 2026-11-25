@@ -94,6 +94,8 @@ let qPass = '';
 let PW = sessionStorage.getItem('pw') || '', S = null, tab = 'overview', selE = null, q = '', qStatus = '', sched = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const closeSel = (name, at) => `<select name="${name}"><option value="keep">${at ? (at > Date.now() ? `Closes ${when(at)} (${left(at)})` : `Closed ${when(at)}`) : 'No closing date'}</option>${at ? '<option value="none">Remove closing date</option>' : ''}${[1, 2, 3, 5, 7, 10, 14, 21, 30].map(d => `<option value="${d}">Close in ${d} day${d === 1 ? '' : 's'}</option>`).join('')}</select>`;
+const left = at => { const ms = at - Date.now(); if (ms <= 0) return 'closed'; const d = Math.floor((ms + 60000) / 86400000), h = Math.floor((ms + 60000) % 86400000 / 3600000); return d ? `${d} day${d === 1 ? '' : 's'}${h ? ` ${h} hr` : ''} left` : h ? `${h} hr left` : `${Math.max(1, Math.round(ms / 60000))} min left`; };
 const whenNm = w => w === 'any' ? 'Any month' : (([y, m]) => `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m - 1]} ${y}`)(String(w).split('-'));
 const when = t => t ? new Date(t).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' }) : '—';
 const passNm = id => ((S && S.settings.passes || []).find(p => p.id === id) || { name: 'No pass yet' }).name;
@@ -178,6 +180,8 @@ function elections() {
   const pend = S.elections.flatMap(x => x.candidates.filter(c => c.videoInfo && c.videoInfo.status === 'pending').map(c => ({ e: x, c })));
   return `${pend.length ? `<section class="card" style="margin-bottom:16px;border-color:#F5C79C"><h2>Campaign videos waiting for approval (${pend.length})</h2>
     ${pend.map(({ e: x, c }) => `<div class="row" style="padding:8px 0;border-top:1px solid #EEF0F4"><b>${esc(c.name)}</b><span class="sub">${esc(x.title)}</span><a href="${esc(c.videoInfo.url)}" target="_blank" rel="noopener" style="color:var(--blue)">Watch ↗</a><button class="btn s p" data-vapprove2="${x.id}|${c.id}">Approve</button><button class="btn s r" data-vremove2="${x.id}|${c.id}">Reject</button></div>`).join('')}</section>` : ''}
+  <section class="card" style="margin-bottom:16px"><div class="hrow"><h2>Reunion month poll</h2><span class="pill ${S.monthPoll && S.monthPoll.open ? 'g' : ''}">${S.monthPoll && S.monthPoll.open ? 'open' : 'closed'}</span></div>
+    <form id="mForm" class="f2 mt"><div><label>Month voting closes</label>${closeSel('monthCloseIn', S.monthPoll && S.monthPoll.closesAt)}</div><div><label>&nbsp;</label><button class="btn p">Save</button></div></form></section>
   <div class="split">
     <section class="card elist" style="padding:8px">
       ${S.elections.map(x => `<button data-sel="${x.id}" class="${x.id === selE ? 'on' : ''}"><b>${esc(x.title)}</b><small><span class="pill ${x.status === 'live' ? 'g' : x.status === 'closed' ? '' : 'o'}">${x.status}</span> ${x.candidates.length} candidates · ${x.total} votes · ${x.mode}</small></button>`).join('')}
@@ -195,7 +199,8 @@ function electionEditor(e) {
       <div class="f2"><div><label>Title</label><input type="text" name="title" value="${esc(e.title)}"></div>
       <div><label>How results are counted</label><select name="mode"><option value="live" ${!sc ? 'selected' : ''}>Live: real votes only</option><option value="scripted" ${sc ? 'selected' : ''}>Scripted: numbers follow the script</option></select></div></div>
       <div class="f2 mt"><div><label>Status</label><select name="status"><option value="upcoming" ${e.status === 'upcoming' ? 'selected' : ''}>Upcoming (not on Home, no voting yet)</option><option value="live" ${e.status === 'live' ? 'selected' : ''}>Live (shown on Home, voting open)</option><option value="closed" ${e.status === 'closed' ? 'selected' : ''}>Closed (results only)</option></select></div>
-      <div><label>&nbsp;</label><div class="row">${e.status !== 'live' ? `<button type="button" class="btn p" data-a="startE">Start voting now</button>` : `<button type="button" class="btn r" data-a="closeE">Close voting</button>`}</div></div></div>
+      <div><label>Poll closes</label>${closeSel('closeIn', e.closesAt)}</div></div>
+      <div class="f2 mt"><div></div><div><label>&nbsp;</label><div class="row">${e.status !== 'live' ? `<button type="button" class="btn p" data-a="startE">Start voting now</button>` : `<button type="button" class="btn r" data-a="closeE">Close voting</button>`}</div></div></div>
       ${e.kind === 'role' ? `<div class="mt"><label>Confirmed people on this team (Teams tab) · one name per line</label><textarea name="team" placeholder="e.g.
 Srinivas Rao
 Kiran Kumar">${esc((e.team || []).join('\n'))}</textarea></div>` : ''}
@@ -535,6 +540,7 @@ document.addEventListener('submit', run(async e => {
     if ('team' in d) d.team = d.team.split('\n').map(x => x.trim()).filter(Boolean);
     await api(`/elections/${selE}`, { method:'PUT', json:d }); toast('Election saved');
   }
+  else if (f.id === 'mForm') { await api('/settings', { method:'PUT', json:d }); toast('Saved'); }
   else if (f.id === 'newC') { await api(`/elections/${selE}/candidates`, { method:'POST', json:d }); toast('Candidate added'); }
   else if (f.id === 'newR') { d.overnight = d.overnight === 'true'; await api('/rsvps', { method:'POST', json:d }); toast('Registration added'); }
   else if (f.id === 'newT') { await api('/tasks', { method:'POST', json:d }); toast('Task added'); }

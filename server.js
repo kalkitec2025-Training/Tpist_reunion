@@ -442,7 +442,7 @@ function electionView(e, voterId, slot, admin = false) {
     for (const c of candidates) { c.name = mask(c.name); c.note = ''; }
   }
   const out = {
-    id: e.id, kind: e.kind, icon: e.icon || null, team: e.team || [], contact: e.contact || '', title: e.title, desc: e.desc, mode: e.mode, live: e.mode === 'live',
+    id: e.id, kind: e.kind, icon: e.icon || null, team: e.team || [], contact: e.contact || '', closesAt: e.closesAt || null, title: e.title, desc: e.desc, mode: e.mode, live: e.mode === 'live',
     confirmed: conf ? { id: conf.id, name: conf.name } : null, status: conf ? 'closed' : (e.status || 'live'),
     openNominations: !!e.openNominations && !conf && (e.status || 'live') !== 'closed',
     candidates, total: candidates.reduce((s, c) => s + c.votes, 0), myVote, hasHistory
@@ -451,6 +451,14 @@ function electionView(e, voterId, slot, admin = false) {
   return out;
 }
 
+// poll deadlines: admin sets "closes in N days"; a live election past its closesAt is closed automatically
+function autoClose() {
+  const now = Date.now(); let ch = false;
+  for (const e of db.elections) if (e.closesAt && e.closesAt <= now && (e.status || 'live') === 'live' && !e.confirmedId) { e.status = 'closed'; ch = true; }
+  if (ch) saveDb();
+}
+const monthOpen = () => !(db.settings.monthClosesAt && db.settings.monthClosesAt <= Date.now());
+const closeInToTime = v => v === 'none' ? null : /^\d{1,3}$/.test(String(v)) && +v > 0 ? Date.now() + +v * 86400000 : undefined;
 // reunion month: preferences from registrations plus picks from signed-in batchmates who have not registered yet
 const WHEN_RE = /^(\d{4}-(0[1-9]|1[0-2])|any)$/;
 function monthPoll(uid) {
@@ -461,9 +469,10 @@ function monthPoll(uid) {
     add(r.when); if (u) { reg.add(u); if (u === uid) mine = r.when || ''; }
   }
   for (const [u, w] of Object.entries(db.monthVotes || {})) { if (reg.has(u) || !db.users[u]) continue; add(w); if (u === uid) mine = w; }
-  return { counts, total: Object.values(counts).reduce((a, b) => a + b, 0), mine };
+  return { counts, total: Object.values(counts).reduce((a, b) => a + b, 0), mine, closesAt: db.settings.monthClosesAt || null, open: monthOpen() };
 }
 function publicState(voterId) {
+  autoClose();
   const slot = currentSlot();
   const interval = db.auto.intervalMin * 60 * 1000;
   const myRsvp = voterId ? Object.values(db.rsvps).find(r => r.voterId === voterId) || null : null;
@@ -631,6 +640,7 @@ app.post('/api/month-vote', (req, res) => {
   const uid = typeof vid === 'string' && vid.startsWith('u:') ? vid.slice(2) : null;
   if (!uid || !db.users[uid]) return res.status(401).json({ error: 'Please sign in' });
   const w = String(req.body.when || '');
+  if (!monthOpen()) return res.status(403).json({ error: 'Month voting has closed' });
   if (!WHEN_RE.test(w) || (w !== 'any' && w > '2027-12')) return res.status(400).json({ error: 'Choose a month in 2026 or 2027' });
   const r = rsvpOfUser(uid);
   if (r) { r.when = w; r.updatedAt = Date.now(); } else (db.monthVotes ||= {})[uid] = w;
@@ -639,6 +649,7 @@ app.post('/api/month-vote', (req, res) => {
 });
 app.post('/api/vote', (req, res) => {
   const vid = voterIdOf(req, res);
+  autoClose();
   if (!db.settings.votingOpen) return res.status(403).json({ error: 'Voting is closed' });
   const e = findElection(req.body.electionId);
   if (!e) return res.status(404).json({ error: 'Election not found' });
@@ -959,6 +970,7 @@ function activityReport() {
   };
 }
 A.get('/state', (req, res) => {
+  autoClose();
   const slot = currentSlot();
   const interval = db.auto.intervalMin * 60 * 1000;
   const elections = db.elections.map(e => {
@@ -1009,6 +1021,7 @@ A.put('/settings', (req, res) => {
   }
   for (const k of ['votingOpen', 'rsvpOpen']) if (typeof b[k] === 'boolean') s[k] = b[k];
   if (typeof b.requireApproval === 'boolean') s.requireApproval = b.requireApproval;
+  if (b.monthCloseIn !== undefined && b.monthCloseIn !== 'keep') { const t = closeInToTime(b.monthCloseIn); if (t !== undefined) s.monthClosesAt = t; }
   if (typeof b.albumLink === 'string') s.albumLink = /^https:\/\//.test(b.albumLink.trim()) ? str(b.albumLink.trim(), 500) : '';
   if (b.whatsapp && typeof b.whatsapp === 'object') {
     const w = b.whatsapp, cur = s.whatsapp || {};
@@ -1078,6 +1091,8 @@ A.put('/elections/:id', (req, res) => {
   if (b.mode === 'live' || b.mode === 'scripted') e.mode = b.mode;
   if (typeof b.openNominations === 'boolean') e.openNominations = b.openNominations;
   if (['upcoming', 'live', 'closed'].includes(b.status)) e.status = b.status;
+  if (b.closeIn !== undefined && b.closeIn !== 'keep') { const t = closeInToTime(b.closeIn); if (t !== undefined) { e.closesAt = t; if (t && e.status === 'closed') e.status = 'live'; } }
+  if (e.closesAt && e.closesAt > Date.now() && b.status === 'closed') e.closesAt = null;
   if (b.confirmedId === null || b.confirmedId === '') e.confirmedId = null;
   else if (e.candidates.some(c => c.id === b.confirmedId)) e.confirmedId = b.confirmedId;
   if (Array.isArray(b.team)) e.team = b.team.map(x => str(x, 60)).filter(Boolean).slice(0, 20);
