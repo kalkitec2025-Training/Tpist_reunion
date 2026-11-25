@@ -253,6 +253,32 @@
   .pr-m { flex:1; min-width:0; } .pr-m b { display:block; font-size:15px; } .pr-m small { display:block; font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.35; }
   .pr-m em { font-style:normal; font-weight:600; } .pr-m em.ok { color:#047857; } .pr-m em.hot { color:#B91C1C; } .pr-m em.warm { color:#B45309; } .pr-m em.act { color:#DC2626; }
   .pr-p { font-size:20px; font-weight:800; color:var(--accent); }
+  .h-25 { position:absolute !important; right:-10px; top:-26px; font-size:150px; font-weight:900; letter-spacing:-.06em; color:transparent; -webkit-text-stroke:1.5px rgba(94,234,212,.22); line-height:1; pointer-events:none; }
+  .hero a.tile { text-decoration:none; color:#fff; }
+  .hm-todo { margin-top:14px; padding:16px; }
+  .hm-h { display:flex; justify-content:space-between; align-items:baseline; } .hm-h h2 { margin:0; font-size:17px; font-weight:800; } .hm-h span { font-size:13px; font-weight:700; color:var(--accent); }
+  .hm-bar { height:6px; border-radius:99px; background:var(--track); margin:10px 0 4px; overflow:hidden; } .hm-bar div { height:100%; background:var(--accent); border-radius:99px; }
+  .hm-t { display:flex; align-items:center; gap:12px; padding:11px 0; border-top:1px solid var(--line); text-decoration:none; color:var(--ink); }
+  .hm-t:first-of-type { border-top:0; } .hm-t > svg { color:var(--muted); flex-shrink:0; }
+  .hm-c { width:24px; height:24px; border-radius:50%; border:2px solid #D1D5DB; display:grid; place-items:center; flex-shrink:0; box-sizing:border-box; }
+  .hm-t.ok .hm-c { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .hm-m { flex:1; min-width:0; } .hm-m b { display:block; font-size:14.5px; font-weight:600; } .hm-m small { display:block; font-size:12.5px; color:var(--muted); margin-top:1px; }
+  .hm-t.ok .hm-m b { color:var(--muted); font-weight:500; }
+  a.hm-stat { display:flex; gap:16px; align-items:center; text-decoration:none; color:var(--ink); }
+  .hm-ring { width:92px; height:92px; border-radius:50%; display:grid; place-items:center; flex-shrink:0; }
+  .hm-ring > div { width:72px; height:72px; border-radius:50%; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .hm-ring b { font-size:24px; font-weight:800; line-height:1; } .hm-ring small { font-size:11px; color:var(--muted); margin-top:2px; }
+  .hm-sm { flex:1; min-width:0; } .hm-sl { font-weight:700; font-size:15px; }
+  .hm-split { display:flex; height:8px; border-radius:99px; overflow:hidden; margin-top:10px; gap:2px; } .hm-split span:first-child { background:#3B82F6; } .hm-split span:last-child { background:#EC4899; }
+  .hm-leg { display:flex; gap:14px; margin-top:8px; font-size:12.5px; color:#374151; } .hm-leg i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; } .hm-leg i.m { background:#3B82F6; } .hm-leg i.w { background:#EC4899; }
+  .hm-sl2 { font-size:12.5px; color:var(--accent); font-weight:600; margin-top:10px; }
+  .hm-more { font-size:13px; font-weight:600; color:var(--accent); text-decoration:none; }
+  .hm-pics { display:flex; gap:8px; overflow-x:auto; padding:0 20px 4px; scrollbar-width:none; } .hm-pics::-webkit-scrollbar { display:none; }
+  .hm-pics a { flex:0 0 auto; } .hm-pics img { width:120px; height:120px; object-fit:cover; border-radius:14px; display:block; }
+  .hm-quick { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; margin:18px 20px 0; }
+  .hm-quick a { display:flex; flex-direction:column; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--ink); text-decoration:none; }
+  .hm-quick span { width:52px; height:52px; border-radius:16px; background:#fff; border:1px solid var(--line); color:var(--accent); display:grid; place-items:center; }
+  .hm-imp { display:inline-flex; align-items:center; gap:6px; border:0; background:none; color:var(--muted); font:inherit; font-size:13px; cursor:pointer; padding:8px; }
   .alb-n { font-size:13px; color:var(--muted); }
   .tq { padding-bottom:4px; }
   .tq-top { margin-top:16px; padding:16px; }
@@ -790,40 +816,60 @@ function waSection() {
 }
 const QI = { bars:'<path d="M6 20V12M12 20V5M18 20v-6"/>', man:'<circle cx="12" cy="7" r="3.5"/><path d="M5 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2"/>', polls:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 12 3 3 5-6"/>', teams:'<circle cx="9" cy="8" r="3.5"/><path d="M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M22 21v-1a6 6 0 0 0-4-5.7"/>' };
 function homePage() {
-  const st = S.settings;
-  const venue = S.elections.find(e => e.kind === 'venue');
-  const vLead = venue && venue.confirmed ? venue.confirmed : venue && venue.total ? venue.candidates[0] : null;
-  const roles = votable();
-  const voted = roles.filter(e => e.myVote).length;
-  const me = S.myRsvp;
-  const live = S.elections.filter(isLive);
+  const st = S.settings, me = S.myRsvp, m = S.monthPoll;
+  const live = S.elections.filter(isLive), votedN = live.filter(e => e.myVote).length;
+  const lead = m && m.total ? Object.entries(m.counts).filter(([w]) => w !== 'any').sort((a, b) => b[1] - a[1])[0] : null;
+  const monthTxt = lead ? `${whenName(lead[0])}` : 'Vote now';
+  const R = S.regShown, exp = Math.max(R.total, +st.expected || 0), pctReg = exp ? Math.round(R.total / exp * 100) : 0, menP = R.total ? Math.round(R.male / R.total * 100) : 50;
+  const tasks = [
+    { done: !!me, t: me ? 'Registered' : 'Register for the reunion', s: me ? 'You are counted as attending' : 'Takes 2 minutes', href: '#rsvp' },
+    { done: !!(m && m.mine), t: m && m.mine ? `Month picked · ${m.mine === 'any' ? 'Any month' : whenName(m.mine)}` : 'Pick the reunion month', s: lead ? `${whenName(lead[0])} is leading` : 'Help us fix the date', href: '#vote' },
+    { done: live.length > 0 && votedN === live.length, t: `Vote in the polls`, s: live.length ? `${votedN} of ${live.length} done` : 'No polls open right now', href: '#vote' },
+    { done: false, t: 'Say hello in Chat', s: 'Message your batchmates', href: '#chat', soft: true }
+  ];
+  const doneN = tasks.filter(t => t.done).length;
+  if (!AL && !homeAlbumLoading) { homeAlbumLoading = true; api2('/api/album').then(d => { AL = d; if (route()[0] === 'home') render(); }).catch(() => {}); }
+  const pics = AL ? AL.photos.slice(0, 8) : [];
   return `${ticker()}
   ${st.announcement ? `<div class="note-bar">${svg(P.info, 18)}<span>${esc(st.announcement)}</span></div>` : ''}
   <section class="hero">
+    <span class="h-25" aria-hidden="true">25</span>
     <span class="chip-o">${me ? 'You\u2019re registered' : st.rsvpOpen ? 'Registrations open' : esc(st.years) + ' years · Reunion'}</span>
     <h1 class="d">${esc(st.eventTitle)}</h1>
     <p>Batchmates reuniting after ${esc(st.years)} years. Two days, one batch, a lifetime of stories.</p>
-    <div class="tiles"><div class="tile"><small>Date</small><b>${esc(st.eventDate)}</b></div><div class="tile"><small>City</small><b>Visakhapatnam</b></div></div>
+    <div class="tiles"><a class="tile" href="#vote"><small>${lead ? 'Month · leading' : 'Month'}</small><b>${esc(monthTxt)}</b></a><div class="tile"><small>City</small><b>Visakhapatnam</b></div></div>
     <div class="act">${me ? `<a class="h-reg ok" href="#rsvp">${svg(P.check, 16)}Registered</a>` : `<a class="h-reg" href="#rsvp">Register ${svg(P.chevR, 16)}</a>`}</div>
   </section>
-  <div class="kstrip">
-    <a href="#members"><b>${S.regShown.total}</b><span>Registered</span></a>
-    <div><b>${S.regShown.male}</b><span>Men</span></div>
-    <div><b>${S.regShown.female}</b><span>Women</span></div>
-    ${st.whatsapp && st.whatsapp.show !== false ? `<div><b style="color:var(--accent)">${st.whatsapp.active}</b><span>On WhatsApp</span></div>` : ''}
+
+  <div class="card hm-todo">
+    <div class="hm-h"><h2>Your checklist</h2><span>${doneN} of ${tasks.length}</span></div>
+    <div class="hm-bar"><div style="width:${Math.round(doneN / tasks.length * 100)}%"></div></div>
+    ${tasks.map(t => `<a class="hm-t ${t.done ? 'ok' : ''}" href="${t.href}"><span class="hm-c">${t.done ? svg(P.check, 14) : ''}</span><span class="hm-m"><b>${esc(t.t)}</b><small>${esc(t.s)}</small></span>${t.done ? '' : svg(P.chevR, 16)}</a>`).join('')}
   </div>
-  <p class="fine">Registered batchmates are counted as attending. Anyone in the batch can vote.</p>
-  <div class="sec"><h2 class="d">Quick actions</h2></div>
-  <div class="qa">
-    <a href="#vote"><span class="qi">${svg(QI.polls, 18)}</span><span><b>Live polls</b><small>${live.length} open · ${live.filter(e => e.myVote).length} voted</small></span></a>
-    <a href="#schedule"><span class="qi">${svg(P.cal, 18)}</span><span><b>Schedule</b><small>Day 1 & Day 2</small></span></a>
-    <a href="#teams"><span class="qi">${svg(QI.teams, 18)}</span><span><b>Teams</b><small>${S.elections.filter(e => e.kind === 'role').length} organising teams</small></span></a>
-    <a href="#chat"><span class="qi">${svg(P.chat, 18)}</span><span><b>Chat</b><small>Message batchmates</small></span></a>
+
+  <a class="card hm-stat" href="#members">
+    <div class="hm-ring" style="background:conic-gradient(var(--accent) 0 ${pctReg}%, var(--track) ${pctReg}% 100%)"><div><b>${R.total}</b><small>joined</small></div></div>
+    <div class="hm-sm">
+      <div class="hm-sl">Batchmates registered</div>
+      <div class="hm-split"><span style="width:${menP}%"></span><span style="width:${100 - menP}%"></span></div>
+      <div class="hm-leg"><span><i class="m"></i>${R.male} men</span><span><i class="w"></i>${R.female} women</span></div>
+      ${exp > R.total ? `<div class="hm-sl2">${exp - R.total} more expected · see who's coming ›</div>` : `<div class="hm-sl2">See who's coming ›</div>`}
+    </div>
+  </a>
+
+  ${pics.length ? `<div class="sec"><h2 class="d">Memories</h2><a class="hm-more" href="#album">Open album ›</a></div>
+  <div class="hm-pics">${pics.map(p => `<a href="#album" aria-label="Open album"><img src="/api/album/${esc(p.id)}/t" alt="" loading="lazy"></a>`).join('')}</div>` : ''}
+
+  <div class="hm-quick">
+    <a href="#vote"><span>${svg(QI.polls, 20)}</span>Polls</a>
+    <a href="#teams"><span>${svg(QI.teams, 20)}</span>Teams</a>
+    <a href="#schedule"><span>${svg(P.cal, 20)}</span>Schedule</a>
+    <a href="#chat"><span>${svg(P.chat, 20)}</span>Chat</a>
   </div>
-  <div style="height:4px"></div>
-  <div style="margin:12px 16px 0"><button type="button" class="btn" style="width:100%;background:#fff;color:var(--ink);border:1px solid var(--line);gap:8px" data-import>${svg(IMP, 18)}Import contacts</button></div>
+  <div style="margin:14px 20px 0;text-align:center"><button type="button" class="hm-imp" data-import>${svg(IMP, 16)}Import contacts</button></div>
   ${footer()}`;
 }
+let homeAlbumLoading = false;
 
 // ------------------------------------------------------------------ vote
 function monthCard() {
