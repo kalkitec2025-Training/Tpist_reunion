@@ -129,6 +129,15 @@ function render() {
   $('hTitle').textContent = `${st.eventTitle} · Admin`;
   $('hSub').textContent = `${S.rsvps.length} registered of ${st.expected} expected · ${S.accounts} signed-in accounts · storage: ${S.storage === 'postgres' ? 'database (permanent)' : 'file (resets on restart)'}`;
   $('main').innerHTML = ({ overview, elections, rsvps, plan, settings, chat, activity })[tab]();
+  loadAdminImgs();
+}
+// admin photos come through the admin API (needs the admin password header), so load them as blobs
+const aImgCache = {};
+async function loadAdminImgs() {
+  for (const im of document.querySelectorAll('img[data-aimg]')) {
+    const id = im.dataset.aimg;
+    try { aImgCache[id] ||= URL.createObjectURL(await (await fetch(`/api/admin/album/${id}/t`, { headers: { 'x-admin-password': PW } })).blob()); im.src = aImgCache[id]; } catch (e) {}
+  }
 }
 
 // ------------------------------------------------------------ overview
@@ -136,7 +145,7 @@ function overview() {
   const R = S.rsvps, n = f => R.filter(f).length;
   const pick = {}; R.forEach(r => { const k = r.pickup || 'Own transport'; pick[k] = (pick[k] || 0) + 1; });
   const a = S.auto;
-  return `${(S.accountList || []).some(a => a.approval === 'pending') ? `<section class="card" style="margin-bottom:16px;border-color:#F5C79C"><h2>${(S.accountList || []).filter(a => a.approval === 'pending').length} new sign-in(s) waiting for your approval</h2><p class="hint">Open <b>Registrations → Signed-in accounts</b> to approve or decline.</p></section>` : ''}<div class="grid">
+  return `${(S.accountList || []).some(a => a.approval === 'pending') ? `<section class="card" style="margin-bottom:16px;border-color:#F5C79C"><h2>${(S.accountList || []).filter(a => a.approval === 'pending').length} new sign-in(s) waiting for your approval</h2><p class="hint">Open <b>Registrations → Signed-in accounts</b> to approve or decline.</p></section>` : ''}${(S.album || []).some(p => p.status === 'pending') ? `<section class="card" style="margin-bottom:16px;border-color:#F5C79C"><h2>${(S.album || []).filter(p => p.status === 'pending').length} album photo(s) waiting for approval</h2><p class="hint">Open <b>Activity</b> to approve or reject them.</p></section>` : ''}<div class="grid">
     <section class="card" style="grid-column:1/-1"><h2>Registrations</h2><p class="hint">Live counts for food, stay and transport planning.</p>
       <div class="kpis">
         <div class="kpi"><b>${R.length}</b><span>Registered</span></div>
@@ -306,11 +315,19 @@ function pageName(k) {
 function tapName(k) { const i = k.indexOf(' · '); return i < 0 ? k : `${k.slice(i + 3)} <span class="sub">on ${esc(pageName(k.slice(0, i)))}</span>`; }
 const dur = s => s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : `${Math.floor(s / 3600)}h ${Math.round(s % 3600 / 60)}m`;
 const bars = (rows, name) => { const max = Math.max(1, ...rows.map(r => r[1])); return rows.length ? `<div class="bars">${rows.map(([k, n]) => `<div><span>${name(k)}</span><b>${n}</b><i style="width:${Math.round(n / max * 100)}%"></i></div>`).join('')}</div>` : '<p class="hint">Nothing yet.</p>'; };
+function photoReview() {
+  const P = (S.album || []).filter(p => p.status === 'pending');
+  return `<section class="card" style="grid-column:1/-1;${P.length ? 'border:2px solid #F59E0B' : ''}"><div class="hrow"><h2>Photos waiting for approval (${P.length})</h2>${P.length > 1 ? `<button class="btn s p" data-phall>Approve all</button>` : ''}</div>
+    <p class="hint">New album photos stay hidden from everyone else until you or the Core Committee approve them. The person who uploaded sees "Waiting for approval".</p>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:10px">${P.map(p => `<div style="width:150px"><a><img data-aimg="${p.id}" alt="" style="width:150px;height:150px;object-fit:cover;border-radius:12px;display:block"></a>
+      <div class="sub" style="margin:4px 0 6px">${esc(p.by)} · ${when(p.t)}</div><div class="row" style="gap:6px"><button class="btn s p" data-phok="${p.id}">Approve</button><button class="btn s r" data-phno="${p.id}">Reject</button></div></div>`).join('') || '<p class="hint">Nothing waiting. 👍</p>'}</div></section>`;
+}
 function activity() {
   const A = S.activity || { people: [] };
   return `<div class="grid">
+    ${photoReview()}
     <section class="card" style="grid-column:1/-1"><h2>Album photos in the app (${(S.album || []).length})</h2><p class="hint">Highlights uploaded in the app, about ${Math.round((S.album || []).reduce((n, p) => n + p.size, 0) / 1048576)} MB. Remove anything that shouldn't be there.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${(S.album || []).map(p => `<div style="position:relative;width:96px"><img src="/api/album/${p.id}/t" alt="" style="width:96px;height:96px;object-fit:cover;border-radius:10px;display:block"><div class="sub" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.by)}</div><button class="btn s r" style="position:absolute;top:4px;right:4px;padding:2px 6px" data-delphoto="${p.id}" aria-label="Remove photo">✕</button></div>`).join('') || '<p class="hint">No photos yet.</p>'}</div></section>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${(S.album || []).filter(p => p.status !== 'pending').map(p => `<div style="position:relative;width:96px"><img data-aimg="${p.id}" alt="" style="width:96px;height:96px;object-fit:cover;border-radius:10px;display:block;${p.status === 'rejected' ? 'opacity:.35' : ''}"><div class="sub" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.status === 'rejected' ? 'Rejected · ' : ''}${esc(p.by)}</div><button class="btn s r" style="position:absolute;top:4px;right:4px;padding:2px 6px" data-delphoto="${p.id}" aria-label="Remove photo">✕</button></div>`).join('') || '<p class="hint">No photos yet.</p>'}</div></section>
     <section class="card" style="grid-column:1/-1"><h2>App usage</h2><p class="hint">Signed-in batchmates only. Visits, pages and taps are recorded from this update onwards.</p>
       <div class="kpis">
         <div class="kpi"><b>${A.today || 0}</b><span>Active today</span></div>
@@ -448,6 +465,7 @@ function settings() {
     <h2 class="mt" style="margin-top:22px">Access</h2>
     <label class="check"><input type="checkbox" name="requireApproval" ${s.requireApproval !== false ? 'checked' : ''}> New Google sign-ins need my approval before they can use the app</label>
     <h2 class="mt" style="margin-top:22px">Album</h2>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" name="albumApproval" ${s.albumApproval !== false ? 'checked' : ''}> New album photos need approval (Admin or Core Committee) before others can see them</label>
     <div><label>Google Photos shared album link (everyone adds the full set of photos here)</label><input type="text" name="albumLink" value="${esc(s.albumLink || '')}" placeholder="https://photos.app.goo.gl/…"></div>
     <div class="row mt" style="gap:20px"><label class="check"><input type="checkbox" name="votingOpen" ${s.votingOpen ? 'checked' : ''}> Voting open</label><label class="check"><input type="checkbox" name="rsvpOpen" ${s.rsvpOpen ? 'checked' : ''}> Registrations open</label></div>
     <div class="row mt"><button class="btn p">Save settings</button></div></form>
@@ -501,6 +519,8 @@ document.addEventListener('click', run(async e => {
     const alsoRsvp = reg === '1' && confirm('Also delete their registration (RSVP)?\n\nOK = delete the registration too\nCancel = keep the registration');
     await api(`/accounts/${id}${alsoRsvp ? '?rsvp=1' : ''}`, { method:'DELETE' }); toast('Account deleted'); return load(); }
   const ap = t.closest('[data-appr]'); if (ap) { const [id, action] = ap.dataset.appr.split('|'); await api(`/accounts/${id}/approval`, { method:'POST', json:{ action } }); toast(action === 'approved' ? 'Approved — they can now use the app' : 'Declined'); return load(); }
+  const pk = t.closest('[data-phok],[data-phno]'); if (pk) { const ok = !!pk.dataset.phok; await api(`/album/${pk.dataset.phok || pk.dataset.phno}/status`, { method:'POST', json:{ status: ok ? 'approved' : 'rejected' } }); toast(ok ? 'Photo approved' : 'Photo rejected'); return load(); }
+  if (t.closest('[data-phall]')) { const P = (S.album || []).filter(p => p.status === 'pending'); if (!confirm(`Approve all ${P.length} photos?`)) return; for (const p of P) await api(`/album/${p.id}/status`, { method:'POST', json:{ status:'approved' } }); toast('All approved'); return load(); }
   const dp = t.closest('[data-delphoto]'); if (dp) { if (!confirm('Remove this photo from the album?')) return; await api(`/album/${dp.dataset.delphoto}`, { method:'DELETE' }); toast('Photo removed'); return load(); }
   const dc = t.closest('[data-delc]'); if (dc) { if (!confirm('Remove this candidate and their votes?')) return; await api(`/elections/${selE}/candidates/${dc.dataset.delc}`, { method:'DELETE' }); return load(); }
   const dr = t.closest('[data-delr]'); if (dr) { if (!confirm('Delete this registration?')) return; await api(`/rsvps/${dr.dataset.delr}`, { method:'DELETE' }); return load(); }
@@ -585,6 +605,7 @@ document.addEventListener('submit', run(async e => {
     d.passBase = Object.fromEntries(ids.map(id => [id, +d[`pass_${id}_base`]]));
     for (const k of Object.keys(d)) if (k.startsWith('pass_')) delete d[k];
     d.requireApproval = !!d.requireApproval;
+    d.albumApproval = !!d.albumApproval;
     d.whatsapp = { show: !!d.wa_show, active: +d.wa_active, left: +d.wa_left, admins: +d.wa_admins,
       locations: String(d.wa_locations || '').split('\n').map(x => x.split(':')).filter(x => x[0] && x[0].trim()).map(([pl, c]) => ({ place: pl.trim(), count: +(c || 0) })) };
     for (const k of Object.keys(d)) if (k.startsWith('wa_')) delete d[k];

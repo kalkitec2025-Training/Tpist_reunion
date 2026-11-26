@@ -322,6 +322,14 @@
   .hm-gg { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
   .hm-gg > div { background:var(--track); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:2px; } .hm-gg span { font-size:24px; } .hm-gg b { font-size:14px; } .hm-gg small { font-size:12px; color:var(--muted); }
   .hm-gr { margin-top:10px; font-size:13px; color:#FCD34D; }
+  .alb-grid button { position:relative; }
+  .alb-st { position:absolute; left:4px; right:4px; bottom:4px; font-size:10.5px; font-weight:700; border-radius:8px; padding:3px 4px; text-align:center; background:rgba(245,158,11,.92); color:#1F1300; }
+  .alb-st.rejected { background:rgba(220,38,38,.92); color:#fff; }
+  .alb-rv { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; margin:0 20px; }
+  .alb-rvi > button { width:100%; aspect-ratio:1; border:0; padding:0; border-radius:14px; overflow:hidden; display:block; } .alb-rvi img { width:100%; height:100%; object-fit:cover; display:block; }
+  .alb-rvi small { display:block; font-size:12px; color:var(--muted); margin:6px 0; }
+  .alb-rvi > div { display:flex; gap:6px; } .alb-rvi > div button { flex:1; height:38px; border-radius:10px; border:0; font:inherit; font-size:13.5px; font-weight:700; cursor:pointer; }
+  .alb-rvi .ok { background:#2DD4BF; color:#06201D; } .alb-rvi .no { background:rgba(255,255,255,.1); color:#FCA5A5; }
   .alb-n { font-size:13px; color:var(--muted); }
   .tq { padding-bottom:4px; }
   .tq-top { margin-top:16px; padding:16px; }
@@ -915,7 +923,7 @@ let AL = null, alBusy = '';
 async function renderAlbum() {
   const v = $('view');
   if (!AL) { v.innerHTML = '<div class="loading">Loading…</div>'; try { AL = await api2('/api/album'); } catch (e) { toast(e.message); AL = { photos: [], link: '', mine: 0, max: 25 }; } if (route()[0] !== 'album') return; }
-  const tp = AL.photos.filter(p => p.album === 'TPIST'), hl = AL.photos.filter(p => p.album !== 'TPIST');
+  const tp = AL.photos.filter(p => p.album === 'TPIST'), hl = AL.photos.filter(p => p.album !== 'TPIST'), pend = hl.filter(p => p.status === 'pending' && !p.mine);
   const share = encodeURIComponent(`Our Silver Jubilee Reunion album is ready! 📸\nSee the photos in the app: ${location.origin}/#album${AL.link ? `\nFull album (add yours too): ${AL.link}` : ''}`);
   v.innerHTML = `<div class="alb-h"><div><h1 class="d">Reunion Album</h1><p>Photos from the celebration, shared by batchmates.</p></div></div>
     <div class="alb-acts">
@@ -926,7 +934,9 @@ async function renderAlbum() {
     ${tp.length ? `<div class="sec"><h2 class="d">TPIST</h2><span class="alb-n">${tp.length} photo${tp.length === 1 ? '' : 's'} · our campus</span></div>
     <div class="alb-grid">${tp.map(p => `<button type="button" data-ph="${esc(p.id)}" aria-label="TPIST campus photo"><img src="/api/album/${esc(p.id)}/t" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
     <div class="sec"><h2 class="d">Highlights</h2>${hl.length ? `<button type="button" class="lnk" data-alzip>Download all</button>` : ''}</div>
-    <div class="alb-grid">${hl.map(p => `<button type="button" data-ph="${esc(p.id)}" aria-label="Photo by ${esc(p.by)}"><img src="/api/album/${esc(p.id)}/t" alt="" loading="lazy"></button>`).join('') || '<div class="card" style="grid-column:1/-1"><div class="empty">No photos yet. Be the first to add one!</div></div>'}</div>
+    ${AL.moderator && pend.length ? `<div class="sec"><h2 class="d">Waiting for approval</h2><span class="alb-n">${pend.length} new</span></div>
+    <div class="alb-rv">${pend.map(p => `<div class="alb-rvi"><button type="button" data-ph="${esc(p.id)}" aria-label="Photo by ${esc(p.by)}"><img src="/api/album/${esc(p.id)}/t" alt="" loading="lazy"></button><small>${esc(p.by)}</small><div><button type="button" class="ok" data-phrev="${esc(p.id)}|approved">Approve</button><button type="button" class="no" data-phrev="${esc(p.id)}|rejected">Reject</button></div></div>`).join('')}</div>` : ''}
+    <div class="alb-grid">${hl.filter(p => p.status === 'approved' || p.mine).map(p => `<button type="button" data-ph="${esc(p.id)}" aria-label="Photo by ${esc(p.by)}"><img src="/api/album/${esc(p.id)}/t" alt="" loading="lazy">${p.status !== 'approved' ? `<span class="alb-st ${p.status}">${p.status === 'pending' ? 'Waiting for approval' : 'Not approved'}</span>` : ''}</button>`).join('') || `<div class="card" style="grid-column:1/-1"><div class="empty">${AL.moderator && pend.length ? 'No approved photos yet.' : 'No photos yet. Be the first to add one!'}</div></div>`}</div>
     <p class="fine">You can add up to ${AL.max} highlight photos here${AL.mine ? ` (you've added ${AL.mine})` : ''}.${AL.link ? ' Add the rest to the Google Photos album.' : ''}</p>
     ${footer()}`;
 }
@@ -945,7 +955,7 @@ async function uploadPhotos(files) {
       await api2('/api/album/upload', { full: full.data, thumb: thumb.data, w: full.w, h: full.h }); n++;
     } catch (e) { toast(e.message); break; }
   }
-  alBusy = ''; AL = null; renderAlbum(); if (n) toast(`${n} photo${n === 1 ? '' : 's'} added`);
+  alBusy = ''; const mod = AL && AL.moderator, appr = AL ? AL.approval : true; AL = null; renderAlbum(); if (n) toast(appr && !mod ? `${n} photo${n === 1 ? '' : 's'} sent to the Core Committee for approval` : `${n} photo${n === 1 ? '' : 's'} added`);
 }
 function showPhoto(id) {
   const p = AL.photos.find(x => x.id === id); if (!p) return;
@@ -958,7 +968,7 @@ async function zipAll() {
   try { toast('Preparing download…');
     if (!window.JSZip) await new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'; sc.onload = ok; sc.onerror = () => no(new Error('Could not prepare the download')); document.head.appendChild(sc); });
     const z = new JSZip(); let k = 0;
-    for (const p of AL.photos) { const r = await fetch(`/api/album/${p.id}/f`); if (r.ok) z.file(`reunion-${String(++k).padStart(3, '0')}.jpg`, await r.blob()); }
+    for (const p of AL.photos.filter(x => x.status === 'approved')) { const r = await fetch(`/api/album/${p.id}/f`); if (r.ok) z.file(`reunion-${String(++k).padStart(3, '0')}.jpg`, await r.blob()); }
     const blob = await z.generateAsync({ type: 'blob' }), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = 'silver-jubilee-reunion-album.zip'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   } catch (e) { toast(e.message); }
@@ -1033,7 +1043,7 @@ function homePage() {
   ];
   const doneN = tasks.filter(t => t.done).length;
   if (!AL && !homeAlbumLoading) { homeAlbumLoading = true; api2('/api/album').then(d => { AL = d; if (route()[0] === 'home') render(); }).catch(() => {}); }
-  const pics = AL ? AL.photos.slice(0, 8) : [];
+  const pics = AL ? AL.photos.filter(p => p.status === 'approved').slice(0, 8) : [];
   return `${ticker()}
   ${st.announcement ? `<div class="note-bar">${svg(P.info, 18)}<span>${esc(st.announcement)}</span></div>` : ''}
   <section class="hero hb">
@@ -1520,6 +1530,7 @@ document.addEventListener('click', e => {
   const ec = e.target.closest('[data-emocat]'); if (ec) { draft = $('msg') ? $('msg').value : draft; emoCat = +ec.dataset.emocat; paintChat(route()[1]); return; }
   const em = e.target.closest('[data-emo]'); if (em) { const ta = $('msg'); if (ta) { const a = caret ? caret[0] : ta.value.length, b = caret ? caret[1] : a; ta.value = ta.value.slice(0, a) + em.dataset.emo + ta.value.slice(b); draft = ta.value; caret = [a + em.dataset.emo.length, a + em.dataset.emo.length]; } return; }
   const rp = e.target.closest('[data-replay]'); if (rp) { gameMounted = ''; renderGame(rp.dataset.replay); return; }
+  const pr = e.target.closest('[data-phrev]'); if (pr) { const [id, st] = pr.dataset.phrev.split('|'); api2(`/api/album/${id}/review`, { status: st }).then(() => { toast(st === 'approved' ? 'Photo approved' : 'Photo rejected'); AL = null; renderAlbum(); }).catch(err => toast(err.message)); return; }
   const pf = e.target.closest('[data-pf]'); if (pf) { peopleF = pf.dataset.pf; paintChat(route()[1]); return; }
   const mo = e.target.closest('[data-month]'); if (mo) { pickMonth(mo.dataset.month); return; }
   if (e.target.closest('[data-import]')) { impStart(); return; }

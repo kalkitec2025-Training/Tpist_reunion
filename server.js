@@ -958,10 +958,22 @@ async function applyTpistAlbum() {
   }
   db.tpistAlbum = 1; saveDb();
 }
+// photo approval: new uploads wait for the Core Committee (or Admin) unless approval is switched off in Settings
+const photoStatus = p => p.status || 'approved';
+const isModerator = u => !!(u && db.users[u.id] && /^corecommit/i.test(db.users[u.id].email || ''));
 app.get('/api/album', (req, res) => {
-  const u = sessionUser(req), list = db.album || [];
-  res.json({ link: db.settings.albumLink || '', max: ALBUM_PER_USER, mine: u ? list.filter(p => p.uid === u.id && !p.album).length : 0,
-    photos: list.slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, mine: !!u && p.uid === u.id, w: p.w, h: p.h, album: p.album || '' })) });
+  const u = sessionUser(req), list = db.album || [], mod = isModerator(u);
+  const vis = list.filter(p => photoStatus(p) === 'approved' || (u && p.uid === u.id) || (mod && photoStatus(p) === 'pending'));
+  res.json({ link: db.settings.albumLink || '', max: ALBUM_PER_USER, mine: u ? list.filter(p => p.uid === u.id && !p.album).length : 0, moderator: mod,
+    approval: db.settings.albumApproval !== false,
+    photos: vis.slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, mine: !!u && p.uid === u.id, w: p.w, h: p.h, album: p.album || '', status: photoStatus(p) })) });
+});
+app.post('/api/album/:id/review', (req, res) => {
+  const u = sessionUser(req), p = (db.album || []).find(x => x.id === req.params.id);
+  if (!isModerator(u)) return res.status(403).json({ error: 'Only the Core Committee can approve photos' });
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  if (!['approved', 'rejected'].includes(req.body.status)) return res.status(400).json({ error: 'Bad status' });
+  p.status = req.body.status; p.reviewedAt = Date.now(); saveDb(); res.json({ ok: true });
 });
 app.post('/api/album/upload', express.json({ limit: '4mb' }), async (req, res) => {
   const u = sessionUser(req);
@@ -973,8 +985,9 @@ app.post('/api/album/upload', express.json({ limit: '4mb' }), async (req, res) =
   if (!thumb || !full || thumb.length > 200000 || full.length > 1500000) return res.status(400).json({ error: 'That photo could not be read. Please try another.' });
   const id = newId();
   try { await photoPut(id, thumb, full); } catch (e) { return res.status(507).json({ error: 'Could not save the photo right now. The album may be full.' }); }
-  list.push({ id, uid: u ? u.id : null, byName: u ? displayName(u.id) : 'Batchmate', t: Date.now(), w: num(req.body.w, 1, 10000) || 0, h: num(req.body.h, 1, 10000) || 0, size: full.length });
-  saveDb(); res.json({ ok: true, id });
+  const status = db.settings.albumApproval === false || isModerator(u) ? 'approved' : 'pending';
+  list.push({ id, status, uid: u ? u.id : null, byName: u ? displayName(u.id) : 'Batchmate', t: Date.now(), w: num(req.body.w, 1, 10000) || 0, h: num(req.body.h, 1, 10000) || 0, size: full.length });
+  saveDb(); res.json({ ok: true, id, status });
 });
 app.get('/api/album/:id/:kind(t|f)', async (req, res) => {
   if (!(db.album || []).some(p => p.id === req.params.id)) return res.status(404).end();
@@ -1054,7 +1067,7 @@ A.get('/state', (req, res) => {
     rsvps: Object.values(db.rsvps).sort((a, b) => b.createdAt - a.createdAt).map(({ voterId, ...r }) => ({ ...r, email: voterId && voterId.startsWith('u:') && db.users[voterId.slice(2)] ? db.users[voterId.slice(2)].email : '' })),
     accounts: Object.keys(db.users).length,
     activity: activityReport(),
-    album: (db.album || []).slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, size: p.size || 0, album: p.album || '' })),
+    album: (db.album || []).slice().reverse().map(p => ({ id: p.id, by: p.byName, t: p.t, size: p.size || 0, album: p.album || '', status: photoStatus(p) })),
     monthPoll: monthPoll(null),
     accountList: Object.values(db.users).map(u => {
       const r = Object.values(db.rsvps).find(x => x.voterId === 'u:' + u.id);
@@ -1082,6 +1095,7 @@ A.put('/settings', (req, res) => {
   }
   for (const k of ['votingOpen', 'rsvpOpen']) if (typeof b[k] === 'boolean') s[k] = b[k];
   if (typeof b.requireApproval === 'boolean') s.requireApproval = b.requireApproval;
+  if (typeof b.albumApproval === 'boolean') s.albumApproval = b.albumApproval;
   if (b.monthCloseIn !== undefined && b.monthCloseIn !== 'keep') { const t = closeInToTime(b.monthCloseIn); if (t !== undefined) s.monthClosesAt = t; }
   if (typeof b.albumLink === 'string') s.albumLink = /^https:\/\//.test(b.albumLink.trim()) ? str(b.albumLink.trim(), 500) : '';
   if (b.whatsapp && typeof b.whatsapp === 'object') {
@@ -1243,6 +1257,17 @@ A.post('/accounts/:id/approval', (req, res) => {
   const a = req.body.action;
   if (!['approved', 'declined', 'pending'].includes(a)) return res.status(400).json({ error: 'Unknown action' });
   u.approval = a; u.approvalAt = Date.now(); saveDb(); res.json({ ok: true });
+});
+A.get('/album/:id/:kind(t|f)', async (req, res) => {
+  const b = await photoGet(req.params.id, req.params.kind);
+  if (!b) return res.status(404).end();
+  res.set('Cache-Control', 'private, max-age=3600').type('jpeg').send(b);
+});
+A.post('/album/:id/status', (req, res) => {
+  const p = (db.album || []).find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  if (!['approved', 'rejected', 'pending'].includes(req.body.status)) return res.status(400).json({ error: 'Bad status' });
+  p.status = req.body.status; p.reviewedAt = Date.now(); saveDb(); res.json({ ok: true });
 });
 A.delete('/album/:id', async (req, res) => {
   const p = (db.album || []).find(x => x.id === req.params.id);
