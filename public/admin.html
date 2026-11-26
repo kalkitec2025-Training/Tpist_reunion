@@ -357,6 +357,38 @@ function plan() {
 }
 
 // ------------------------------------------------------------ chat
+let statWho = 'all';
+function chatStatsCard(st) {
+  if (!st) return '';
+  const days = []; for (let d = new Date(st.start + 'T00:00:00Z'); d.toISOString().slice(0, 10) <= st.today; d.setUTCDate(d.getUTCDate() + 1)) days.push(d.toISOString().slice(0, 10));
+  const P = st.people, who = P.find(p => p.id === statWho);
+  const per = k => who ? (who.days[k] || 0) : P.reduce((a, p) => a + (p.days[k] || 0), 0);
+  const vals = days.map(per), total = vals.reduce((a, b) => a + b, 0), max = Math.max(1, ...vals);
+  const active = vals.filter(v => v).length, bi = vals.indexOf(Math.max(...vals));
+  const fmt = k => new Date(k + 'T00:00:00Z').toLocaleDateString('en-IN', { day:'numeric', month:'short', timeZone:'UTC' });
+  const W = Math.max(640, days.length * 34), H = 220, pl = 34, pb = 34, pt = 18, bw = (W - pl - 10) / days.length;
+  const ticks = [0, Math.ceil(max / 2), max].filter((v, i, a) => a.indexOf(v) === i);
+  const step = Math.ceil(days.length / 14);
+  const svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Messages sent per day" style="display:block;font-family:inherit">
+    ${ticks.map(t => { const y = pt + (H - pt - pb) * (1 - t / max); return `<line x1="${pl}" x2="${W - 6}" y1="${y}" y2="${y}" stroke="#EEF0F4"/><text x="${pl - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="#6B7280">${t}</text>`; }).join('')}
+    ${vals.map((v, i) => { const h = (H - pt - pb) * v / max, x = pl + i * bw + bw * .18, y = H - pb - h, w = bw * .64;
+      return `<g><title>${fmt(days[i])}: ${v} message${v === 1 ? '' : 's'}</title>${v ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${i === bi ? '#0D9488' : '#5EBFB3'}"/><text x="${x + w / 2}" y="${y - 5}" text-anchor="middle" font-size="11" font-weight="600" fill="#111827">${v}</text>` : `<rect x="${x}" y="${H - pb - 2}" width="${w}" height="2" fill="#E5E7EB"/>`}
+        ${i % step === 0 || i === days.length - 1 ? `<text x="${x + w / 2}" y="${H - pb + 16}" text-anchor="middle" font-size="11" fill="#6B7280">${fmt(days[i])}</text>` : ''}</g>`; }).join('')}
+  </svg>`;
+  const last7 = p => days.slice(-7).reduce((a, k) => a + (p.days[k] || 0), 0);
+  return `<section class="card"><div class="hrow"><h2>Messages per day</h2>
+      <select data-cstat style="width:240px"><option value="all">Everyone (${P.reduce((a, p) => a + p.total, 0)} messages)</option>${P.map(p => `<option value="${esc(p.id)}" ${p.id === statWho ? 'selected' : ''}>${esc(p.name)} (${p.total})</option>`).join('')}</select></div>
+    <p class="hint">Messages ${who ? `<b>${esc(who.name)}</b> has` : 'everyone has'} sent each day, from ${fmt(st.start)} to today (India time). Hover a bar for the date.</p>
+    <div class="row mt" style="gap:10px">
+      <span class="pill g">Total: ${total}</span><span class="pill">Active days: ${active} of ${days.length}</span>
+      <span class="pill">Busiest: ${total ? `${fmt(days[bi])} (${vals[bi]})` : '—'}</span><span class="pill">Average: ${(total / days.length).toFixed(1)} a day</span>
+    </div>
+    <div style="overflow-x:auto;margin-top:14px">${svg}</div>
+    <div class="tw mt"><table><tr><th>Person</th><th>Total sent</th><th>Last 7 days</th><th>Today</th><th>Last message</th><th></th></tr>
+      ${P.map(p => `<tr><td><b>${esc(p.name)}</b></td><td>${p.total}</td><td>${last7(p)}</td><td>${p.days[st.today] || 0}</td><td>${p.last ? when(p.last) : '—'}</td><td><button class="btn s" data-cstatpick="${esc(p.id)}">Chart</button></td></tr>`).join('') || '<tr><td colspan="6" class="hint">No messages yet.</td></tr>'}
+    </table></div>
+  </section>`;
+}
 function chat() {
   const C = S.chat, P = Object.fromEntries(C.plans.map(p => [p.id, p]));
   const pend = C.users.filter(u => u.requested && u.status !== 'revoked');
@@ -364,6 +396,7 @@ function chat() {
   const ST = { none:'No plan', pending:'Requested', active:'Active', declined:'Declined', revoked:'Removed' };
   const planSel = (u, def) => `<select data-cplan="${u.id}" style="width:150px">${C.plans.map(p => `<option value="${p.id}" ${p.id === def ? 'selected' : ''}>${esc(p.name)} · ₹${p.price}</option>`).join('')}</select>`;
   return `<div class="grid" style="grid-template-columns:minmax(0,1fr)">
+  ${chatStatsCard(C.stats)}
   <section class="card"><h2>Chat members (${C.users.length})</h2><p class="hint">Everyone who accepted the chat rules.</p>
     <div class="tw"><table><tr><th>Name</th><th>Status</th><th>Messages sent</th><th></th></tr>
     ${C.users.map(u => `<tr><td><b>${esc(u.name)}</b></td><td><span class="pill ${u.status === 'revoked' ? 'r' : 'g'}">${u.status === 'revoked' ? 'Removed' : 'Active'}</span></td>
@@ -455,6 +488,7 @@ const actions = {
 };
 
 document.addEventListener('click', run(async e => {
+  const sp = e.target.closest('[data-cstatpick]'); if (sp) { statWho = sp.dataset.cstatpick; render(); scrollTo({ top: 0, behavior: 'smooth' }); return; }
   const t = e.target;
   const a = t.closest('[data-a]'); if (a) { e.preventDefault(); if ((await actions[a.dataset.a]()) !== false) await load(); return; }
   const s = t.closest('[data-sel]'); if (s) { selE = s.dataset.sel; render(); return; }
@@ -492,6 +526,7 @@ document.addEventListener('click', run(async e => {
 }));
 
 document.addEventListener('change', run(async e => {
+  if (e.target.dataset && e.target.dataset.cstat !== undefined) { statWho = e.target.value; render(); return; }
   if (e.target.dataset && e.target.dataset.blockSel && e.target.value) { const h = +e.target.value, label = e.target.selectedOptions[0].textContent;
     if (!confirm(`Block this account for ${label.toLowerCase()}?\n\nThey will see "Access paused" and can't use the app until then.`)) { e.target.value = ''; return; }
     await api(`/accounts/${e.target.dataset.blockSel}/block`, { method:'POST', json:{ hours:h } }); toast(`Blocked for ${label.toLowerCase()}`); return load(); }

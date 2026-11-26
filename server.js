@@ -969,6 +969,17 @@ function activityReport() {
     topPages: top(pages), topTaps: top(taps)
   };
 }
+// messages sent per person per day (India time), from the first day of the app until today
+function chatStats() {
+  const day = t => new Date(t + 19800000).toISOString().slice(0, 10);
+  const people = {};
+  for (const m of db.chat.messages) {
+    const p = (people[m.from] ||= { id: m.from, name: m.from === COMMITTEE ? 'Admin' : db.users[m.from] ? displayName(m.from) : 'Deleted account', total: 0, days: {}, last: 0 });
+    const k = day(m.t); p.days[k] = (p.days[k] || 0) + 1; p.total++; if (m.t > p.last) p.last = m.t;
+  }
+  const firsts = [...db.chat.messages.map(m => m.t), ...Object.values(db.users).map(u => u.createdAt || Date.now())];
+  return { start: day(firsts.length ? Math.min(...firsts) : Date.now()), today: day(Date.now()), people: Object.values(people).sort((a, b) => b.total - a.total) };
+}
 A.get('/state', (req, res) => {
   autoClose();
   const slot = currentSlot();
@@ -1001,6 +1012,7 @@ A.get('/state', (req, res) => {
       return { id: u.id, hidden: !!u.hidden, approval: u.approval || 'approved', blockedUntil: u.blockedUntil && u.blockedUntil > Date.now() ? u.blockedUntil : null, name: u.name || '', email: u.email || '', picture: u.picture || '', createdAt: u.createdAt, lastSeen: u.lastSeen || u.createdAt, registered: !!r, rsvpName: r ? r.name : '', chat: !!(db.chat.users[u.id] && db.chat.users[u.id].consentAt) };
     }).sort((a, b) => b.createdAt - a.createdAt),
     chat: {
+      stats: chatStats(),
       plans: PLANS,
       users: Object.entries(db.chat.users).filter(([id]) => db.users[id]).map(([id, u]) => ({ ...profileOf(id, true), email: db.users[id].email, ...u, id }))
         .sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0)),
