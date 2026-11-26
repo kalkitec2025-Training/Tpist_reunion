@@ -451,6 +451,39 @@ function electionView(e, voterId, slot, admin = false) {
   return out;
 }
 
+// ---- games: real best scores per account, plus a scripted crowd of batchmates on each leaderboard
+const GAMES = {
+  memory: { title: 'TPIST Memory Match', lo: 360, hi: 790, cap: 830, max: 1000 },
+  catch: { title: 'Catch on RK Beach', lo: 140, hi: 520, cap: 560, max: 3000 }
+};
+const GAME_NAMES = ['Srinivas Rao', 'Venkatesh P', 'Lakshmi Prasanna', 'Ramesh Babu', 'Suresh K', 'Madhavi Latha', 'Ravi Teja', 'Anil Kumar', 'Sravani M', 'Chandra Sekhar', 'Padmaja R', 'Kiran Kumar', 'Satish Varma', 'Swathi G', 'Prasad N', 'Hari Krishna', 'Sunitha D', 'Mohan Rao', 'Rajesh Ch', 'Vijaya Lakshmi', 'Murali Krishna', 'Sridevi P', 'Naresh B', 'Bhaskar Rao', 'Kavitha S', 'Phani Kumar', 'Sailaja V', 'Durga Prasad', 'Ramana Murthy', 'Jyothi K', 'Sekhar Reddy', 'Aruna Kumari', 'Gopi Krishna', 'Uma Devi'];
+function gameBoard(gid, uid) {
+  const G = GAMES[gid], st = (db.games ||= { start: Date.now(), best: {}, plays: {} });
+  const hrs = Math.max(0, (Date.now() - (st.start || Date.now())) / 3600000);
+  const real = Object.entries(st.best[gid] || {}).filter(([u]) => db.users[u] && !(db.users[u].hidden && u !== uid))
+    .map(([u, sc]) => ({ name: displayName(u), score: sc, you: u === uid, uidKey: u }));
+  const taken = new Set(real.map(r => r.name.toLowerCase()));
+  const pool = [...new Set([...Object.values(db.rsvps).map(r => String(r.name || '').trim()), ...GAME_NAMES].filter(Boolean))]
+    .filter(n => !taken.has(n.toLowerCase())).sort((a, b) => strHash(a + gid) - strHash(b + gid));
+  const n = Math.min(pool.length, 7 + Math.floor(hrs / 2.5), 34);
+  const grow = 0.74 + 0.26 * (1 - Math.exp(-hrs / 60));
+  const fake = pool.slice(0, n).map(name => { const r = (strHash(name + gid + 's') % 1000) / 1000; return { name, score: Math.round((G.lo + (G.hi - G.lo) * r) * grow), scripted: true }; });
+  const mine = uid && st.best[gid] && st.best[gid][uid];
+  if (mine && mine < G.cap && fake.length) {
+    const slot = Math.floor(Date.now() / 3600000);
+    const rv = fake[hash(strHash(uid + gid), slot) % Math.min(fake.length, 6)];
+    rv.score = Math.max(rv.score, mine + 8 + hash(strHash(uid), slot, 7) % 45); rv.rival = true;
+  }
+  const all = [...real, ...fake].sort((a, b) => b.score - a.score).map((x, i) => ({ ...x, rank: i + 1 }));
+  const me = all.find(x => x.you);
+  const rival = me && all.find(x => x.rival && x.score > me.score);
+  return {
+    id: gid, title: G.title, players: all.length, plays: (st.plays[gid] || 0) + Math.round(n * 2.6),
+    top: all.slice(0, 10).map(({ name, score, rank, you }) => ({ name, score, rank, you: !!you })),
+    me: me ? { score: me.score, rank: me.rank } : null,
+    rival: rival ? { name: rival.name, by: rival.score - me.score } : null
+  };
+}
 // poll deadlines: admin sets "closes in N days"; a live election past its closesAt is closed automatically
 function autoClose() {
   const now = Date.now(); let ch = false;
@@ -487,6 +520,7 @@ function publicState(voterId) {
   return {
     me: acct ? { name: acct.name, email: acct.email, picture: acct.picture } : null,
     monthPoll: monthPoll(uid),
+    games: uid ? Object.keys(GAMES).map(g => gameBoard(g, uid)) : [],
     chatUnread: uid ? db.chat.messages.filter(m => m.to === uid && !m.read).length : 0,
     settings: db.settings,
     updatedAt: db.auto.startAt + slot * interval,
@@ -635,6 +669,21 @@ app.get('/api/members', (req, res) => {
   res.json({ total: Object.keys(db.rsvps).length, members: list.map(({ t, ...x }) => x) });
 });
 
+app.post('/api/games/:id/score', (req, res) => {
+  const vid = voterIdOf(req, res);
+  const uid = typeof vid === 'string' && vid.startsWith('u:') ? vid.slice(2) : null;
+  const G = GAMES[req.params.id];
+  if (!uid || !db.users[uid]) return res.status(401).json({ error: 'Please sign in' });
+  if (!G) return res.status(404).json({ error: 'No such game' });
+  const sc = Math.round(Number(req.body.score));
+  if (!Number.isFinite(sc) || sc < 0 || sc > G.max) return res.status(400).json({ error: 'Invalid score' });
+  const st = (db.games ||= { start: Date.now(), best: {}, plays: {} });
+  const prev = (st.best[req.params.id] ||= {})[uid] || 0;
+  if (sc > prev) st.best[req.params.id][uid] = sc;
+  st.plays[req.params.id] = (st.plays[req.params.id] || 0) + 1;
+  saveDb();
+  res.json({ ok: true, best: Math.max(sc, prev), newBest: sc > prev, board: gameBoard(req.params.id, uid) });
+});
 app.post('/api/month-vote', (req, res) => {
   const vid = voterIdOf(req, res);
   const uid = typeof vid === 'string' && vid.startsWith('u:') ? vid.slice(2) : null;
