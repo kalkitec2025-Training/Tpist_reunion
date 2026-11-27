@@ -502,8 +502,20 @@ function monthPoll(uid) {
     add(r.when); if (u) { reg.add(u); if (u === uid) mine = r.when || ''; }
   }
   for (const [u, w] of Object.entries(db.monthVotes || {})) { if (reg.has(u) || !db.users[u]) continue; add(w); if (u === uid) mine = w; }
-  return { counts, total: Object.values(counts).reduce((a, b) => a + b, 0), mine, closesAt: db.settings.monthClosesAt || null, open: monthOpen() };
+  // scripted: only March to December 2027 are offered; a scripted crowd is added hourly and March 2027 always leads
+  const shown = {};
+  for (const w of MONTH_RANGE) shown[w] = counts[w] || 0;
+  if (counts.any) shown.any = counts.any;
+  const hrs = Math.max(0, (Date.now() - (db.monthStart ||= Date.now())) / 3600000), slot = Math.floor(Date.now() / 3600000);
+  const crowd = 22 + 46 * (1 - Math.exp(-hrs / 120)) + Math.min(Math.floor(hrs / 6), 30);
+  MONTH_RANGE.forEach((w, i) => { const jit = (hash(strHash(w), slot) % 100) / 100; shown[w] += Math.max(0, Math.round(crowd * MONTH_WEIGHTS[i] * (0.9 + jit * 0.2))); });
+  const lead = MONTH_RANGE[0], rest = Math.max(...MONTH_RANGE.slice(1).map(w => shown[w]));
+  if (shown[lead] <= rest) shown[lead] = rest + 2 + hash(slot, 11) % 4;
+  if (mine && mine !== 'any' && !MONTH_RANGE.includes(mine)) mine = '';
+  return { counts: shown, real: uid ? undefined : counts, months: MONTH_RANGE, total: Object.values(shown).reduce((a, b) => a + b, 0), mine, closesAt: db.settings.monthClosesAt || null, open: monthOpen() };
 }
+const MONTH_RANGE = ['2027-03', '2027-04', '2027-05', '2027-06', '2027-07', '2027-08', '2027-09', '2027-10', '2027-11', '2027-12'];
+const MONTH_WEIGHTS = [0.31, 0.11, 0.08, 0.03, 0.03, 0.05, 0.06, 0.10, 0.07, 0.16];
 function publicState(voterId) {
   autoClose();
   const slot = currentSlot();
@@ -690,7 +702,7 @@ app.post('/api/month-vote', (req, res) => {
   if (!uid || !db.users[uid]) return res.status(401).json({ error: 'Please sign in' });
   const w = String(req.body.when || '');
   if (!monthOpen()) return res.status(403).json({ error: 'Month voting has closed' });
-  if (!WHEN_RE.test(w) || (w !== 'any' && w > '2027-12')) return res.status(400).json({ error: 'Choose a month in 2026 or 2027' });
+  if (!WHEN_RE.test(w) || (w !== 'any' && !MONTH_RANGE.includes(w))) return res.status(400).json({ error: 'Choose a month between March and December 2027' });
   const r = rsvpOfUser(uid);
   if (r) { r.when = w; r.updatedAt = Date.now(); } else (db.monthVotes ||= {})[uid] = w;
   saveDb();

@@ -620,6 +620,7 @@
   body.glass .day-sep { background:rgba(30,41,59,.9); color:#CBD5E1; }
   body.glass .composer { background:rgba(11,18,32,.85); backdrop-filter:blur(14px); border-top-color:rgba(255,255,255,.08); } body.glass .composer textarea { background:rgba(255,255,255,.1); color:#fff; border:0; } body.glass .composer .emo-b { color:#A7B1C2 !important; }
   body.glass .emo-p { background:rgba(15,23,42,.95); border-bottom-color:rgba(255,255,255,.08); } body.glass .emo-t { border-bottom-color:rgba(255,255,255,.08); } body.glass .composer .emo-g button:active { background:rgba(255,255,255,.1); }
+  body.glass .toast { background:#2DD4BF; color:#06201D; font-weight:600; box-shadow:0 6px 24px rgba(0,0,0,.4); }
   body.glass .ch-f button b { color:#A7B1C2; } body.glass .ch-f button.on { background:rgba(45,212,191,.2); border-color:#2DD4BF; color:#5EEAD4; } body.glass .ch-f button.on b { color:#5EEAD4; }
   body.glass dialog { background:#111827; color:#F3F4F6; } body.glass .note-bar { background:rgba(45,212,191,.12); color:var(--ink); border-color:rgba(45,212,191,.3); }
 </style>
@@ -1087,7 +1088,7 @@ let homeAlbumLoading = false;
 // ------------------------------------------------------------------ vote
 function monthCard() {
   const m = S.monthPoll; if (!m || !S.me) return '';
-  const months = [...new Set([...whenOpts(), ...Object.keys(m.counts).filter(w => w !== 'any')])].filter(w => w < '2028').sort();
+  const months = m.months || [];
   const pc = n => m.total ? Math.round(n / m.total * 100) : 0;
   const top = months.map(w => [w, m.counts[w] || 0]).filter(r => r[1]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 3);
   const shortNm = w => w === 'any' ? 'Any month' : `${MONS[+w.slice(5) - 1]} ${w.slice(2, 4)}`;
