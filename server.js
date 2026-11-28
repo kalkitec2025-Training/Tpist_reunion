@@ -432,13 +432,13 @@ function electionView(e, voterId, slot, admin = false) {
   if (admin) for (const v of Object.values(real)) realCounts[v.c] = (realCounts[v.c] || 0) + 1;
   const candidates = e.candidates.map((c, i) => ({
     id: c.id, name: c.name, note: c.note || '', info: c.info || null, isNew: c.joinSlot > 0,
-    votes: c.frozen != null ? c.frozen : Math.max(0, counts[c.id] + (c.offset || 0)),
+    votes: c.final != null ? c.final : c.frozen != null ? c.frozen : Math.max(0, counts[c.id] + (c.offset || 0)),
     lastHour: c.frozen != null ? 0 : last[c.id], i, lost: c.frozen != null,
     ...(admin ? { offset: c.offset || 0, real: realCounts[c.id] || 0, by: c.by || 'admin' } : {})
   }));
   // when some nominees are out (frozen), the ones still fighting always stay above them
   const outMax = Math.max(-1, ...candidates.filter(c => c.lost).map(c => c.votes));
-  if (outMax >= 0) for (const c of candidates) if (!c.lost && c.votes <= outMax) c.votes = outMax + 2 + (c.i % 3);
+  if (outMax >= 0) for (const c of candidates) if (!c.lost && c.votes <= outMax && e.candidates[c.i].final == null) c.votes = outMax + 2 + (c.i % 3);
   candidates.sort((a, b) => b.votes - a.votes || a.i - b.i);
   const conf = e.confirmedId && e.candidates.find(c => c.id === e.confirmedId);
   const isLiveNow = !conf && (e.status || 'live') === 'live';
@@ -491,7 +491,16 @@ function gameBoard(gid, uid) {
 // poll deadlines: admin sets "closes in N days"; a live election past its closesAt is closed automatically
 function autoClose() {
   const now = Date.now(); let ch = false;
-  for (const e of db.elections) if (e.closesAt && e.closesAt <= now && (e.status || 'live') === 'live' && !e.confirmedId) { e.status = 'closed'; ch = true; }
+  for (const e of db.elections) if (!e.confirmedId && ((e.closesAt && e.closesAt <= now && (e.status || 'live') === 'live') || (e.status === 'closed' && e.candidates.some(c => c.frozen != null)))) {
+    // the final fight: lock the closing numbers, make sure Naveen finishes first and confirm him as the winner
+    if (e.candidates.some(c => c.frozen != null)) {
+      const view = electionView(e, null, currentSlot(), true);
+      for (const c of e.candidates) { const v = view.candidates.find(x => x.id === c.id); c.final = v ? v.votes : 0; }
+      const nav = e.candidates.find(c => /^naveen\b/i.test(String(c.name).trim()));
+      if (nav) { const best = Math.max(...e.candidates.filter(c => c !== nav).map(c => c.final || 0)); if ((nav.final || 0) <= best) nav.final = best + 7; e.confirmedId = nav.id; }
+    }
+    e.status = 'closed'; ch = true;
+  }
   if (ch) saveDb();
 }
 const monthOpen = () => !(db.settings.monthClosesAt && db.settings.monthClosesAt <= Date.now());

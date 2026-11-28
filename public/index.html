@@ -367,6 +367,21 @@
   .cd-bar.win { background:linear-gradient(90deg, rgba(245,197,66,.3), rgba(45,212,191,.2)); border-color:rgba(245,197,66,.6); animation:none; } .cd-bar.win span { color:#FDE68A; } .cd-bar.win b { font-size:20px; }
   @keyframes cdGlow { 50% { box-shadow:0 0 18px rgba(248,113,113,.45); } }
   .fight-live.done { color:var(--muted); animation:none; } .fx-cta.done { background:rgba(255,255,255,.1); color:var(--ink); }
+  .wn { position:relative; overflow:hidden; margin-top:16px; padding:26px 18px 20px; text-align:center; border:1px solid rgba(245,197,66,.55) !important; background:radial-gradient(ellipse at top, rgba(245,197,66,.28), rgba(15,23,42,.6) 60%) !important; box-shadow:0 0 40px rgba(245,197,66,.18); }
+  .wn-conf { position:absolute; inset:0; pointer-events:none; } .wn-conf i { position:absolute; top:-12px; width:8px; height:14px; border-radius:2px; opacity:.9; animation:wnFall 3.2s linear infinite; }
+  @keyframes wnFall { 0% { transform:translateY(-20px) rotate(0); opacity:0; } 10% { opacity:1; } 100% { transform:translateY(560px) rotate(540deg); opacity:0; } }
+  .wn-k { position:relative; font-size:12.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#FDE68A; }
+  .wn-ph { position:relative; width:150px; height:150px; margin:18px auto 0; border-radius:26px; border:4px solid #F5C542; box-shadow:0 0 0 6px rgba(245,197,66,.18), 0 12px 30px rgba(0,0,0,.45); animation:wnPulse 2.4s ease-in-out infinite; }
+  .wn-ph img, .wn-ph span { width:100%; height:100%; object-fit:cover; border-radius:22px; display:grid; place-items:center; font-size:60px; font-weight:800; color:#fff; }
+  .wn-crown { position:absolute; top:-26px; left:50%; transform:translateX(-50%) rotate(-8deg); font-size:36px; }
+  @keyframes wnPulse { 50% { box-shadow:0 0 0 12px rgba(245,197,66,.08), 0 12px 30px rgba(0,0,0,.45); } }
+  .wn-n { position:relative; margin:20px 0 0; font-size:26px; line-height:1.2; background:linear-gradient(90deg,#FDE68A,#F5C542,#FDBA74); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .wn-s { position:relative; margin:8px 0 0; color:#E5E7EB; font-size:14.5px; } .wn-s b { color:#fff; }
+  .wn-v { position:relative; display:flex; justify-content:center; gap:10px; margin-top:16px; } .wn-v span { background:rgba(255,255,255,.08); border-radius:12px; padding:8px 14px; font-size:13px; color:var(--muted); } .wn-v b { color:#fff; font-size:17px; margin-right:3px; }
+  .wn-r { position:relative; margin-top:16px; text-align:left; border-top:1px solid var(--line); }
+  .wn-r div { display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid var(--line); font-size:14px; color:var(--muted); } .wn-r span { width:22px; text-align:center; font-weight:800; } .wn-r em { flex:1; font-style:normal; } .wn-r b { color:var(--ink); }
+  .wn-r div.me { color:#FDE68A; } .wn-r div.me em { font-weight:700; }
+  .wn-cta { position:relative; display:block; margin-top:16px; background:linear-gradient(90deg,#F5C542,#F59E0B); color:#2A1C00; font-weight:800; text-decoration:none; border-radius:14px; padding:13px; }
   .alb-n { font-size:13px; color:var(--muted); }
   .tq { padding-bottom:4px; }
   .tq-top { margin-top:16px; padding:16px; }
@@ -1067,7 +1082,25 @@ function waSection() {
   </section>`;
 }
 const QI = { bars:'<path d="M6 20V12M12 20V5M18 20v-6"/>', man:'<circle cx="12" cy="7" r="3.5"/><path d="M5 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2"/>', polls:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 12 3 3 5-6"/>', teams:'<circle cx="9" cy="8" r="3.5"/><path d="M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M22 21v-1a6 6 0 0 0-4-5.7"/>' };
+function winnerCard(e) {
+  const w = e.candidates.find(c => e.confirmed && c.id === e.confirmed.id) || e.candidates[0];
+  const pic = FIGHTER_PICS[w.name.trim().split(/\s+/)[0].toLowerCase()];
+  const tot = e.candidates.reduce((a, c) => a + c.votes, 0) || 1;
+  const conf = Array.from({ length: 26 }, (_, i) => `<i style="left:${(i * 37) % 100}%;animation-delay:${(i % 9) * .35}s;background:${['#F5C542', '#2DD4BF', '#F97316', '#EC4899', '#60A5FA'][i % 5]}"></i>`).join('');
+  return `<section class="card wn">
+    <div class="wn-conf" aria-hidden="true">${conf}</div>
+    <div class="wn-k">🏆 ${esc(e.title)} · Result</div>
+    <div class="wn-ph">${pic ? `<img src="${pic}" alt="${esc(w.name)}">` : `<span style="background:${avColor(w.name)}">${esc(w.name.charAt(0))}</span>`}<b class="wn-crown">👑</b></div>
+    <h1 class="wn-n">Congratulations, ${esc(w.name)}!</h1>
+    <p class="wn-s">Our new <b>${esc(e.title)}</b> for the Silver Jubilee Reunion</p>
+    <div class="wn-v"><span><b>${w.votes}</b> votes</span><span><b>${Math.round(w.votes / tot * 100)}%</b> share</span></div>
+    <div class="wn-r">${e.candidates.map((c, i) => `<div class="${c.id === w.id ? 'me' : ''}"><span>${i + 1}</span><em>${esc(c.name)}</em><b>${c.votes}</b></div>`).join('')}</div>
+    <a class="wn-cta" href="#chat">Send ${esc(w.name)} your wishes 🎉</a>
+  </section>`;
+}
 function homePage() {
+  const fe = S.elections.find(x => x.candidates.some(c => c.lost) && !isLive(x));
+  if (fe) return `${winnerCard(fe)}${footer()}`;
   const st = S.settings, me = S.myRsvp, m = S.monthPoll;
   const live = S.elections.filter(isLive), votedN = live.filter(e => e.myVote).length;
   const lead = m && m.total ? Object.entries(m.counts).filter(([w]) => w !== 'any').sort((a, b) => b[1] - a[1])[0] : null;
