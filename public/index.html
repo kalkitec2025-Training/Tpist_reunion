@@ -406,6 +406,8 @@
   .fz-r { display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid rgba(255,255,255,.08); } .fz-r:nth-child(2) { border-top:0; }
   .fz-r small { display:block; font-size:12px; color:var(--muted); } .fz-r b { font-size:16px; color:#fff; }
   .fz-l { margin:6px 0 0; padding-left:20px; color:#CBD5E1; font-size:14.5px; line-height:1.8; }
+  .fz-btns { display:flex; gap:10px; margin-top:6px; } .fz-btns a { flex:1; text-align:center; text-decoration:none; font-weight:800; border-radius:12px; padding:11px; background:#2DD4BF; color:#06201D; } .fz-btns a + a { background:#25D366; color:#062A12; }
+  .fz-mail { margin-top:12px; font-size:13px; color:var(--muted); text-align:center; } .fz-mail a { color:#5EEAD4; word-break:break-all; }
   .fz-c { margin-top:18px; } .fz-c a { color:#5EEAD4; word-break:break-all; }
   .fz-sig { margin-top:18px; font-weight:700; color:#fff; } .fz-sig span { font-weight:500; color:var(--muted); font-size:13px; }
   .fz-back { display:inline-block; margin-top:18px; background:#2DD4BF; color:#06201D; font-weight:800; border-radius:99px; padding:10px 18px; }
@@ -1545,7 +1547,12 @@ function showFrozen(f) {
       <div class="fz-k">What happens now</div>
       <ul class="fz-l"><li>Your registration and votes are saved safely.</li><li>There's nothing you need to do right now.</li><li>We'll message everyone on the WhatsApp group the day the app is back.</li></ul>
     </div>
-    <p class="fz-p fz-c">Questions? Write to us at <a href="mailto:${esc(f.contact)}">${esc(f.contact)}</a></p>
+    <div class="fz-card fz-ct">
+      <div class="fz-k">Questions?</div>
+      <div class="fz-r"><span class="an-ic">📞</span><div><small>Naveen · Program Coordinator</small><b>+91 98854 59969</b></div></div>
+      <div class="fz-btns"><a href="tel:+919885459969">📞 Call</a><a href="https://wa.me/919885459969?text=${encodeURIComponent('Hi Naveen, I have a question about our TPIST Silver Jubilee Reunion.')}" target="_blank" rel="noopener">💬 WhatsApp</a></div>
+      <div class="fz-mail">or email <a href="mailto:${esc(f.contact)}">${esc(f.contact)}</a></div>
+    </div>
     <div class="fz-sig">— Core Committee<br><span>TPIST Silver Jubilee Reunion</span></div>
     <div class="fz-back">See you in ${esc(f.back)} 👋</div>
   </div>`;
