@@ -666,12 +666,10 @@ app.post('/api/auth/logout', (req, res) => { res.clearCookie('sid'); res.json({ 
 // the app can be paused by the Core Committee: everyone sees a "back in January" note and nothing can be changed
 app.get('/api/status', (req, res) => {
   if (!db.settings.frozen) return res.json({ frozen: false });
-  const fe = db.elections.find(e => e.candidates.some(c => c.frozen != null));
-  const win = fe && (fe.candidates.find(c => c.id === fe.confirmedId) || fe.candidates.find(c => /^naveen\b/i.test(c.name)));
-  res.json({ frozen: true, back: 'January 2027', month: 'March 2027', venue: 'Radisson Blu Resort, Visakhapatnam', coordinator: win ? { title: fe.title, name: win.name } : null, contact: CORE_EMAIL });
+  res.json({ frozen: true, back: 'January 2027', month: 'March 2027', venue: 'Radisson Blu Resort, Visakhapatnam', coordinator: { title: 'Program Coordinator', name: 'Naveen' }, contact: CORE_EMAIL });
 });
 app.use('/api', (req, res, next) => {
-  if (db.settings.frozen && req.method !== 'GET' && !req.path.startsWith('/admin') && !req.path.startsWith('/auth')) return res.status(503).json({ error: 'The app is paused by the Core Committee until January 2027', frozen: true });
+  if (db.settings.frozen && req.method !== 'GET' && !req.path.startsWith('/admin')) return res.status(503).json({ error: 'The app is paused by the Core Committee until January 2027', frozen: true });
   if (!AUTH || req.path.startsWith('/admin') || req.path.startsWith('/auth') || req.path === '/config' || req.path === '/status') return next();
   const u = sessionUser(req);
   if (!u) return res.status(401).json({ error: 'Please sign in', signin: true });
@@ -1599,8 +1597,20 @@ function applyApprovalInit() {
   if (db.settings.requireApproval === undefined) db.settings.requireApproval = true;
   db.approvalInit = 1;
 }
+// 28 Nov 2026: the Core Committee asked for every account and all data to be deleted; only the pause page remains
+async function wipeAll() {
+  if (pool) { await pool.query('drop table if exists photos'); await pool.query('drop table if exists videos'); await pool.query('delete from app_state'); }
+  else { try { fs.rmSync(path.join(DATA_DIR, 'photos'), { recursive: true, force: true }); } catch {} }
+  const d = defaultDb();                  // new secret: every existing sign-in cookie stops working
+  d.users = {}; d.rsvps = {}; d.votes = {}; d.elections = []; d.chat = { users: {}, messages: [] }; d.album = []; d.activity = {}; d.games = { start: Date.now(), best: {}, plays: {} }; d.monthVotes = {};
+  d.settings.frozen = true;
+  Object.assign(d, { wiped: 1, pause1: 1, close30: 1, freeze1: 1, confirm2: 1, tpistAlbum: 1, venueList: 2, vendorPolls: 2, approvalInit: 1, schedNoPass: 1 });
+  db = d; await flush();
+  console.log('All accounts and data deleted (Core Committee request). The app shows only the pause page.');
+}
 async function main() {
   db = await loadDb();
+  if (db.wiped !== 1) await wipeAll();
   applyApprovalInit();
   applySchedNoPass();
   let vids = 0; for (const e of db.elections) for (const c of e.candidates) if (c.video) { delete c.video; vids++; }
