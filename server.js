@@ -624,6 +624,7 @@ function linkDevice(vid, key) {
 }
 app.get('/api/config', (req, res) => res.json({ auth: AUTH, googleClientId: GOOGLE_CLIENT_ID, testAuth: TEST_AUTH }));
 app.post('/api/auth/google', async (req, res) => {
+  if (db.settings.frozen) return res.status(503).json({ error: 'The app is paused by the Core Committee until January 2027', frozen: true });
   if (!AUTH) return res.status(400).json({ error: 'Sign-in is not set up' });
   if (req.body.privacy !== true) return res.status(400).json({ error: 'Please accept the privacy policy' });
   let g;
