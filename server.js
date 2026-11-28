@@ -432,10 +432,14 @@ function electionView(e, voterId, slot, admin = false) {
   if (admin) for (const v of Object.values(real)) realCounts[v.c] = (realCounts[v.c] || 0) + 1;
   const candidates = e.candidates.map((c, i) => ({
     id: c.id, name: c.name, note: c.note || '', info: c.info || null, isNew: c.joinSlot > 0,
-    votes: Math.max(0, counts[c.id] + (c.offset || 0)),
-    lastHour: last[c.id], i,
+    votes: c.frozen != null ? c.frozen : Math.max(0, counts[c.id] + (c.offset || 0)),
+    lastHour: c.frozen != null ? 0 : last[c.id], i, lost: c.frozen != null,
     ...(admin ? { offset: c.offset || 0, real: realCounts[c.id] || 0, by: c.by || 'admin' } : {})
-  })).sort((a, b) => b.votes - a.votes || a.i - b.i);
+  }));
+  // when some nominees are out (frozen), the ones still fighting always stay above them
+  const outMax = Math.max(-1, ...candidates.filter(c => c.lost).map(c => c.votes));
+  if (outMax >= 0) for (const c of candidates) if (!c.lost && c.votes <= outMax) c.votes = outMax + 2 + (c.i % 3);
+  candidates.sort((a, b) => b.votes - a.votes || a.i - b.i);
   const conf = e.confirmedId && e.candidates.find(c => c.id === e.confirmedId);
   const isLiveNow = !conf && (e.status || 'live') === 'live';
   if (!admin && !isLiveNow && !OPTION_POLL(e)) {
@@ -507,10 +511,13 @@ function monthPoll(uid) {
   for (const w of MONTH_RANGE) shown[w] = counts[w] || 0;
   if (counts.any) shown.any = counts.any;
   const hrs = Math.max(0, (Date.now() - (db.monthStart ||= Date.now())) / 3600000), slot = Math.floor(Date.now() / 3600000);
-  const crowd = 22 + 46 * (1 - Math.exp(-hrs / 120)) + Math.min(Math.floor(hrs / 6), 30);
+  // keep the month poll about as busy as the busiest live election (about 90% of its votes), and never below 60
+  let ref = 0; try { const sl = currentSlot(); for (const e of db.elections) if ((e.status || 'live') === 'live') ref = Math.max(ref, electionView(e, null, sl).total || 0); } catch (e) {}
+  const crowd = Math.max(60 + Math.min(Math.floor(hrs / 6), 40), ref * 0.9);
   MONTH_RANGE.forEach((w, i) => { const jit = (hash(strHash(w), slot) % 100) / 100; shown[w] += Math.max(0, Math.round(crowd * MONTH_WEIGHTS[i] * (0.9 + jit * 0.2))); });
   const lead = MONTH_RANGE[0], rest = Math.max(...MONTH_RANGE.slice(1).map(w => shown[w]));
-  if (shown[lead] <= rest) shown[lead] = rest + 2 + hash(slot, 11) % 4;
+  // March 2027 is set at about 145 votes, creeping up slowly over time
+  shown[lead] = Math.max(rest + 2, 145 + Math.min(Math.floor(hrs / 8), 40) + (counts[lead] || 0));
   if (mine && mine !== 'any' && !MONTH_RANGE.includes(mine)) mine = '';
   return { counts: shown, real: uid ? undefined : counts, months: MONTH_RANGE, total: Object.values(shown).reduce((a, b) => a + b, 0), mine, closesAt: db.settings.monthClosesAt || null, open: monthOpen() };
 }
@@ -715,6 +722,7 @@ app.post('/api/vote', (req, res) => {
   const e = findElection(req.body.electionId);
   if (!e) return res.status(404).json({ error: 'Election not found' });
   if (!e.candidates.some(c => c.id === req.body.candidateId)) return res.status(404).json({ error: 'Candidate not found' });
+  if (e.candidates.some(c => c.id === req.body.candidateId && c.frozen != null)) return res.status(403).json({ error: 'This nominee is out of the race' });
   if (e.confirmedId) return res.status(403).json({ error: 'This coordinator is already confirmed' });
   if ((e.status || 'live') !== 'live') return res.status(403).json({ error: e.status === 'upcoming' ? 'Voting has not started yet' : 'Voting has closed' });
   const box = (db.votes[e.id] ||= {});
@@ -1497,6 +1505,18 @@ function applyVendorPolls() {
   db.vendorPolls = 2;
 }
 
+// 28 Nov 2026: in the coordinator race, Vijay and Chandra are out; their votes are frozen at today's numbers
+function applyFreeze() {
+  if (db.freeze1 === 1) return;
+  const slot = currentSlot();
+  for (const e of db.elections) {
+    const out = e.candidates.filter(c => /^(vijay|chandra)\b/i.test(String(c.name).trim()));
+    if (out.length < 2 || !e.candidates.some(c => /^naveen\b/i.test(c.name)) || !e.candidates.some(c => /^narendra\b/i.test(c.name))) continue;
+    const view = electionView(e, null, slot, true);
+    for (const c of out) { const v = view.candidates.find(x => x.id === c.id); c.frozen = v ? v.votes : 0; }
+  }
+  db.freeze1 = 1; saveDb();
+}
 // confirmed on 24 Nov 2026: the Core Committee leads the event; Pixel Photography Vizag does photos and video
 const CORE_EMAIL = 'corecommitte.tpist.reunion@gmail.com';
 function applyConfirmations() {
@@ -1550,6 +1570,7 @@ async function main() {
   applyVenueList();
   applyVendorPolls();
   applyConfirmations();
+  applyFreeze();
   await applyTpistAlbum();
   await flush();
   app.listen(PORT, () => {
@@ -1561,4 +1582,4 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, async () => { try { if (db) await flush(); } finally { process.exit(0); } });
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { simulate, init: async () => { db = await loadDb(); applyApprovalInit(); applySchedNoPass(); applyVenueList(); applyVendorPolls(); applyConfirmations(); await applyTpistAlbum(); return db; }, getDb: () => db };
+module.exports = { simulate, init: async () => { db = await loadDb(); applyApprovalInit(); applySchedNoPass(); applyVenueList(); applyVendorPolls(); applyConfirmations(); applyFreeze(); await applyTpistAlbum(); return db; }, getDb: () => db };
