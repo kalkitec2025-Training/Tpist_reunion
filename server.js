@@ -532,6 +532,14 @@ function monthPoll(uid) {
 }
 const MONTH_RANGE = ['2027-03', '2027-04', '2027-05', '2027-06', '2027-07', '2027-08', '2027-09', '2027-10', '2027-11', '2027-12'];
 const MONTH_WEIGHTS = [0.31, 0.11, 0.08, 0.03, 0.03, 0.05, 0.06, 0.10, 0.07, 0.16];
+// 28 Nov 2026, 2:15 pm IST: the reunion month (March 2027) and the venue (Radisson Blu) are announced as fixed
+const ANNOUNCE_AT = Date.parse('2026-11-28T14:15:00+05:30');
+function announcement(uid) {
+  if (Date.now() < ANNOUNCE_AT) return null;
+  if (!db.settings.monthClosesAt || db.settings.monthClosesAt > ANNOUNCE_AT) { db.settings.monthClosesAt = ANNOUNCE_AT; saveDb(); }
+  const m = monthPoll(uid), mar = m.counts['2027-03'] || 0;
+  return { at: ANNOUNCE_AT, month: 'March 2027', monthVotes: mar, monthPct: m.total ? Math.round(mar / m.total * 100) : 0, monthTotal: m.total, venue: 'Radisson Blu Resort', venueArea: 'Rushikonda Beach Road, Visakhapatnam' };
+}
 function publicState(voterId) {
   autoClose();
   const slot = currentSlot();
@@ -548,6 +556,7 @@ function publicState(voterId) {
   return {
     me: acct ? { name: acct.name, email: acct.email, picture: acct.picture } : null,
     monthPoll: monthPoll(uid),
+    announce: announcement(uid),
     games: uid ? Object.keys(GAMES).map(g => gameBoard(g, uid)) : [],
     chatUnread: uid ? db.chat.messages.filter(m => m.to === uid && !m.read).length : 0,
     settings: db.settings,
