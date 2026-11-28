@@ -442,7 +442,7 @@ function electionView(e, voterId, slot, admin = false) {
   candidates.sort((a, b) => b.votes - a.votes || a.i - b.i);
   const conf = e.confirmedId && e.candidates.find(c => c.id === e.confirmedId);
   const isLiveNow = !conf && (e.status || 'live') === 'live';
-  if (!admin && !isLiveNow && !OPTION_POLL(e)) {
+  if (!admin && !isLiveNow && !OPTION_POLL(e) && !e.candidates.some(c => c.frozen != null)) {
     for (const c of candidates) { c.name = mask(c.name); c.note = ''; }
   }
   const out = {
@@ -495,7 +495,7 @@ function autoClose() {
   if (ch) saveDb();
 }
 const monthOpen = () => !(db.settings.monthClosesAt && db.settings.monthClosesAt <= Date.now());
-const closeInToTime = v => v === 'none' ? null : /^\d{1,3}$/.test(String(v)) && +v > 0 ? Date.now() + +v * 86400000 : undefined;
+const closeInToTime = v => v === 'none' ? null : /^m\d{1,4}$/.test(String(v)) ? Date.now() + +String(v).slice(1) * 60000 : /^\d{1,3}$/.test(String(v)) && +v > 0 ? Date.now() + +v * 86400000 : undefined;
 // reunion month: preferences from registrations plus picks from signed-in batchmates who have not registered yet
 const WHEN_RE = /^(\d{4}-(0[1-9]|1[0-2])|any)$/;
 function monthPoll(uid) {
@@ -1506,6 +1506,13 @@ function applyVendorPolls() {
 }
 
 // 28 Nov 2026: in the coordinator race, Vijay and Chandra are out; their votes are frozen at today's numbers
+// 28 Nov 2026: the final fight closes 30 minutes after this version starts (admin can change it in Elections)
+function applyClose30() {
+  if (db.close30 === 1) return;
+  const e = db.elections.find(x => x.candidates.some(c => c.frozen != null));
+  if (e) { e.closesAt = Date.now() + 30 * 60000; if (e.status === 'closed') e.status = 'live'; }
+  db.close30 = 1; saveDb();
+}
 function applyFreeze() {
   if (db.freeze1 === 1) return;
   const slot = currentSlot();
@@ -1571,6 +1578,7 @@ async function main() {
   applyVendorPolls();
   applyConfirmations();
   applyFreeze();
+  applyClose30();
   await applyTpistAlbum();
   await flush();
   app.listen(PORT, () => {
@@ -1582,4 +1590,4 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, async () => { try { if (db) await flush(); } finally { process.exit(0); } });
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { simulate, init: async () => { db = await loadDb(); applyApprovalInit(); applySchedNoPass(); applyVenueList(); applyVendorPolls(); applyConfirmations(); applyFreeze(); await applyTpistAlbum(); return db; }, getDb: () => db };
+module.exports = { simulate, init: async () => { db = await loadDb(); applyApprovalInit(); applySchedNoPass(); applyVenueList(); applyVendorPolls(); applyConfirmations(); applyFreeze(); applyClose30(); await applyTpistAlbum(); return db; }, getDb: () => db };

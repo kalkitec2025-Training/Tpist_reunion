@@ -362,6 +362,11 @@
   .lost-t { font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#fff; background:#DC2626; border-radius:6px; padding:2px 7px; transform:rotate(-4deg); display:inline-block; }
   .cand.lost .l1 span:first-child { text-decoration:line-through; text-decoration-color:#F87171; text-decoration-thickness:2px; opacity:.6; }
   .fx-cta { margin-top:12px; text-align:center; font-weight:700; color:#06201D; background:#2DD4BF; border-radius:12px; padding:11px; }
+  .cd-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; padding:10px 14px; border-radius:14px; background:linear-gradient(90deg, rgba(220,38,38,.28), rgba(249,115,22,.22)); border:1px solid rgba(248,113,113,.5); animation:cdGlow 1.6s ease-in-out infinite; }
+  .cd-bar span { font-size:13.5px; font-weight:700; color:#FECACA; } .cd-bar b { font-size:26px; font-weight:900; font-variant-numeric:tabular-nums; color:#fff; letter-spacing:.02em; }
+  .cd-bar.win { background:linear-gradient(90deg, rgba(245,197,66,.3), rgba(45,212,191,.2)); border-color:rgba(245,197,66,.6); animation:none; } .cd-bar.win span { color:#FDE68A; } .cd-bar.win b { font-size:20px; }
+  @keyframes cdGlow { 50% { box-shadow:0 0 18px rgba(248,113,113,.45); } }
+  .fight-live.done { color:var(--muted); animation:none; } .fx-cta.done { background:rgba(255,255,255,.1); color:var(--ink); }
   .alb-n { font-size:13px; color:var(--muted); }
   .tq { padding-bottom:4px; }
   .tq-top { margin-top:16px; padding:16px; }
@@ -1108,20 +1113,25 @@ function homePage() {
 }
 let homeAlbumLoading = false;
 const FIGHTER_PICS = { naveen: '/fighters/naveen.jpg', narendra: '/fighters/narendra.jpg' };
+const cdText = at => { const ms = Math.max(0, at - Date.now()), h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000), sec = Math.floor(ms % 60000 / 1000), pad = n => String(n).padStart(2, '0'); return h ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`; };
+setInterval(() => { let ended = false; document.querySelectorAll('[data-cd]').forEach(el => { const at = +el.dataset.cd; el.textContent = cdText(at); if (at <= Date.now()) ended = true; }); if (ended && !window._cdReload) { window._cdReload = 1; setTimeout(() => { window._cdReload = 0; load(); }, 2500); } }, 1000);
 function fightCard() {
-  const e = S.elections.find(x => isLive(x) && x.candidates.some(c => c.lost)) || S.elections.find(x => isLive(x) && x.kind === 'role' && x.candidates.length >= 2);
+  const e = S.elections.find(x => x.candidates.some(c => c.lost)) || S.elections.find(x => isLive(x) && x.kind === 'role' && x.candidates.length >= 2);
   if (!e) return '';
+  const done = !isLive(e);
   const C = e.candidates, a = C.find(c => !c.lost), b = C.filter(c => !c.lost)[1];
   if (!a || !b) return '';
   const tot = a.votes + b.votes || 1, ap = Math.round(a.votes / tot * 100);
   const fighter = (c, side) => `<div class="fx ${side}"><div class="fx-body">${side === 'r' ? '<span class="fx-g"><i><svg width="30" height="38" viewBox="0 0 30 38" aria-hidden="true"><rect x="7" y="29" width="15" height="8" rx="2" fill="#F8D34A"/><rect x="7" y="29" width="15" height="2.5" fill="#E0A800"/><path d="M6 13c0-7 5-11 11-11s10 4 10 11v8c0 5-4 8-9 8h-3c-5 0-9-3-9-8z" fill="#E11D2E"/><path d="M2.5 15c0-3 2-5 4.5-5v10c-2.5 0-4.5-2-4.5-5z" fill="#C8102E"/><path d="M11 6c2-2 6-2 8 0" stroke="#FF8A8F" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M10 22h11" stroke="#9F0F23" stroke-width="1.6" stroke-linecap="round"/></svg></i></span>' : ''}${FIGHTER_PICS[c.name.trim().split(/\s+/)[0].toLowerCase()] ? `<span class="fx-av fx-pic"><img src="${FIGHTER_PICS[c.name.trim().split(/\s+/)[0].toLowerCase()]}" alt="${esc(c.name)}"></span>` : `<span class="fx-av" style="background:${avColor(c.name)}">${esc(c.name.charAt(0))}</span>`}${side === 'l' ? '<span class="fx-g"><i><svg width="30" height="38" viewBox="0 0 30 38" aria-hidden="true"><rect x="7" y="29" width="15" height="8" rx="2" fill="#F8D34A"/><rect x="7" y="29" width="15" height="2.5" fill="#E0A800"/><path d="M6 13c0-7 5-11 11-11s10 4 10 11v8c0 5-4 8-9 8h-3c-5 0-9-3-9-8z" fill="#E11D2E"/><path d="M2.5 15c0-3 2-5 4.5-5v10c-2.5 0-4.5-2-4.5-5z" fill="#C8102E"/><path d="M11 6c2-2 6-2 8 0" stroke="#FF8A8F" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M10 22h11" stroke="#9F0F23" stroke-width="1.6" stroke-linecap="round"/></svg></i></span>' : ''}</div><b>${esc(c.name)}</b><small>${c.votes} votes</small></div>`;
   return `<a class="card fight" href="#vote/${esc(e.id)}">
-    <div class="hm-h"><h2>${esc(e.title)}</h2><span class="fight-live">● Final fight</span></div>
+    <div class="hm-h"><h2>${esc(e.title)}</h2>${done ? '<span class="fight-live done">Voting closed</span>' : '<span class="fight-live">● Final fight</span>'}</div>
+    ${!done && e.closesAt ? `<div class="cd-bar"><span>⏰ Voting closes in</span><b data-cd="${e.closesAt}">${cdText(e.closesAt)}</b></div>` : ''}
+    ${done ? `<div class="cd-bar win"><span>🏆 Winner</span><b>${esc(a.name)}</b></div>` : ''}
     <div class="fx-ring">${fighter(a, 'l')}<div class="fx-vs"><span class="fx-boom">💥</span><b>VS</b></div>${fighter(b, 'r')}</div>
     <div class="fx-bar"><span style="width:${ap}%"></span><span style="width:${100 - ap}%"></span></div>
     <div class="fx-pc"><span>${ap}%</span><span>${100 - ap}%</span></div>
-    <div class="fx-rank">${C.map((c, i) => `<div class="fr ${c.lost ? 'lost' : ''}"><span class="fr-k ${i < 3 ? 'k' + (i + 1) : ''}">${i + 1}</span><span class="fr-n">${esc(c.name)}</span><span class="fr-v">${c.votes}</span>${c.lost ? '<span class="lost-t">Lost</span>' : i === 0 ? '<span class="fr-lead">Leading</span>' : '<span class="fr-lead in">In the fight</span>'}</div>`).join('')}</div>
-    <div class="fx-cta">Vote now ›</div>
+    <div class="fx-rank">${C.map((c, i) => `<div class="fr ${c.lost ? 'lost' : ''}"><span class="fr-k ${i < 3 ? 'k' + (i + 1) : ''}">${i + 1}</span><span class="fr-n">${esc(c.name)}</span><span class="fr-v">${c.votes}</span>${c.lost ? '<span class="lost-t">Lost</span>' : i === 0 ? `<span class="fr-lead">${done ? '🏆 Winner' : 'Leading'}</span>` : `<span class="fr-lead in">${done ? 'Runner-up' : 'In the fight'}</span>`}</div>`).join('')}</div>
+    ${done ? '<div class="fx-cta done">See final results ›</div>' : '<div class="fx-cta">Vote now ›</div>'}
   </a>`;
 }
 
@@ -1224,7 +1234,7 @@ function electionPage(id) {
         <div class="row2"><button type="button" class="btn ghost sm" data-nomclose>Cancel</button><button class="btn acc sm">Add nominee</button></div></form>`
     : `<div style="margin:0 20px 12px"><button type="button" class="btn line" style="width:100%" data-nom="${esc(e.id)}">${svg(P.plus, 18)}Add a nominee</button></div>`) : '';
   return `${ticker()}<a class="back" href="#vote">‹ Polls</a>
-    <div class="ehead2">${icon(e)}<div style="min-width:0"><h1>${esc(e.title)}</h1><small>${e.total} votes · ${e.live ? 'counted live' : 'updated ' + time(S.updatedAt)}</small>${e.closesAt && isLive(e) && !e.confirmed ? `<small class="cl-t">Voting closes ${esc(closeTxt(e.closesAt))} · ${leftTxt(e.closesAt)}</small>` : ''}</div></div>
+    <div class="ehead2">${icon(e)}<div style="min-width:0"><h1>${esc(e.title)}</h1><small>${e.total} votes · ${e.live ? 'counted live' : 'updated ' + time(S.updatedAt)}</small>${e.closesAt && isLive(e) && !e.confirmed ? (e.closesAt - Date.now() < 86400000 ? `<small class="cl-t">⏰ Voting closes in <b data-cd="${e.closesAt}">${cdText(e.closesAt)}</b></small>` : `<small class="cl-t">Voting closes ${esc(closeTxt(e.closesAt))} · ${leftTxt(e.closesAt)}</small>`) : ''}</div></div>
     ${e.confirmed ? `<div class="note-bar ok">${svg(P.check, 18)}<span>${e.confirmed.name ? `<b>${esc(e.confirmed.name)}</b> is confirmed${isOpt(e) ? '' : ' as ' + esc(e.title)}.` : `The ${esc(e.title)} is confirmed.`} Voting for this role is closed.</span></div>`
       : e.status === 'upcoming' ? `<div class="note-bar">${svg(P.info, 18)}<span>Voting for this role opens soon.${e.openNominations ? ' You can add nominees now.' : ''}</span></div>`
       : e.status === 'closed' ? `<div class="note-bar">${svg(P.info, 18)}<span>Voting for this role has closed.</span></div>`
