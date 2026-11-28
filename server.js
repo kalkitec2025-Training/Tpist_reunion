@@ -663,8 +663,16 @@ app.post('/api/track', (req, res) => {
 });
 app.post('/api/auth/logout', (req, res) => { res.clearCookie('sid'); res.json({ ok: true }); });
 // when sign-in is set up, the app's data needs a signed-in user
+// the app can be paused by the Core Committee: everyone sees a "back in January" note and nothing can be changed
+app.get('/api/status', (req, res) => {
+  if (!db.settings.frozen) return res.json({ frozen: false });
+  const fe = db.elections.find(e => e.candidates.some(c => c.frozen != null));
+  const win = fe && (fe.candidates.find(c => c.id === fe.confirmedId) || fe.candidates.find(c => /^naveen\b/i.test(c.name)));
+  res.json({ frozen: true, back: 'January 2027', month: 'March 2027', venue: 'Radisson Blu Resort, Visakhapatnam', coordinator: win ? { title: fe.title, name: win.name } : null, contact: CORE_EMAIL });
+});
 app.use('/api', (req, res, next) => {
-  if (!AUTH || req.path.startsWith('/admin') || req.path.startsWith('/auth') || req.path === '/config') return next();
+  if (db.settings.frozen && req.method !== 'GET' && !req.path.startsWith('/admin') && !req.path.startsWith('/auth')) return res.status(503).json({ error: 'The app is paused by the Core Committee until January 2027', frozen: true });
+  if (!AUTH || req.path.startsWith('/admin') || req.path.startsWith('/auth') || req.path === '/config' || req.path === '/status') return next();
   const u = sessionUser(req);
   if (!u) return res.status(401).json({ error: 'Please sign in', signin: true });
   if (u.approval && u.approval !== 'approved') return res.status(403).json({ error: 'Waiting for approval', approval: u.approval, name: u.name || '', email: u.email || '' });
@@ -1134,6 +1142,7 @@ A.put('/settings', (req, res) => {
   for (const k of ['votingOpen', 'rsvpOpen']) if (typeof b[k] === 'boolean') s[k] = b[k];
   if (typeof b.requireApproval === 'boolean') s.requireApproval = b.requireApproval;
   if (typeof b.albumApproval === 'boolean') s.albumApproval = b.albumApproval;
+  if (typeof b.frozen === 'boolean') s.frozen = b.frozen;
   if (b.monthCloseIn !== undefined && b.monthCloseIn !== 'keep') { const t = closeInToTime(b.monthCloseIn); if (t !== undefined) s.monthClosesAt = t; }
   if (typeof b.albumLink === 'string') s.albumLink = /^https:\/\//.test(b.albumLink.trim()) ? str(b.albumLink.trim(), 500) : '';
   if (b.whatsapp && typeof b.whatsapp === 'object') {
@@ -1525,6 +1534,11 @@ function applyVendorPolls() {
 
 // 28 Nov 2026: in the coordinator race, Vijay and Chandra are out; their votes are frozen at today's numbers
 // 28 Nov 2026: the final fight closes 30 minutes after this version starts (admin can change it in Elections)
+// 28 Nov 2026: the Core Committee pauses the app until January 2027 (switch it back on in Admin → Settings)
+function applyPause() {
+  if (db.pause1 === 1) return;
+  db.settings.frozen = true; db.pause1 = 1; saveDb();
+}
 function applyClose30() {
   if (db.close30 === 1) return;
   const e = db.elections.find(x => x.candidates.some(c => c.frozen != null));
@@ -1597,6 +1611,7 @@ async function main() {
   applyConfirmations();
   applyFreeze();
   applyClose30();
+  applyPause();
   await applyTpistAlbum();
   await flush();
   app.listen(PORT, () => {
@@ -1608,4 +1623,4 @@ for (const sig of ['SIGTERM', 'SIGINT']) {
   process.on(sig, async () => { try { if (db) await flush(); } finally { process.exit(0); } });
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { simulate, init: async () => { db = await loadDb(); applyApprovalInit(); applySchedNoPass(); applyVenueList(); applyVendorPolls(); applyConfirmations(); applyFreeze(); applyClose30(); await applyTpistAlbum(); return db; }, getDb: () => db };
+module.exports = { simulate, init: async () => { db = await loadDb(); applyApprovalInit(); applySchedNoPass(); applyVenueList(); applyVendorPolls(); applyConfirmations(); applyFreeze(); applyClose30(); applyPause(); await applyTpistAlbum(); return db; }, getDb: () => db };

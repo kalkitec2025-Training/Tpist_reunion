@@ -396,6 +396,19 @@
   .an-fx { font-size:11.5px; font-weight:800; color:#06201D; background:#2DD4BF; border-radius:99px; padding:4px 10px; }
   .an-p { margin:14px 0 0; font-size:13.5px; color:#CBD5E1; line-height:1.5; }
   .an-cta { display:block; margin-top:14px; text-align:center; background:#2DD4BF; color:#06201D; font-weight:800; text-decoration:none; border-radius:14px; padding:13px; } .an-ok { margin-top:14px; text-align:center; color:#86EFAC; font-weight:700; }
+  body.frozen-app nav.tabs { display:none !important; }
+  .fz { max-width:520px; margin:0 auto; padding:24px 20px 40px; text-align:center; }
+  .fz-badge { display:inline-block; font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#5EEAD4; background:rgba(45,212,191,.14); border:1px solid rgba(45,212,191,.35); border-radius:99px; padding:6px 12px; }
+  .fz-ic { font-size:54px; margin-top:18px; } .fz-h { margin:8px 0 12px; font-size:28px; color:#fff; }
+  .fz-p { color:#CBD5E1; font-size:15px; line-height:1.6; margin:0 0 12px; } .fz-p b { color:#fff; }
+  .fz-card { text-align:left; background:rgba(15,23,42,.6); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:14px 16px; margin-top:14px; }
+  .fz-k { font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  .fz-r { display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid rgba(255,255,255,.08); } .fz-r:nth-child(2) { border-top:0; }
+  .fz-r small { display:block; font-size:12px; color:var(--muted); } .fz-r b { font-size:16px; color:#fff; }
+  .fz-l { margin:6px 0 0; padding-left:20px; color:#CBD5E1; font-size:14.5px; line-height:1.8; }
+  .fz-c { margin-top:18px; } .fz-c a { color:#5EEAD4; word-break:break-all; }
+  .fz-sig { margin-top:18px; font-weight:700; color:#fff; } .fz-sig span { font-weight:500; color:var(--muted); font-size:13px; }
+  .fz-back { display:inline-block; margin-top:18px; background:#2DD4BF; color:#06201D; font-weight:800; border-radius:99px; padding:10px 18px; }
   .alb-n { font-size:13px; color:var(--muted); }
   .tq { padding-bottom:4px; }
   .tq-top { margin-top:16px; padding:16px; }
@@ -784,8 +797,10 @@ const isEmojiOnly = t => { const x = t.replace(/\s/g, ''); return x.length <= 12
 const AVC = ['#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#EF4444', '#14B8A6', '#6366F1', '#F97316', '#0EA5E9'];
 const avColor = n => { let h = 0; for (const ch of String(n || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return AVC[h % AVC.length]; };
 function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
+let FROZEN = null;
 async function load() {
   try {
+    if (FROZEN === null || FROZEN.frozen) { FROZEN = await (await fetch('/api/status', { cache:'no-store' })).json().catch(() => ({ frozen: false })); if (FROZEN.frozen) { showFrozen(FROZEN); return; } }
     const r = await fetch('/api/state', { cache:'no-store' });
     if (r.status === 401) { S = null; showSignin(); return; }
     if (r.status === 403) { const d = await r.json().catch(() => ({})); if (d.approval) { S = null; showWaiting(d); return; } }
@@ -1511,6 +1526,29 @@ function showWaiting(d) {
       <div style="margin-top:16px;font-size:13px;color:var(--muted)">Signed in as <b style="color:var(--ink)">${esc(d.email || d.name || '')}</b></div>
       <div style="display:flex;gap:10px;justify-content:center;margin-top:18px">${no ? '' : '<button type="button" class="btn acc" data-recheck>Check again</button>'}<button type="button" class="btn ghost" data-signout>Sign out</button></div>
     </div><div class="foot">Reunion Organising Committee</div>`;
+}
+function showFrozen(f) {
+  document.body.classList.add('signin', 'frozen-app'); S = null;
+  $('view').innerHTML = `<div class="fz">
+    <div class="fz-badge">A note from the Core Committee</div>
+    <div class="fz-ic">🛠️</div>
+    <h1 class="fz-h">We're taking a short break</h1>
+    <p class="fz-p">Dear batchmates, thank you for the overwhelming response! In just a few weeks you registered, voted and reconnected, and together we've made the big decisions for our Silver Jubilee.</p>
+    <p class="fz-p">The app is now paused while the Core Committee works on the bookings and arrangements. It will be back in <b>${esc(f.back)}</b> with the full programme, room details and travel plans.</p>
+    <div class="fz-card">
+      <div class="fz-k">What we've decided</div>
+      <div class="fz-r"><span class="an-ic an-cal"><i>MAR</i><b>'27</b></span><div><small>Reunion month</small><b>${esc(f.month)}</b></div></div>
+      <div class="fz-r"><span class="an-ic">📍</span><div><small>Venue</small><b>${esc(f.venue)}</b></div></div>
+      ${f.coordinator ? `<div class="fz-r"><span class="an-ic">🏆</span><div><small>${esc(f.coordinator.title)}</small><b>${esc(f.coordinator.name)}</b></div></div>` : ''}
+    </div>
+    <div class="fz-card">
+      <div class="fz-k">What happens now</div>
+      <ul class="fz-l"><li>Your registration and votes are saved safely.</li><li>There's nothing you need to do right now.</li><li>We'll message everyone on the WhatsApp group the day the app is back.</li></ul>
+    </div>
+    <p class="fz-p fz-c">Questions? Write to us at <a href="mailto:${esc(f.contact)}">${esc(f.contact)}</a></p>
+    <div class="fz-sig">— Core Committee<br><span>TPIST Silver Jubilee Reunion</span></div>
+    <div class="fz-back">See you in ${esc(f.back)} 👋</div>
+  </div>`;
 }
 function showSignin() {
   document.body.classList.add('signin');

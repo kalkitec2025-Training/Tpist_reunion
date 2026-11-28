@@ -464,6 +464,8 @@ function settings() {
     <label class="check mt"><input type="checkbox" name="wa_show" ${(s.whatsapp || {}).show !== false ? 'checked' : ''}> Show the WhatsApp Group section on Home</label>
     <h2 class="mt" style="margin-top:22px">Access</h2>
     <label class="check"><input type="checkbox" name="requireApproval" ${s.requireApproval !== false ? 'checked' : ''}> New Google sign-ins need my approval before they can use the app</label>
+    <h2 class="mt" style="margin-top:22px">Pause the app</h2>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" name="frozen" ${s.frozen ? 'checked' : ''}> App paused: everyone sees the Core Committee's "back in January 2027" note, and nothing can be changed. Untick to bring the app back.</label>
     <h2 class="mt" style="margin-top:22px">Album</h2>
     <label class="check" style="margin-bottom:10px"><input type="checkbox" name="albumApproval" ${s.albumApproval !== false ? 'checked' : ''}> New album photos need approval (Admin or Core Committee) before others can see them</label>
     <div><label>Google Photos shared album link (everyone adds the full set of photos here)</label><input type="text" name="albumLink" value="${esc(s.albumLink || '')}" placeholder="https://photos.app.goo.gl/…"></div>
@@ -606,6 +608,7 @@ document.addEventListener('submit', run(async e => {
     for (const k of Object.keys(d)) if (k.startsWith('pass_')) delete d[k];
     d.requireApproval = !!d.requireApproval;
     d.albumApproval = !!d.albumApproval;
+    d.frozen = !!d.frozen;
     d.whatsapp = { show: !!d.wa_show, active: +d.wa_active, left: +d.wa_left, admins: +d.wa_admins,
       locations: String(d.wa_locations || '').split('\n').map(x => x.split(':')).filter(x => x[0] && x[0].trim()).map(([pl, c]) => ({ place: pl.trim(), count: +(c || 0) })) };
     for (const k of Object.keys(d)) if (k.startsWith('wa_')) delete d[k];
