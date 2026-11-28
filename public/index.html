@@ -1541,15 +1541,15 @@ function showFrozen(f) {
       <div class="fz-k">What we've decided</div>
       <div class="fz-r"><span class="an-ic an-cal"><i>MAR</i><b>'27</b></span><div><small>Reunion month</small><b>${esc(f.month)}</b></div></div>
       <div class="fz-r"><span class="an-ic">📍</span><div><small>Venue</small><b>${esc(f.venue)}</b></div></div>
-      ${f.coordinator ? `<div class="fz-r"><span class="an-ic">🏆</span><div><small>${esc(f.coordinator.title)}</small><b>${esc(f.coordinator.name)}</b></div></div>` : ''}
+      ${f.coordinator ? `<div class="fz-r"><span class="an-ic">🏆</span><div><small>${esc(f.coordinator.title)} · elected to the Core Committee</small><b>${esc(f.coordinator.name)}</b></div></div>` : ''}
     </div>
     <div class="fz-card">
       <div class="fz-k">What happens now</div>
-      <ul class="fz-l"><li>Your registration and votes are saved safely.</li><li>There's nothing you need to do right now.</li><li>We'll message everyone on the WhatsApp group the day the app is back.</li></ul>
+      <ul class="fz-l"><li>Your registration and votes are saved safely.</li><li>There's nothing you need to do right now.</li><li>We'll message everyone on the WhatsApp group the day the app is back.</li><li>For any queries or updates in the meantime, call Naveen, our Program Coordinator on the Core Committee.</li></ul>
     </div>
     <div class="fz-card fz-ct">
-      <div class="fz-k">Questions?</div>
-      <div class="fz-r"><span class="an-ic">📞</span><div><small>Naveen · Program Coordinator</small><b>+91 98854 59969</b></div></div>
+      <div class="fz-k">Queries or updates? Call Naveen</div>
+      <div class="fz-r"><span class="an-ic">📞</span><div><small>Naveen · Program Coordinator, Core Committee</small><b>+91 98854 59969</b></div></div>
       <div class="fz-btns"><a href="tel:+919885459969">📞 Call</a><a href="https://wa.me/919885459969?text=${encodeURIComponent('Hi Naveen, I have a question about our TPIST Silver Jubilee Reunion.')}" target="_blank" rel="noopener">💬 WhatsApp</a></div>
       <div class="fz-mail">or email <a href="mailto:${esc(f.contact)}">${esc(f.contact)}</a></div>
     </div>
